@@ -1,0 +1,29 @@
+
+{
+  "银行 / Bank / 은행": {
+    "釜山银行 / Busan Bank / 부산은행": {
+      "related": [
+        "釜山银行沙下区网点 / Busan Bank Saha-gu Branch / 부산은행 사하구 지점",
+        "釜山银行总行 / Busan Bank Headquarters / 부산은행 본점"
+      ],
+      "other_pick": "BNK釜山银行 / BNK Busan Bank / BNK 부산은행"
+    }
+  },
+  "政府机关 / Government / 정부 기관": {
+    "釜山市政府 / Busan Metropolitan Government / 부산광역시청": {
+      "related": [
+        "釜山出入境管理事务所 / Busan Immigration Office / 부산출입국관리사무소"
+      ],
+      "other_pick": "海云台区厅 / Haeundae-gu Office / 해운대구청"
+    }
+  },
+  "文旅设施 / Tourism / 관광 시설": {
+    "景点 / Attractions / 명소": {
+      "related": [
+        "甘川文化村 / Gamcheon Culture Village / 감천문화마을",
+        "多大浦海水浴场 / Dadaepo Beach / 다대포해수욕장"
+      ],
+      "other_pick": "洛东江河口生态中心 / Nakdonggang Estuary Eco Center / 낙동강하구생태센터"
+    }
+  }
+}
