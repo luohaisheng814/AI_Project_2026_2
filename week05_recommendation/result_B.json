@@ -1,0 +1,35 @@
+{
+  "profile": {
+    "interests": [
+      "Statistics"
+    ],
+    "level": "intermediate",
+    "available_minutes": 90
+  },
+  "result": {
+    "recommendations": [
+      {
+        "id": "C4",
+        "reason_ko": "사용자의 관심사 'Statistics'와 일치하며, 수준이 'intermediate'로 같고, 60분으로 사용자의 가용 시간 90분을 초과하지 않습니다.",
+        "reason_zh": "课程标签与用户兴趣'Statistics'匹配，等级为'intermediate'与用户等级一致，且时长60分钟未超过用户可用时间90分钟。"
+      }
+    ],
+    "excluded": [
+      {
+        "id": "C1",
+        "reason_ko": "수준이 'beginner'로 사용자 수준 'intermediate'와 다르고, 태그가 'AI'로 사용자 관심사 'Statistics'와 일치하지 않습니다.",
+        "reason_zh": "等级为'beginner'与用户等级'intermediate'不符，且标签'AI'与用户兴趣'Statistics'不匹配。"
+      },
+      {
+        "id": "C2",
+        "reason_ko": "수준이 'advanced'로 사용자 수준 'intermediate'와 다르고, 태그가 'AI'로 사용자 관심사 'Statistics'와 일치하지 않습니다.",
+        "reason_zh": "等级为'advanced'与用户等级'intermediate'不符，且标签'AI'与用户兴趣'Statistics'不匹配。"
+      },
+      {
+        "id": "C3",
+        "reason_ko": "수준이 'beginner'로 사용자 수준 'intermediate'와 다르고, 태그가 'VR'로 사용자 관심사 'Statistics'와 일치하지 않습니다.",
+        "reason_zh": "等级为'beginner'与用户等级'intermediate'不符，且标签'VR'与用户兴趣'Statistics'不匹配。"
+      }
+    ]
+  }
+}
