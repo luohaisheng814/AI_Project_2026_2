@@ -1,0 +1,21 @@
+[app]
+title = 釜山沙下区文旅问答
+package.name = busan_qa
+package.domain = com.yourname.busanqa
+source.dir = .
+source.include_exts = py,png,jpg,kv,txt,json
+version = 1.0.0
+requirements = python3,kivy,kivymd,requests
+orientation = portrait
+fullscreen = 0
+android.permissions = INTERNET
+android.api = 33
+android.minapi = 21
+android.ndk = 25b
+android.gradle_dependencies =
+android.enable_androidx = True
+android.add_src =
+android.add_res =
+android.add_assets = rules.txt,activity_classified
+presplash.filename =
+icon.filename =
