@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # 修改为 22.04 以兼容 libtinfo5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           pip install buildozer cython==0.29.33
 
       - name: Build with Buildozer
-        working-directory: ./Busan  # ⚠️警告：如果你的文件夹叫"釜山"，请把这里的Busan改成釜山
+        working-directory: ./Busan  # 确认文件夹名是 Busan
         run: |
           yes | buildozer -v android debug
 
@@ -42,4 +42,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: busan-app-debug
-          path: Busan/bin/*.apk  # ⚠️警告：如果你的文件夹叫"釜山"，请把这里的Busan改成釜山
+          path: Busan/bin/*.apk  # 确认文件夹名是 Busan
