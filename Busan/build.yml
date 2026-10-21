@@ -1,0 +1,26 @@
+name: Build Kivy APK
+on:
+  workflow_dispatch: # 允许在 Actions 页面手动点击运行
+  push:
+    branches: [ main ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          workdir: 釜山  # 指定你的代码所在子目录
+          buildozer_version: stable
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: busan-app-debug
+          path: ${{ steps.buildozer.outputs.filename }}
