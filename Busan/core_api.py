@@ -1,36 +1,54 @@
-"""核心逻辑接口（确保返回纯字符串，不返回列表或元组）"""
+# -*- coding: utf-8 -*-
+# """
+#core_api.py —— LLM 接口层（OpenAI 兼容协议）
+#--------------------------------------------------
+#一处配置通吃多家：
 
-SPOT_INFO = {
-    "甘川文化村": "位于沙下区的艺术村落，以彩色壁画和阶梯式建筑闻名。",
-    "多大浦海水浴场": "适合看日落的海水浴场，夏季有梦幻夕阳喷泉。",
-    "洛东江河口生态中心": "可以观察湿地生态和候鸟的天然教育场。"
-}
+import requests
 
-def ask(question, session_id="default"):
-    """统一的问答接口，必须返回纯字符串"""
-    if not question or not question.strip():
-        return ""
-        
-    if "沙下区" in question or "景点" in question:
-        reply = "📍 沙下区核心景点：甘川文化村、多大浦海水浴场、洛东江河口生态中心等。"
-    else:
-        spot_found = None
-        for spot in SPOT_INFO:
-            if spot in question:
-                spot_found = spot
-                break
-        
-        if spot_found:
-            if "概况" in question:
-                reply = f"🤖 {spot_found}概况：{SPOT_INFO[spot_found]}"
-            elif "怎么去" in question:
-                reply = f"🚇 前往{spot_found}：建议乘坐釜山地铁1号线。"
-            else:
-                reply = f"🤖 系统：已识别到{spot_found}，请问需要了解概况还是交通？"
-        else:
-            reply = "💡 未识别到景点，试试：甘川文化村 概况 / 多大浦海水浴场 怎么去"
-            
-    return reply
+import config
 
-def reset_session(session_id):
-    print(f"Session {session_id} reset.")
+
+def is_configured():
+    return bool(config.LLM_API_KEY)
+
+
+def _endpoint():
+    return config.LLM_BASE_URL.rstrip("/") + "/chat/completions"
+
+
+def chat(messages, temperature=None, timeout=None, model=None):
+    """成功 -> 返回模型输出字符串；失败 -> 返回 None（由上层降级）。"""
+    if not is_configured():
+        return None
+
+    payload = {
+        "model": model or config.LLM_MODEL,
+        "messages": messages,
+        "temperature": config.LLM_TEMPERATURE if temperature is None else temperature,
+        "stream": False,
+    }
+    headers = {
+        "Authorization": "Bearer " + config.LLM_API_KEY,
+        "Content-Type": "application/json",
+    }
+    try:
+        r = requests.post(_endpoint(), headers=headers, json=payload,
+                          timeout=timeout or config.LLM_TIMEOUT)
+        if r.status_code != 200:
+            return None
+        return r.json()["choices"][0]["message"]["content"].strip()
+    except Exception:      # noqa: BLE001  网络/解析异常一律降级
+        return None
+
+
+def complete(system, user, **kw):
+    """便捷写法：直接给 system / user 两段文本。"""
+    return chat([{"role": "system", "content": system},
+                 {"role": "user", "content": user}], **kw)
+
+
+if __name__ == "__main__":
+    print("is_configured:", is_configured())
+    if is_configured():
+        print(complete("你只回答两个字：你好", "打个招呼"))

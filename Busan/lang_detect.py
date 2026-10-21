@@ -1,15 +1,47 @@
-def detect_language(text):
-    """检测文本语言"""
-    if not text: return 'unknown'
-    zh_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-    ko_count = sum(1 for c in text if '\uac00' <= c <= '\ud7af')
-    en_count = sum(1 for c in text if 'a' <= c.lower() <= 'z')
-    
-    if zh_count > ko_count and zh_count > en_count: return 'zh'
-    if ko_count > zh_count and ko_count > en_count: return 'ko'
-    if en_count > zh_count and en_count > ko_count: return 'en'
-    return 'unknown'
+import re
+import config
 
-def get_language_name(lang_code):
-    names = {'zh': '🇨🇳 中文', 'ko': '🇰🇷 한국어', 'en': '🇺🇸 English'}
-    return names.get(lang_code, '未知')
+RE_HANGUL = re.compile(r"[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]")   # 谚文
+RE_HAN = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")                   # 汉字
+RE_LATIN = re.compile(r"[A-Za-z]")
+
+SUPPORTED = ("zh", "ko", "en")
+
+
+def scores(text):
+    t = text or ""
+    return {"ko": len(RE_HANGUL.findall(t)),
+            "zh": len(RE_HAN.findall(t)),
+            "en": len(RE_LATIN.findall(t))}
+
+
+def detect(text):
+    """返回 zh / ko / en / None（None = 识别不出）。"""
+    s = scores(text)
+    if s["ko"] > 0:
+        return "ko"
+    if s["zh"] > 0:
+        return "zh"
+    if s["en"] > 0:
+        return "en"
+    return None
+
+
+def resolve(question, ui_lang=None):
+    """决定本次回答语言：优先提问语言，识别不出才用界面语言。"""
+    ui_lang = ui_lang or getattr(config, "DEFAULT_LANG", "zh") or "zh"
+    if ui_lang not in SUPPORTED:
+        ui_lang = "zh"
+
+    if getattr(config, "ANSWER_LANG_MODE", "question") == "ui":
+        return ui_lang
+    return detect(question) or ui_lang
+
+
+def detect_name(lang):
+    return {"zh": "中文", "ko": "한국어", "en": "English"}.get(lang, lang)
+
+
+if __name__ == "__main__":
+    for s in ["甘川文化村 交通", "감천문화마을 교통", "How do I get to Gamcheon?", "甘川文化村", "1234"]:
+        print(f"{s!r:40} detect={detect(s)}  resolve(zh 界面)={resolve(s, 'zh')}")
