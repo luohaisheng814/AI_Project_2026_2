@@ -88,32 +88,64 @@ LABEL_MAP = {
 
 # ---------------- 提问意图规则（顺序即优先级，越具体越靠前） ----------------
 INTENT_RULES = [
-    ("source", ["来源网址", "来源", "出处", "网址", "官网", "链接", "출처", "공식사이트", "공식 사이트",
-                "source", "website", "official", "link", "url"]),
-    ("transport", ["怎么去", "怎么走", "如何去", "怎么到达", "怎么过去", "交通", "坐地铁", "地铁", "公交",
-                   "巴士", "公交巴士", "打车", "停车", "교통", "가는법", "가는 법", "지하철", "버스",
+    ("source", ["来源网址", "来源", "出处", "网址", "官网", "链接", "공식홈페이지", "출처", "공식사이트", "공식 사이트",
+                "source", "website", "official site", "official", "link", "url"]),
+    ("transport", ["怎么去", "怎么走", "如何去", "怎么到达", "怎么过去", "坐地铁", "地铁", "公交", "巴士",
+                   "公交巴士", "打车", "停车", "地铁几号线", "哪个出口", "几号口", "怎么坐车", "怎么坐",
+                   "교통", "가는법", "가는 법", "지하철", "버스", "어떻게 가요", "몇 호선", "몇 번 출구",
                    "transportation", "transport", "how to get", "how do i get", "how do i go",
-                   "get to", "go to", "getting there", "subway", "bus",
-                   "access", "direction"]),
-    ("hours", ["开放时间", "开放信息", "营业时间", "运营时间", "几点开门", "几点关门", "几点", "开放",
-               "开门", "关门", "개방시간", "운영시간", "개방", "운영 시간", "몇 시",
-               "opening hours", "when does", "opening", "hours", "open time", "open"]),
-    ("ticket", ["多少钱", "门票", "票价", "收费", "免费吗", "要钱吗", "费用", "입장료", "요금", "무료",
-                "ticket", "price", "fee", "cost", "admission", "free"]),
-    ("photo", ["拍照", "出片", "打卡", "摄影", "사진", "포토", "촬영", "photo", "picture", "instagram"]),
-    ("food", ["美食", "吃什么", "餐厅", "好吃", "맛집", "음식", "food", "restaurant", "eat"]),
+                   "get to", "go to", "getting there", "subway", "bus", "which exit", "which line",
+                   "access", "direction", "directions"]),
+    ("hours", ["开放时间", "开放信息", "营业时间", "运营时间", "几点开门", "几点关门", "几点闭馆", "几点",
+               "开放", "开门", "关门", "开吗", "今天开吗", "现在开吗", "休馆", "休演", "휴관", "휴일",
+               "개방시간", "운영시간", "개방", "운영 시간", "몇 시", "언제 열어요", "언제 닫아요",
+               "opening hours", "when does", "opening", "hours", "open time", "open", "open today", "closed"]),
+    ("ticket", ["多少钱", "门票", "票价", "收费", "免费吗", "要钱吗", "费用", "门票多少", "要不要钱",
+                "입장료", "요금", "무료", "얼마예요",
+                "ticket", "price", "fee", "cost", "admission", "free", "how much"]),
+    ("photo", ["拍照", "出片", "打卡", "摄影", "拍照点", "机位", "哪里拍照", "사진", "포토", "촬영", "포토스팟",
+               "photo", "picture", "instagram", "photo spot"]),
+    ("food", ["美食", "吃什么", "餐厅", "好吃", "附近吃", "小吃", "맛집", "음식", "식당",
+              "food", "restaurant", "eat", "where to eat"]),
     ("course", ["怎么玩", "游玩路线", "推荐路线", "游览路线", "行程", "路线", "安排", "半天", "一日",
-                "추천 코스", "코스", "관람 코스", "itinerary", "course", "route", "plan", "how to play"]),
-    ("audience", ["适合人群", "适合谁", "什么人", "带小孩", "带孩子", "적합", "추천 대상",
-                  "suitable", "best for", "who should"]),
-    ("tips", ["注意", "贴士", "建议", "准备", "穿什么", "주의", "팁", "tip", "advice", "note", "prepare"]),
-    ("stay", ["住宿", "住哪", "酒店", "숙소", "hotel", "stay", "accommodation"]),
-    ("around", ["周边", "附近", "旁边", "주변", "근처", "nearby", "around"]),
-    ("history", ["历史", "由来", "背景", "为什么叫", "역사", "유래", "history", "background"]),
+                "玩多久", "玩多长时间", "建议玩多久", "추천 코스", "코스", "관람 코스", "얼마나 둘러봐요",
+                "itinerary", "course", "route", "plan", "how to play", "how long"]),
+    ("audience", ["适合人群", "适合谁", "什么人", "带小孩", "带孩子", "婴儿车", "轮椅", "적합", "추천 대상",
+                  "suitable", "best for", "who should", "stroller", "wheelchair"]),
+    ("tips", ["注意", "贴士", "建议", "准备", "穿什么", "注意什么", "要注意", "주의", "팁", "유의사항",
+              "tip", "advice", "note", "prepare", "what to know"]),
+    ("stay", ["住宿", "住哪", "酒店", "숙소", "호텔", "hotel", "stay", "accommodation"]),
+    ("around", ["周边", "附近", "旁边", "周边景点", "주변", "근처", "nearby", "around", "near"]),
+    ("history", ["历史", "由来", "背景", "为什么叫", "历史背景", "역사", "유래", "유래가",
+                 "history", "background", "origin"]),
     ("overview", ["介绍", "简介", "概况", "详情", "详细", "什么样", "是什么", "怎么样", "好玩吗",
-                  "개요", "소개", "어때", "about", "overview", "introduction", "introduce",
-                  "what is", "tell me about", "info"]),
+                  "有什么好玩的", "有什么好看的", "소개", "개요", "어때", "어떤 곳",
+                  "about", "overview", "introduction", "introduce", "what is", "tell me about", "info"]),
 ]
+
+
+# ---------------- 新景点别名提示（帮助 spot 识别，与 classified txt 中别名行互补） ----------------
+EXTRA_SPOT_HINTS = [
+    "没云台", "몰운대", "Molundae",
+    "乙淑岛", "을숙도", "Eulsukdo", "乙淑岛候鸟公园",
+    "梦之夕阳喷泉", "꿈의낙조분수", "梦幻夕阳喷泉",
+]
+
+
+def recognize_summary(question, spot_name=None, field=None, lang=None):
+    """生成状态栏识别摘要：语言=中文 · 意图=交通 · 景点=甘川文化村。"""
+    from lang_detect import detect_name
+    parts = []
+    if lang:
+        parts.append(f"语言={detect_name(lang)}")
+    if field:
+        label = FIELD_LABEL.get(field, {}).get(lang or "zh", field)
+        parts.append(f"意图={label}")
+    else:
+        parts.append("意图=全部")
+    if spot_name:
+        parts.append(f"景点={spot_name}")
+    return " · ".join(parts)
 
 # ---------------- 停用词（助词 / 辅助词，检索时忽略） ----------------
 STOPWORDS = set("""
@@ -128,7 +160,7 @@ about please tell me can could would should what when where who how why
 
 def strip_noise(text):
     """去掉标点与助词，返回核心关键词列表。"""
-    text = re.sub(r"[，。！？、；：""''（）()\[\]【】《》,.!?;:'\"~/|]", " ", text or "")
+    text = re.sub(r"[，。！？、；：“”‘’（）()\[\]【】《》,.!?;:'\"~/|]", " ", text or "")
     return [t for t in text.split() if t and t not in STOPWORDS]
 
 

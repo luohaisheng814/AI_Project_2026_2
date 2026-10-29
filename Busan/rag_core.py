@@ -322,11 +322,13 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     if spot and field and IP.is_only_spot_name(question, spot.aliases):
         field = None
 
+    recognize = IP.recognize_summary(question, spot.name if spot else None, field, lang)
     context, sources, _ = build_context(spot, field, category, group_type, lang)
 
     if not sources:
         return {"answer": i18n.t("no_result"), "sources": [], "followups": [],
-                "spot": None, "field": field, "lang": lang, "offline": True}
+                "spot": None, "field": field, "lang": lang, "offline": True,
+                "recognize": recognize}
 
     def fallback():
         return {
@@ -336,6 +338,7 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
                                               spot.fields if spot else None),
             "spot": spot.name if spot else None,
             "field": field, "lang": lang, "offline": True,
+            "recognize": recognize,
         }
 
     if not core_api.is_configured():
@@ -365,7 +368,8 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
                                          spot.fields if spot else None)
 
     return {"answer": text, "sources": sources, "followups": followups,
-            "spot": spot.name if spot else None, "field": field, "lang": lang, "offline": False}
+            "spot": spot.name if spot else None, "field": field, "lang": lang,
+            "offline": False, "recognize": recognize}
 
 
 if __name__ == "__main__":

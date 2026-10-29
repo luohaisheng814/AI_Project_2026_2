@@ -172,8 +172,10 @@ class ChatView(tk.Frame):
         self.after(0, lambda: self._render(result))
 
     def _render(self, result):
-        self.set_status("", busy=False)
         self.add_bot(result)
+        # 状态栏展示本轮识别结果（语言/意图/景点）
+        rec = (result or {}).get("recognize", "")
+        self.set_status(rec, busy=False)
 
     def set_status(self, text, busy=False):
         try:

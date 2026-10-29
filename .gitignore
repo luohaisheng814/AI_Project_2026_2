@@ -3,3 +3,18 @@
 __pycache__/
 .DS_Store
 sorted/
+
+# 运行时数据库
+*.db
+
+# PPT 工作目录（飞书 deck 的本地草稿）
+.lark-slides/
+ppt_work/
+
+# Office 临时锁文件
+~$*
+
+# 调试日志
+mobile_stdout.log
+mobile_stderr.log
+req.json

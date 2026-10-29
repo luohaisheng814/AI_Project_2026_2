@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<title>Busan AI 旅行助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f1f5f9; color: #0f172a; }
+  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+  header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #fff; padding: 14px 16px; flex-shrink: 0;
+  }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header .sub { font-size: 12px; color: #7dd3fc; margin-top: 2px; }
+
+  #toolbar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+  #gpsBtn {
+    flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+    background: #0ea5e9; color: #fff;
+  }
+  #gpsBtn:active { background: #0284c7; }
+  #gpsBtn.busy { background: #94a3b8; }
+
+  #nearby { padding: 10px 12px 0; display: none; flex-shrink: 0; }
+  #nearby h3 { font-size: 13px; color: #475569; margin-bottom: 8px; }
+  .nearby-card {
+    background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+    border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .nearby-card .name { font-size: 14px; font-weight: 600; }
+  .nearby-card .ko { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .nearby-card .dist { font-size: 13px; color: #0ea5e9; font-weight: 700; }
+
+  #chat { flex: 1; overflow-y: auto; padding: 14px 12px; }
+  .msg { margin-bottom: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { margin-left: auto; background: #0ea5e9; color: #fff; padding: 10px 12px; border-radius: 14px 14px 4px 14px; }
+  .msg.bot { background: #fff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 14px 14px 14px 4px; }
+  .msg .meta { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+  .msg.bot b { color: #1e3a8a; }
+
+  #inputBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
+  #qInput { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
+  #qInput:focus { border-color: #0ea5e9; }
+  #sendBtn { padding: 0 18px; border: none; border-radius: 10px; background: #1e3a8a; color: #fff; font-size: 15px; font-weight: 600; }
+  #sendBtn:active { background: #1e40af; }
+  #sendBtn:disabled { background: #94a3b8; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🚗 Busan AI 旅行助手</h1>
+    <div class="sub">沙下区手机版 · 支持 GPS 定位附近景点</div>
+  </header>
+
+  <div id="toolbar">
+    <button id="gpsBtn">📍 定位附近景点</button>
+  </div>
+
+  <div id="nearby">
+    <h3>附近景点（按距离排序）</h3>
+    <div id="nearbyList"></div>
+  </div>
+
+  <div id="chat">
+    <div class="msg bot">你好！我是釜山沙下区 AI 旅行助手。<br>点上方「定位附近景点」，或直接输入你的问题（中文/韩文/英文均可）。</div>
+  </div>
+
+  <div id="inputBar">
+    <input id="qInput" type="text" placeholder="问：没云台怎么去？" autocomplete="off">
+    <button id="sendBtn">发送</button>
+  </div>
+
+<script>
+const chat = document.getElementById('chat');
+const qInput = document.getElementById('qInput');
+const sendBtn = document.getElementById('sendBtn');
+const gpsBtn = document.getElementById('gpsBtn');
+const nearbyBox = document.getElementById('nearby');
+const nearbyList = document.getElementById('nearbyList');
+
+function addMsg(text, who, meta) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.textContent = text;
+  if (meta) {
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = meta;
+    div.appendChild(m);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function ask(question) {
+  addMsg(question, 'user');
+  sendBtn.disabled = true;
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question, category: '', group_type: '', ui_lang: 'zh'})
+    });
+    const data = await r.json();
+    const meta = data.recognize ? ('识别：' + data.recognize) : '';
+    addMsg(data.answer || '（无结果）', 'bot', meta);
+    (data.followups || []).forEach(f => {
+      const b = document.createElement('div');
+      b.className = 'msg bot'; b.style.fontSize = '13px'; b.style.color = '#0ea5e9';
+      b.textContent = '💡 ' + f;
+      b.onclick = () => ask(f);
+      chat.appendChild(b);
+    });
+    chat.scrollTop = chat.scrollHeight;
+  } catch (e) {
+    addMsg('网络错误：' + e.message, 'bot');
+  } finally {
+    sendBtn.disabled = false;
+    qInput.value = '';
+  }
+}
+
+sendBtn.onclick = () => { const q = qInput.value.trim(); if (q) ask(q); };
+qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { const q = qInput.value.trim(); if (q) ask(q); } });
+
+gpsBtn.onclick = () => {
+  if (!navigator.geolocation) { alert('当前浏览器不支持定位'); return; }
+  gpsBtn.classList.add('busy');
+  gpsBtn.textContent = '定位中...';
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    try {
+      const r = await fetch('/api/nearby', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({lat, lng})
+      });
+      const data = await r.json();
+      nearbyList.innerHTML = '';
+      (data.spots || []).forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'nearby-card';
+        card.innerHTML = `<div><div class="name">${s.name}</div><div class="ko">${s.ko}</div></div>
+                         <div class="dist">${s.distance_km} km</div>`;
+        card.onclick = () => ask(s.name + ' 介绍一下');
+        nearbyList.appendChild(card);
+      });
+      nearbyBox.style.display = 'block';
+      nearbyBox.scrollIntoView({behavior: 'smooth'});
+    } catch (e) {
+      alert('获取附近景点失败：' + e.message);
+    } finally {
+      gpsBtn.classList.remove('busy');
+      gpsBtn.textContent = '📍 定位附近景点';
+    }
+  }, (err) => {
+    gpsBtn.classList.remove('busy');
+    gpsBtn.textContent = '📍 定位附近景点';
+    alert('定位失败：' + err.message + '\n（浏览器需 HTTPS 或 localhost 才允许定位）');
+  }, {enableHighAccuracy: true, timeout: 10000});
+};
+</script>
+</body>
+</html>
