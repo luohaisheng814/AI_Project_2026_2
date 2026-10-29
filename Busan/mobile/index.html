@@ -2,17 +2,22 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Busan Tour">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Busan AI 旅行助手</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f1f5f9; color: #0f172a; }
-  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 
   header {
     background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-    color: #fff; padding: 14px 16px; flex-shrink: 0;
+    color: #fff; padding: 14px 16px 12px; flex-shrink: 0;
   }
   header h1 { font-size: 18px; font-weight: 700; }
   header .sub { font-size: 12px; color: #7dd3fc; margin-top: 2px; }
@@ -24,16 +29,33 @@
   }
   #gpsBtn:active { background: #0284c7; }
   #gpsBtn.busy { background: #94a3b8; }
+  #installBtn {
+    padding: 12px 14px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+    background: #1e3a8a; color: #fff; display: none;
+  }
+  #installBtn.show { display: inline-block; }
 
-  #nearby { padding: 10px 12px 0; display: none; flex-shrink: 0; }
+  #locStatus { font-size: 11px; color: #64748b; padding: 6px 12px 0; background: #fff; flex-shrink: 0; display: none; }
+
+  #nearby { padding: 10px 12px 0; display: none; flex-shrink: 0; max-height: 40vh; overflow-y: auto; }
   #nearby h3 { font-size: 13px; color: #475569; margin-bottom: 8px; }
   .nearby-card {
     background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
-    border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid #e2e8f0;
   }
+  .nearby-card .row1 { display: flex; justify-content: space-between; align-items: center; }
   .nearby-card .name { font-size: 14px; font-weight: 600; }
   .nearby-card .ko { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .nearby-card .cat { display: inline-block; font-size: 10px; color: #0ea5e9; background: #e0f2fe; border-radius: 6px; padding: 2px 6px; margin-top: 4px; }
   .nearby-card .dist { font-size: 13px; color: #0ea5e9; font-weight: 700; }
+  .nearby-card .row2 { display: flex; gap: 8px; margin-top: 8px; }
+  .nearby-card .row2 a {
+    flex: 1; text-align: center; font-size: 12px; padding: 6px 0; border-radius: 8px;
+    text-decoration: none; color: #fff;
+  }
+  .nav-naver { background: #03c75a; }
+  .nav-chat { background: #1e3a8a; }
+  .nav-gmap { background: #475569; }
 
   #chat { flex: 1; overflow-y: auto; padding: 14px 12px; }
   .msg { margin-bottom: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
@@ -41,6 +63,7 @@
   .msg.bot { background: #fff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 14px 14px 14px 4px; }
   .msg .meta { font-size: 11px; color: #94a3b8; margin-top: 6px; }
   .msg.bot b { color: #1e3a8a; }
+  .follow { cursor: pointer; }
 
   #inputBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
   #qInput { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
@@ -53,12 +76,14 @@
 <body>
   <header>
     <h1>🚗 Busan AI 旅行助手</h1>
-    <div class="sub">沙下区手机版 · 支持 GPS 定位附近景点</div>
+    <div class="sub">沙下区手机版 · GPS 定位附近景点 · 可安装到桌面</div>
   </header>
 
   <div id="toolbar">
     <button id="gpsBtn">📍 定位附近景点</button>
+    <button id="installBtn">⤓ 安装 App</button>
   </div>
+  <div id="locStatus"></div>
 
   <div id="nearby">
     <h3>附近景点（按距离排序）</h3>
@@ -79,8 +104,36 @@ const chat = document.getElementById('chat');
 const qInput = document.getElementById('qInput');
 const sendBtn = document.getElementById('sendBtn');
 const gpsBtn = document.getElementById('gpsBtn');
+const installBtn = document.getElementById('installBtn');
 const nearbyBox = document.getElementById('nearby');
 const nearbyList = document.getElementById('nearbyList');
+const locStatus = document.getElementById('locStatus');
+
+let lastLat = null, lastLng = null;
+
+// ---- PWA：Service Worker 注册 + 安装到主屏幕 ----
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW 注册失败', e));
+}
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.classList.add('show');
+});
+installBtn.onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.classList.remove('show');
+};
+window.addEventListener('appinstalled', () => installBtn.classList.remove('show'));
+
+function setLoc(text) {
+  locStatus.textContent = text || '';
+  locStatus.style.display = text ? 'block' : 'none';
+}
 
 function addMsg(text, who, meta) {
   const div = document.createElement('div');
@@ -110,7 +163,7 @@ async function ask(question) {
     addMsg(data.answer || '（无结果）', 'bot', meta);
     (data.followups || []).forEach(f => {
       const b = document.createElement('div');
-      b.className = 'msg bot'; b.style.fontSize = '13px'; b.style.color = '#0ea5e9';
+      b.className = 'msg bot follow'; b.style.fontSize = '13px'; b.style.color = '#0ea5e9'; b.style.marginTop = '6px';
       b.textContent = '💡 ' + f;
       b.onclick = () => ask(f);
       chat.appendChild(b);
@@ -127,41 +180,64 @@ async function ask(question) {
 sendBtn.onclick = () => { const q = qInput.value.trim(); if (q) ask(q); };
 qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { const q = qInput.value.trim(); if (q) ask(q); } });
 
+// ---- GPS：定位附近景点 ----
+function renderNearby(spots) {
+  nearbyList.innerHTML = '';
+  spots.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'nearby-card';
+    card.innerHTML = `
+      <div class="row1">
+        <div>
+          <div class="name">${s.name}</div>
+          <div class="ko">${s.ko}</div>
+          <div class="cat">${s.cat_label || ''}</div>
+        </div>
+        <div class="dist">${s.distance_km} km</div>
+      </div>
+      <div class="row2">
+        <a class="nav-chat" href="javascript:void(0)">💬 问介绍</a>
+        <a class="nav-naver" href="${s.naver_url}" target="_blank" rel="noopener">🗺 Naver 导航</a>
+        <a class="nav-gmap" href="${s.google_url}" target="_blank" rel="noopener">📍 Google</a>
+      </div>`;
+    card.querySelector('.nav-chat').onclick = () => ask(s.name + ' 介绍一下');
+    nearbyList.appendChild(card);
+  });
+  nearbyBox.style.display = 'block';
+  nearbyBox.scrollIntoView({behavior: 'smooth'});
+}
+
+async function loadNearby(lat, lng) {
+  setLoc(`定位成功：${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+  const r = await fetch('/api/nearby', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({lat, lng})
+  });
+  const data = await r.json();
+  renderNearby(data.spots || []);
+}
+
 gpsBtn.onclick = () => {
   if (!navigator.geolocation) { alert('当前浏览器不支持定位'); return; }
   gpsBtn.classList.add('busy');
   gpsBtn.textContent = '定位中...';
   navigator.geolocation.getCurrentPosition(async (pos) => {
-    const lat = pos.coords.latitude, lng = pos.coords.longitude;
-    try {
-      const r = await fetch('/api/nearby', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({lat, lng})
-      });
-      const data = await r.json();
-      nearbyList.innerHTML = '';
-      (data.spots || []).forEach(s => {
-        const card = document.createElement('div');
-        card.className = 'nearby-card';
-        card.innerHTML = `<div><div class="name">${s.name}</div><div class="ko">${s.ko}</div></div>
-                         <div class="dist">${s.distance_km} km</div>`;
-        card.onclick = () => ask(s.name + ' 介绍一下');
-        nearbyList.appendChild(card);
-      });
-      nearbyBox.style.display = 'block';
-      nearbyBox.scrollIntoView({behavior: 'smooth'});
-    } catch (e) {
-      alert('获取附近景点失败：' + e.message);
-    } finally {
-      gpsBtn.classList.remove('busy');
-      gpsBtn.textContent = '📍 定位附近景点';
-    }
+    lastLat = pos.coords.latitude; lastLng = pos.coords.longitude;
+    try { await loadNearby(lastLat, lastLng); }
+    catch (e) { alert('获取附近景点失败：' + e.message); }
+    finally { gpsBtn.classList.remove('busy'); gpsBtn.textContent = '📍 定位附近景点'; }
   }, (err) => {
     gpsBtn.classList.remove('busy');
     gpsBtn.textContent = '📍 定位附近景点';
-    alert('定位失败：' + err.message + '\n（浏览器需 HTTPS 或 localhost 才允许定位）');
-  }, {enableHighAccuracy: true, timeout: 10000});
+    let msg = '定位失败：' + err.message;
+    if (err.code === 1) msg += '\n\n权限被拒绝。请在浏览器设置中允许位置权限。';
+    if (err.code === 3) msg += '\n\n超时。请走到开阔处再试。';
+    if (location.protocol === 'http:' && location.hostname !== 'localhost') {
+      msg += '\n\n提示：当前是 HTTP 局域网地址，部分浏览器会禁用定位。请用 HTTPS 或 localhost 访问，或直接点景点下方「Naver 导航」手动选点。';
+    }
+    alert(msg);
+  }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 60000});
 };
 </script>
 </body>

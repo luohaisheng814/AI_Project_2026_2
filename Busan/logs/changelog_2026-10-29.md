@@ -1,39 +1,43 @@
-# Busan AI 旅行助手 · 更新日志
+# Changelog — 2026-10-29 手机版 PWA 增强
 
-## 2026-10-29 手机版 UI + GPS 定位
+## 本次目标
+完善 `mobile_app.py` 手机版，增强 GPS 能力，做成可"安装到手机桌面"的 PWA，并推送到 GitHub。
 
-### 本次新增
-- **mobile_app.py**：零依赖手机版 Web 服务（Python 内置 `http.server`，无需 Flask）
-  - `GET /`：移动端 H5 页面
-  - `POST /api/chat`：问答接口，透传 `rag_core.answer()`，返回回答/来源/追问/识别摘要
-  - `POST /api/nearby`：GPS 附近景点，接收经纬度，用 haversine 公式对 8 个沙下区景点排序返回
-- **mobile/index.html**：手机端聊天界面
-  - 移动端 viewport、触控友好按钮、深蓝渐变顶栏
-  - 「📍 定位附近景点」按钮：调用浏览器 `navigator.geolocation`
-  - 定位成功后展示附近景点卡片（名称/韩文/距离 km），点卡片直接发起提问
-  - 聊天区支持中/韩/英问题，自动展示识别摘要
+## 改动文件
+| 文件 | 改动 |
+|------|------|
+| `Busan/mobile_app.py` | 重写：新增 PWA 路由（manifest.json / sw.js / icon）、地图导航链接、局域网 IP 自动打印、nearby 返回导航 URL 与分类标签 |
+| `Busan/mobile/index.html` | 升级：PWA manifest 注入 + Service Worker 注册、「安装 App」按钮（beforeinstallprompt）、GPS 权限错误分级提示、附近景点卡片加 Naver/Google 导航按钮与分类徽章、安全区适配 |
+| `Busan/logs/changelog_2026-10-29.md` | 本日志 |
 
-### 验证
-- `/api/nearby` 以甘川文化村坐标(35.0972,128.9769)测试：甘川 0.0km → 洛东江 1.31km → 乙淑岛 1.39km → 长林浦口 3.08km → 峨嵋山 8.18km，排序正确
-- `/api/chat` 测试「没云台怎么去」：识别 = 语言中文 · 意图交通 · 景点没云台，正常返回景点内容
-- 启动方式：`python mobile_app.py [端口]`，默认 0.0.0.0:8000，手机与电脑同 Wi-Fi 用局域网 IP 访问
-- 注意：浏览器 GPS 需 HTTPS 或 localhost 环境；局域网 IP 访问时部分浏览器会拒绝定位，可用 ngrok/内网穿透或在 localhost 下调试
+## 新增能力
+1. **PWA 可安装**
+   - 后端内联提供 `/manifest.json`、`/sw.js`、`/icon-192.png`、`/icon-512.png`（图标用 PIL 现场生成，无二进制依赖）。
+   - 前端注册 Service Worker，缓存首屏；监听 `beforeinstallprompt`，用户点「⤓ 安装 App」即可添加到主屏幕，像原生 App 一样全屏启动。
+2. **GPS 增强**
+   - 保留 `navigator.geolocation.getCurrentPosition` 一次性定位；错误码分级提示（权限拒绝 / 超时 / HTTP 非 HTTPS 限制）。
+   - `/api/nearby` 返回每个景点的 `naver_url`（`nmap://` 唤起 Naver Map）与 `google_url`（Google Maps 网页版），卡片直接点按钮跳转导航。
+   - 定位成功后状态栏显示当前经纬度。
+3. **启动信息**：启动时自动探测局域网 IP（如 `http://192.168.1.104:8000/`），方便手机同 Wi-Fi 访问。
 
----
+## 使用方式
+```
+cd Busan
+python mobile_app.py          # 默认 8000 端口
+# 手机连同一 Wi-Fi，浏览器访问 http://<电脑IP>:8000/
+# 浏览器菜单 → 添加到主屏幕 / 点页面上的「安装 App」按钮
+```
 
-## 2026-10-22 知识库补全 + 识别优化（上一轮）
+## 已知限制
+- 浏览器定位 API 要求 **HTTPS 或 localhost**；局域网 HTTP 下部分手机浏览器会拒绝定位，此时可：
+  - 用隧道（cloudflared / ngrok）暴露为 HTTPS；
+  - 或直接点景点卡片上的「Naver 导航」手动选点。
+- nmap:// 链接需手机安装 Naver Map App；未安装时回退 Google Maps 网页链接。
 
-### 核心数据库 docs/rules.txt（43.5KB → 49.1KB）
-补全 3 个沙下区景点完整条目：
-- 没云台（몰운대）→ 02 海岸休闲类
-- 乙淑岛候鸟公园（을숙도）→ 03 湿地生态类
-- 梦之夕阳喷泉（꿈의낙조분수）→ 02 海岸休闲类
-
-### classifier.py 四类分类增强
-- 修正 rules.txt 路径，新增 `split_blocks()` 按【】块提取嵌套子景点
-- 8 个景点分类文件全部落盘（原 3 个空文件填充 675/741/887 字）
-
-### 问答言语识别优化
-- `lang_detect.py`：字符占比判定（≥55% 主导），混排不再误判韩文
-- `intent_parser.py`：扩充三语意图词，登记新景点别名，新增 `recognize_summary()`
-- `rag_core.py` / `chat_widget.py`：状态栏实时展示「语言=中文 · 意图=交通 · 景点=没云台」
+## 验证
+- `GET /` → 200（10KB HTML）
+- `GET /manifest.json` → 200
+- `GET /sw.js` → 200
+- `GET /icon-192.png` / `icon-512.png` → 200（PIL 生成）
+- `POST /api/nearby` → 8 个景点按距离排序，含 naver_url / google_url / cat_label
+- `POST /api/chat`（"没云台怎么去"）→ 识别 `语言=中文 · 意图=交通 · 景点=没云台`，回答 931 字
