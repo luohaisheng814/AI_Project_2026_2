@@ -48,7 +48,7 @@ DATA_DIRS = ["docs", "activity_classified", "mobile"]
 
 EXCLUDE_DIRS = {"__pycache__", "dist", "logs", "ppt_work", ".lark-slides", ".git", ".venv"}
 EXCLUDE_EXT = {".db", ".log", ".pyc", ".pptx", ".zip"}
-EXCLUDE_FILES = {".env", "test_scope.py"}
+EXCLUDE_FILES = {".env", "test_scope.py", "test_lang_policy.py", "test_mobile_api.py"}
 
 BAT_LAUNCHER = """@echo off
 chcp 65001 >nul
@@ -145,7 +145,14 @@ README = """Busan AI 旅行助手 · 手机版安装包
   · 其它玩法的景点只出现在回答末尾「其它玩法补充推荐」中，限量 2 个，
     并标注所属玩法与推荐理由，排在主推荐之后。
 
-五、常见问题
+五、语言规则（中文 / 한국어 / English）
+  · 回答语言只由顶部语言按钮决定，与提问语言、数据来源无关；
+  · 无论按钮是哪种语言，后端一律先用中文检索中文数据库、生成中文草稿，
+    按钮为中文时跳过翻译；按钮为韩文 / 英文时再把中文草稿整体翻译后输出；
+  · 翻译只换语言不换内容：事实数据、条目数量、推荐顺序、Markdown 结构保持不变；
+  · 切换语言后会按新按钮语言重新生成全部历史回答，而不是回放旧语言文本。
+
+六、常见问题
   · 手机定位失败：浏览器定位要求 HTTPS 或 localhost；局域网 HTTP 下可改用
     景点卡片上的 Naver / Google 导航按钮手动选点，或用隧道（cloudflared/ngrok）暴露 HTTPS。
   · 首次启动慢：首次会创建虚拟环境并安装依赖，之后启动会很快。

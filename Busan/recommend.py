@@ -106,14 +106,26 @@ CROSS_REASON = {
 }
 
 
+def _group_label(group_type, lang):
+    import i18n
+    key = i18n.GROUP_KEYS.get(group_type)
+    return i18n.STRINGS[key].get(lang) if key else group_type
+
+
+def _cat_label(folder_name, lang):
+    import i18n
+    key = i18n.CATEGORY_KEYS.get(folder_name)
+    return i18n.STRINGS[key].get(lang) if key else folder_name
+
+
 def build_cross_supplement(kb, category, group_type, lang, limit=CROSS_LIMIT):
     """
     从「当前分类之外」挑选限量景点作为个性化补充。
     返回 [{name, ko, category, cat_label, reason, doc}]，供主回答末尾单独成段展示。
-    规则：数量受限（默认 2）；必须标注所属玩法；给出推荐理由；排在主推荐之后。
+    规则：数量受限（默认 2）；必须标注所属玩法；给出推荐理由；排在主推荐之后；
+    分类名 / 人数名 / 理由均按传入 lang 本地化，不依赖全局界面语言。
     """
-    import i18n
-    group_label = i18n.I.group_name(group_type) if group_type else ""
+    group_label = _group_label(group_type, lang)
 
     out = []
     for doc in kb.cross_category_docs(category, limit=limit):
@@ -129,7 +141,7 @@ def build_cross_supplement(kb, category, group_type, lang, limit=CROSS_LIMIT):
         out.append({
             "name": doc.name,
             "category": doc.category,
-            "cat_label": i18n.I.cat_name(doc.category),
+            "cat_label": _cat_label(doc.category, lang),
             "reason": reason,
             "doc": doc,
         })

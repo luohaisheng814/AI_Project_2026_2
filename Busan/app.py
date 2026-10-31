@@ -85,7 +85,7 @@ def main():
             group = choose_group()
             continue
 
-        print(i18n.t("searching"), f"[回答语言：{LD.detect_name(LD.resolve(q, i18n.I.lang))}]")
+        print(i18n.t("searching"), f"[回答语言：{LD.detect_name(i18n.I.lang)}（跟随顶部按钮，与提问语言无关）]")
         result = rag_core.answer(q, category=category, group_type=group,
                                  lang=None, ui_lang=i18n.I.lang, username="cli_tester")
         show(result)

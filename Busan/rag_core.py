@@ -317,22 +317,25 @@ def build_context(spot, field, category, group_type, lang):
 
 
 # ==================================================================
-# 三、Prompt
+# 三、Prompt（先中文检索、中文生成草稿，再按按钮语言整体翻译）
 # ==================================================================
-def _system_prompt(lang):
-    target = i18n.LLM_LANG_NAME.get(lang, "简体中文")
+LANG_NAMES = {"zh": "简体中文", "ko": "한국어 (Korean)", "en": "English"}
+
+
+def _normalize_lang(lang):
+    return lang if lang in ("zh", "ko", "en") else "zh"
+
+
+def _draft_system_prompt():
+    """草稿阶段系统提示：始终用简体中文基于中文数据库生成回答。"""
     return (
-        f"你是「釜山 AI 旅行助手」，一位熟悉釜山本地玩法的资深向导。\n"
-        f"【语言铁律】必须且只能使用 {target} 输出全部内容：标题、正文、来源说明、预测问题。"
-        f"原始资料以中文为主，请自行准确翻译为 {target} 后再回答。\n"
+        "你是「釜山 AI 旅行助手」，一位熟悉釜山本地玩法的资深向导。\n"
+        "【语言铁律】本轮必须使用简体中文生成草稿：标题、正文、来源说明、预测问题一律用中文。\n"
         "【准确性铁律】只能依据<检索到的资料>回答，资料里没有的不要编造；"
         "资料不足时先说明已知信息，再明确告知哪部分需以官方现场公告为准。\n"
         "【数据源隔离】主回答只能使用「当前玩法分类」文件夹内的资料；"
         "其它玩法的景点不得出现在主推荐、路线、交通、开放信息等主体内容里。\n"
-        "【跨类补充规则】只有在末尾的「个性化推荐」环节，才允许引用资料中"
-        "「其它玩法补充推荐」列出的景点：数量不得超过给定上限（默认 2 个），"
-        "必须逐条标注其所属玩法分类与推荐理由，且必须排在主推荐之后，"
-        "单独成段，标题为「其它玩法补充推荐」。资料未列出的跨类景点不要自行补充。\n"
+        "【跨类补充规则】跨类景点已由系统在末尾统一补齐，你不要在正文中自行补充其它玩法景点。\n"
         "【个性化】严格按<用户画像>里的玩法骨架与出行策略组织答案，做到因人而异、可照着走。\n"
         "【完整性】用户只给景点名时，必须完整列出介绍、交通、开放信息、来源网址等全部字段，不得只显示前几行。"
         "用户指定了字段时，只聚焦该字段，不堆砌无关内容。\n"
@@ -345,25 +348,16 @@ def _system_prompt(lang):
     )
 
 
-def _user_prompt(question, context, category, group_type, field, spot_name, lang):
+def _draft_user_prompt(question, context, category, group_type, field, spot_name):
     cat_name = i18n.I.cat_name(category) if category else "-"
     grp_name = i18n.I.group_name(group_type) if group_type else "-"
-    profile_text = RC.build_profile_text(category, group_type, lang)
+    profile_text = RC.build_profile_text(category, group_type, "zh")
 
     if field:
-        fname = IP.FIELD_LABEL.get(field, {}).get(lang, field)
-        focus = {
-            "zh": f"\n【本次聚焦字段】{fname}。只重点回答这一项，不要展开无关内容；不足时说明需查官方公告。",
-            "ko": f"\n【집중 필드】{fname}. 이 항목만 중점적으로 답변하고 무관한 내용은 늘어놓지 마세요.",
-            "en": f"\n[Focus field] {fname}. Answer only this field; do not pad with unrelated content.",
-        }[lang]
+        fname = IP.FIELD_LABEL.get(field, {}).get("zh", field)
+        focus = f"\n【本次聚焦字段】{fname}。只重点回答这一项，不要展开无关内容；不足时说明需查官方公告。"
     else:
-        focus = {
-            "zh": "\n【本次聚焦字段】用户只给了景点名称，请完整列出介绍、交通、开放信息、来源网址等全部资料，不要省略。",
-            "ko": "\n【집중 필드】사용자가 장소 이름만 입력했습니다. 소개·교통·개방정보·출처 등 모든 자료를 빠짐없이 정리하세요.",
-            "en": "\n[Focus field] Only the spot name was given. List ALL details (overview, transportation, "
-                  "opening hours, sources) without omitting anything.",
-        }[lang]
+        focus = ("\n【本次聚焦字段】用户只给了景点名称，请完整列出介绍、交通、开放信息、来源网址等全部资料，不要省略。")
 
     return (
         f"<用户画像>\n玩法分类：{cat_name}\n出行人数：{grp_name}\n"
@@ -373,6 +367,63 @@ def _user_prompt(question, context, category, group_type, field, spot_name, lang
         f"<用户问题>\n{question}\n"
         f"{focus}"
     )
+
+
+# ---------------- 翻译阶段（草稿 -> 按钮目标语言；只换语言，不换内容） ----------------
+def _glossary(spot, supplements):
+    """汇总本次涉及景点的中/韩/英惯用名称，供翻译保持专有名词统一。"""
+    entries = []
+    docs = [spot] if spot else []
+    for s in supplements or []:
+        d = s.get("doc")
+        if d:
+            docs.append(d)
+    for doc in docs:
+        if not doc:
+            continue
+        ko = next((a for a in doc.aliases if re.search(r"[가-힣]", a)), "")
+        en = next((a for a in doc.aliases if re.fullmatch(r"[A-Za-z\s'\-]+", a)), "")
+        entries.append({"zh": doc.name, "ko": ko, "en": en})
+    return entries
+
+
+def _translator_system_prompt(out_lang, glossary):
+    target = LANG_NAMES.get(out_lang, "English")
+    name_map = ""
+    if glossary:
+        lines = []
+        for g in glossary:
+            if g["ko"] or g["en"]:
+                lines.append(f"- 中文「{g['zh']}」→ 韩文惯用：{g['ko'] or '（无固定译法，保留中文原名并括注）'}；"
+                             f"英文惯用：{g['en'] or '（无固定译法，保留中文原名并括注）'}")
+        if lines:
+            name_map = "【专有名词对照表，全文必须统一使用】\n" + "\n".join(lines) + "\n\n"
+    return (
+        f"你是釜山旅行指南的专业 {target} 译者。把下面的中文草稿完整翻译成 {target}。\n"
+        "【只换语言，不换内容】\n"
+        "1. 严格保留全部事实数据：数字、时间、票价、距离、站名、线路名、网址、列表条数、推荐先后顺序、章节数量"
+        "一律不得改动、增删、合并或调换。\n"
+        "2. 专有名词优先使用上表给出的目标语言惯用译法，同一名称全文译法必须统一；"
+        "没有通用译法时，保留中文原名，并在**首次出现**时于括号内标注目标语言译法，之后沿用同一形式。\n"
+        "3. 不得新增草稿中没有的条目、建议或景点，也不得删除草稿中已有的任何条目。\n"
+        "4. 原样保留 Markdown 结构：标题层级、**加粗**、项目符号 `-`、`---` 分隔线、URL 不译不改；"
+        "保留 `###FOLLOWUP###` 分隔标记与其后每个预测问题各自独立成行。\n"
+        "5. 语气风格与草稿保持一致（亲切、可照着走的向导口吻），不要总结、不要加译者说明。\n"
+        f"{name_map}"
+        "现在开始翻译，只输出译文正文。"
+    )
+
+
+def _translate_to(text, out_lang, glossary=None):
+    """把中文草稿翻译成目标语言；失败返回 None（由上层回退中文草稿并标注）。"""
+    if not text or out_lang == "zh":
+        return text
+    system = _translator_system_prompt(out_lang, glossary or [])
+    translated = core_api.chat([
+        {"role": "system", "content": system},
+        {"role": "user", "content": text},
+    ])
+    return translated if translated else None
 
 
 # ==================================================================
@@ -395,21 +446,56 @@ def render_supplements(supplements, lang):
     return "\n".join(lines)
 
 
-def _local_fallback(spot, field, category, group_type, lang, sources, supplements=None):
+# ---------------- 来源标签按按钮目标语言重标（不依赖全局界面语言） ----------------
+SOURCE_KEY = {
+    "local": "source_local",
+    "profile": "source_profile",
+    "core": "source_core",
+    "web": "source_web",
+}
+
+
+def _localized_string(key, lang, fallback=""):
+    item = i18n.STRINGS.get(key)
+    if not item:
+        return fallback or key
+    return item.get(lang) or item.get("zh") or fallback
+
+
+def _localize_sources(sources, lang):
+    """把来源标签按 out_lang 本地化；URL / 文件路径 / 详情原文保持不变。"""
+    out = []
+    for s in sources or []:
+        label_key = SOURCE_KEY.get(s.get("type"))
+        label = _localized_string(label_key, lang, s.get("label", "")) if label_key else s.get("label", "")
+        detail = s.get("detail", "")
+        # 在线查询失败的说明语也按目标语言重标
+        zh_failed = i18n.STRINGS["web_failed"].get("zh", "")
+        if s.get("type") == "web" and detail == zh_failed:
+            detail = _localized_string("web_failed", lang, detail)
+        out.append({**s, "label": label, "detail": detail})
+    return out
+
+
+def _local_fallback(spot, field, category, group_type, out_lang, sources, supplements=None):
+    """离线（未配置 LLM_API_KEY）：无法在线翻译，正文保留中文资料库原文，仅本地化界面标签。"""
     if spot:
         body = spot.get(field) if (field and spot.get(field)) else spot.full_text()
-        content = f"**{spot.name}**\n\n{IP.localize_labels(body, lang)}"
+        content = f"**{spot.name}**\n\n{IP.localize_labels(body, out_lang)}"
     else:
-        content = i18n.t("no_result")
+        content = _localized_string("no_result", out_lang)
 
-    # 主回答之后，单独成段给出限量跨类补充（标注玩法 + 理由）
-    sup_block = render_supplements(supplements or [], lang)
+    # 主回答之后，单独成段给出限量跨类补充（标注玩法 + 理由，目标语言）
+    sup_block = render_supplements(supplements or [], out_lang)
     if sup_block:
         content = content + "\n\n" + sup_block
 
     src_lines = "\n".join(f"- {s['label']}：{s['detail']}" for s in sources)
-    return (f"{content}\n\n---\n**{i18n.t('sources_label')}**\n{src_lines}"
-            f"\n\n_{i18n.t('offline_mode')}_")
+    footer = f"\n\n---\n**{_localized_string('sources_label', out_lang)}**\n{src_lines}"
+    footer += f"\n\n_{_localized_string('offline_mode', out_lang)}_"
+    if out_lang != "zh":
+        footer += f"\n_{_localized_string('offline_no_translate', out_lang)}_"
+    return content + footer
 
 
 # ==================================================================
@@ -419,13 +505,20 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     """
     返回 dict：
         answer / sources / followups / spot / field / lang / offline / recognize / supplements
-    数据源规则：选定玩法后，该分类文件夹为唯一主数据源；切换即重载；
-    跨分类景点仅出现在 supplements（个性化推荐补充，限量、标注玩法与理由、排在主推荐之后）。
+
+    语言策略（本轮重构）：
+      - 输出语言只由顶部按钮语言（ui_lang，等价 i18n.I.lang）决定，与提问语言、数据来源无关；
+      - 无论按钮是哪种语言，后端一律先用中文检索中文数据库、生成中文草稿；按钮为中文时跳过翻译，
+        按钮为韩文 / 英文时再把中文草稿整体翻译后输出；
+      - 用户输入语言与按钮不一致时，仍以按钮语言作答；
+      - 翻译只换语言不换内容：事实数据、条目数量、推荐顺序、Markdown 结构保持不变。
     """
     question = (question or "").strip()
-    # 回答语言：优先提问语言（lang_detect），识别不出才用界面语言
-    ui = ui_lang or i18n.I.lang or config.DEFAULT_LANG
-    lang = lang or LD.resolve(question, ui)
+
+    # ① 输出语言 = 按钮语言（显式 lang 参数视为按钮显式指定；不再按提问语言 detect 决定输出）
+    out_lang = _normalize_lang(lang or ui_lang or i18n.I.lang or config.DEFAULT_LANG)
+    # 提问语言仅用于状态栏识别展示，不影响输出语言
+    input_lang = LD.detect(question)
 
     KB.load()
 
@@ -449,23 +542,30 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     if spot and field and IP.is_only_spot_name(question, spot.aliases):
         field = None
 
-    recognize = IP.recognize_summary(question, spot.name if spot else None, field, lang,
+    recognize = IP.recognize_summary(question, spot.name if spot else None, field, out_lang,
                                      category, group_type)
-    context, sources, _, supplements = build_context(spot, field, category, group_type, lang)
+    if input_lang and input_lang != out_lang:
+        recognize += f" · 提问={LD.detect_name(input_lang)}"
+
+    # ② 检索与草稿一律使用中文上下文（中文数据库）；补充推荐与来源标签随后按 out_lang 重标
+    context, sources, _, _supp_zh = build_context(spot, field, category, group_type, "zh")
+    supplements = RC.build_cross_supplement(KB, category, group_type, out_lang, limit=RC.CROSS_LIMIT)
+    sources = _localize_sources(sources, out_lang)
 
     if not sources:
-        return {"answer": i18n.t("no_result"), "sources": [], "followups": [],
-                "spot": None, "field": field, "lang": lang, "offline": True,
+        return {"answer": _localized_string("no_result", out_lang), "sources": [], "followups": [],
+                "spot": None, "field": field, "lang": out_lang, "offline": True,
                 "recognize": recognize, "supplements": []}
 
     def fallback():
         return {
-            "answer": _local_fallback(spot, field, category, group_type, lang, sources, supplements),
+            "answer": _local_fallback(spot, field, category, group_type, out_lang,
+                                      sources, supplements),
             "sources": sources,
-            "followups": RC.suggest_questions(spot.name if spot else "", field, lang,
+            "followups": RC.suggest_questions(spot.name if spot else "", field, out_lang,
                                               spot.fields if spot else None),
             "spot": spot.name if spot else None,
-            "field": field, "lang": lang, "offline": True,
+            "field": field, "lang": out_lang, "offline": True,
             "recognize": recognize,
             "supplements": supplements,
             "category": category, "group_type": group_type,
@@ -474,35 +574,59 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     if not core_api.is_configured():
         return fallback()
 
+    # ③ 第一段：基于中文资料生成简体中文草稿（系统/用户提示词均固定中文）
     raw = core_api.chat([
-        {"role": "system", "content": _system_prompt(lang)},
-        {"role": "user", "content": _user_prompt(question, context, category, group_type,
-                                                 field, spot.name if spot else None, lang)},
+        {"role": "system", "content": _draft_system_prompt()},
+        {"role": "user", "content": _draft_user_prompt(question, context, category, group_type,
+                                                      field, spot.name if spot else None)},
     ])
     if raw is None:
         return fallback()
 
-    followups, text = [], raw
+    followups_zh, draft_text = [], raw
     if "###FOLLOWUP###" in raw:
         main, tail = raw.split("###FOLLOWUP###", 1)
-        text = main.strip()
+        draft_text = main.strip()
         for line in tail.strip().splitlines():
             line = line.strip().lstrip("-").strip()
             if line:
-                followups.append(line)
-            if len(followups) == 3:
+                followups_zh.append(line)
+            if len(followups_zh) == 3:
                 break
 
-    if not followups:
-        followups = RC.suggest_questions(spot.name if spot else "", field, lang,
-                                         spot.fields if spot else None)
+    if not followups_zh:
+        followups_zh = RC.suggest_questions(spot.name if spot else "", field, "zh",
+                                            spot.fields if spot else None)
 
-    # 在线模型未输出跨类补充段时，用结构化 supplements 在前端补齐（保持限量与标注规则）
-    if supplements and SUPPLEMENT_TITLE.get(lang, "") not in text:
-        text = text + "\n\n" + render_supplements(supplements, lang)
+    glossary = _glossary(spot, supplements)
+
+    # ④ 第二段：按钮为中文跳过翻译；非中文把中文草稿整体翻译（只换语言，不换内容）
+    if out_lang == "zh":
+        text, followups = draft_text, followups_zh
+    else:
+        translated = _translate_to(draft_text, out_lang, glossary)
+        if translated is None:
+            # 翻译服务失败：保留中文草稿并如实标注，不编造译文
+            text = draft_text + "\n\n" + _localized_string("translate_failed", out_lang)
+            followups = RC.suggest_questions(spot.name if spot else "", field, out_lang,
+                                              spot.fields if spot else None)
+        else:
+            text = translated
+            followups = []
+            for q in followups_zh:
+                tq = _translate_to(q, out_lang, glossary)
+                followups.append(tq if tq else q)
+            # 预测问题若有翻译失败，整体换成目标语言结构化模板，避免目标语言里夹杂中文问题
+            if any(q == f for q, f in zip(followups, followups_zh)):
+                followups = RC.suggest_questions(spot.name if spot else "", field, out_lang,
+                                                spot.fields if spot else None)
+
+    # ⑤ 跨类补充段固定排在主回答之后；翻译后的正文不含补充段时用结构化 supplements 补齐
+    if supplements and SUPPLEMENT_TITLE.get(out_lang, "") not in text:
+        text = text + "\n\n" + render_supplements(supplements, out_lang)
 
     return {"answer": text, "sources": sources, "followups": followups,
-            "spot": spot.name if spot else None, "field": field, "lang": lang,
+            "spot": spot.name if spot else None, "field": field, "lang": out_lang,
             "offline": False, "recognize": recognize, "supplements": supplements,
             "category": category, "group_type": group_type}
 

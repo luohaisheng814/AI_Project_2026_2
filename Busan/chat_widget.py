@@ -265,6 +265,52 @@ class ChatView(tk.Frame):
                 self._render_bot(payload)
         self.text.see("end")
 
+    def user_questions(self):
+        """历史中所有用户提问（按顺序），供语言切换后逐条重新生成。"""
+        return [payload for kind, payload in self.history if kind == "user"]
+
+    def regenerate(self):
+        """
+        语言切换后：用当前按钮语言**重新生成**每条历史回答，而不是回放旧语言文本。
+        先清空画布、回放 welcome 与用户提问，再在后台线程逐条调用 on_send 重新问答并渲染。
+        """
+        questions = self.user_questions()
+        self.text.configure(state="normal")
+        self.text.delete("1.0", "end")
+        self.text.configure(state="disabled")
+        self._clear_followups()
+        # 只保留 welcome / user 条目，旧语言的 bot 结果全部丢弃、等待重新生成
+        self.history = [h for h in self.history if h[0] in ("welcome", "user")]
+        for kind, payload in self.history:
+            if kind == "welcome":
+                self._render_welcome(payload)
+            elif kind == "user":
+                self._render_user(payload)
+        self.text.see("end")
+        if not questions:
+            return
+        self.set_status(i18n.t("thinking"), busy=True)
+        threading.Thread(target=self._regen_worker, args=(questions,), daemon=True).start()
+
+    def _regen_worker(self, questions):
+        for q in questions:
+            try:
+                # 语言切换重新生成：不重复写入查询日志
+                result = self.on_send(q, record=False) if self.on_send else None
+            except TypeError:
+                result = self.on_send(q) if self.on_send else None
+            except Exception as e:
+                result = {"answer": f"[Error] {e}", "sources": [], "followups": []}
+            if result is None:
+                result = {"answer": "", "sources": [], "followups": []}
+            self.after(0, lambda r=result: self._render_regen_bot(r))
+
+    def _render_regen_bot(self, result):
+        # 旧 bot 历史已在 regenerate() 中清空，这里追加新语言结果
+        self.add_bot(result)
+        rec = (result or {}).get("recognize", "")
+        self.set_status(rec, busy=False)
+
     def clear(self):
         self.history = []
         self.text.configure(state="normal")

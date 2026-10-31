@@ -248,16 +248,20 @@ def recognize_summary(question, spot_name=None, field=None, lang=None,
     else:
         parts.append("意图=全部")
     if category:
-        # 复用 i18n 显示名；i18n 未加载时退回文件夹名
+        # 按传入 lang 取分类名；i18n 未加载时退回文件夹名
         try:
             import i18n
-            parts.append(f"玩法={i18n.I.cat_name(category)}")
+            key = i18n.CATEGORY_KEYS.get(category)
+            cat_label = i18n.STRINGS[key].get(lang or "zh") if key else category
+            parts.append(f"玩法={cat_label}")
         except Exception:
             parts.append(f"玩法={category}")
     if group:
         try:
             import i18n
-            parts.append(f"人数={i18n.I.group_name(group)}")
+            key = i18n.GROUP_KEYS.get(group)
+            grp_label = i18n.STRINGS[key].get(lang or "zh") if key else group
+            parts.append(f"人数={grp_label}")
         except Exception:
             parts.append(f"人数={group}")
     if spot_name:

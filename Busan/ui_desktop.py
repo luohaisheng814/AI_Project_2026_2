@@ -100,8 +100,10 @@ class DesktopApp:
         self.category.set(keep_cat)
         self.group.set(keep_grp)
         self._apply_scope()
+        # 语言切换后按当前按钮语言重新生成全部历史回答，不回放旧语言文本
+        self.chat.regenerate()
 
-    def answer_question(self, question):
+    def answer_question(self, question, record=True):
         # ① 按问题推断玩法 / 人数，实时联动左侧选择栏（手动点选仍保留）
         inferred_cat = IP.infer_category(question, self.category.get() or None)
         inferred_grp = IP.infer_group(question)
@@ -111,7 +113,7 @@ class DesktopApp:
             self.group.set(inferred_grp)
         self._apply_scope()
 
-        # lang=None -> 由 lang_detect 按提问语言自动决定回答语言
+        # 输出语言只由顶部按钮语言 i18n.I.lang 决定；后端先中文检索/生成，再翻译为按钮语言
         result = rag_core.answer(
             question,
             category=self.category.get(),

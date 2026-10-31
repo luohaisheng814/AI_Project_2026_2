@@ -52,6 +52,21 @@ print("\nPOST /api/chat (auto) ->", st)
 print("  inferred category:", r["category"], "group:", r["group_type"], "spot:", r["spot"])
 print("  supplements:", [(s["name"], s["cat_label"]) for s in r["supplements"]])
 
+# 5b. 语言策略：输出语言只跟 ui_lang 按钮走，与提问语言无关
+lang_cases = [
+    ({"question": "감천문화마을 소개", "category": "01_艺术村落_文化街区", "group_type": "two_mf", "ui_lang": "zh"}, "zh"),
+    ({"question": "甘川文化村 介绍", "category": "01_艺术村落_文化街区", "group_type": "two_mf", "ui_lang": "ko"}, "ko"),
+    ({"question": "How do I get to Gamcheon Culture Village?", "category": "01_艺术村落_文化街区", "group_type": "solo_male", "ui_lang": "en"}, "en"),
+]
+print("\n--- language policy (button lang wins over question lang) ---")
+for payload, expect in lang_cases:
+    st, r = post("/api/chat", payload)
+    ok = r["lang"] == expect
+    print(f"  question lang -> button {expect}: http={st} reply lang={r['lang']} {'OK' if ok else 'FAIL'}")
+    print("    sources:", [s["label"] for s in r["sources"]])
+    print("    supplements:", [(s["name"], s["cat_label"]) for s in r["supplements"]])
+    assert ok, f"reply lang {r['lang']} != button {expect}"
+
 # 6. nearby
 st, nb = post("/api/nearby", {"lat": 35.09, "lng": 128.97})
 print("\nPOST /api/nearby ->", st, "spots:", len(nb["spots"]), "nearest:", nb["spots"][0]["name"])

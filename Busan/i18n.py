@@ -111,6 +111,12 @@ STRINGS = {
     "web_failed":          {"zh": "在线查询未获取到内容（可能无网络或被目标站点拦截）",
                             "ko": "온라인 조회 실패(네트워크 없음 또는 사이트 차단)",
                             "en": "Online lookup returned nothing (offline or blocked)"},
+    "translate_failed":    {"zh": "（翻译服务暂不可用，以下为中文草稿）",
+                            "ko": "(번역 서비스를 이용할 수 없어 중문 초안을 그대로 표시합니다)",
+                            "en": "(Translation service unavailable; showing the Chinese draft.)"},
+    "offline_no_translate": {"zh": "（离线模式无法在线翻译，正文为中文资料库原文；界面标签已按当前语言显示）",
+                             "ko": "(오프라인 모드에서는 온라인 번역이 불가하여 본문은 중문 자료 원문이며, 화면 라벨만 현재 언어로 표시됩니다)",
+                             "en": "(Offline mode cannot translate online; the body keeps the Chinese source text; only UI labels are localized.)"},
 
     # ---------------- CLI ----------------
     "cli_title":           {"zh": "=== 釜山 AI 智能问答模块测试（命令行版 app.py）===",

@@ -127,14 +127,17 @@ class MainApp:
         self._apply_scope()
 
     def refresh_ui(self):
-        # 语言切换后：玩法/人数选择保持，欢迎语换成新语言，对话历史原样保留
+        # 语言切换后：玩法/人数选择保持，欢迎语换成新语言；
+        # 旧语言 bot 回答不再回放，而是按当前按钮语言逐条重新生成完整回答。
         if getattr(self, "_chat_history", None) and self._chat_history[0][0] == "welcome":
             self._chat_history[0] = ("welcome", i18n.t("chat_welcome"))
         self.build()
+        self.chat.regenerate()
 
     # ================= 问答 =================
-    def answer_question(self, question):
-        """（在子线程中调用）推断联动选择栏 -> 检索 -> LLM -> 记录日志 -> 返回结果"""
+    def answer_question(self, question, record=True):
+        """（在子线程中调用）推断联动选择栏 -> 检索 -> 中文草稿 -> 按按钮语言翻译 -> 返回结果。
+        record=False 用于语言切换后的重新生成，不重复写入查询日志。"""
         # ① 先按问题推断玩法 / 人数，实时联动左侧两个选择栏（用户手动点选仍保留并优先）
         inferred_cat = IP.infer_category(question, self.category.get() or None)
         inferred_grp = IP.infer_group(question)
@@ -152,7 +155,7 @@ class MainApp:
         grp = self.group.get()
 
         self.chat.after(0, lambda: self.chat.set_status(i18n.t("thinking"), busy=True))
-        # lang 传 None：由 lang_detect 按提问语言决定（中文问中文答 / 韩文问韩文答 / 英文问英文答）
+        # 输出语言只由顶部按钮语言 i18n.I.lang 决定；后端先中文检索/生成，再翻译为按钮语言
         result = rag_core.answer(question, category=cat, group_type=grp, lang=None,
                                  ui_lang=i18n.I.lang, username=self.username)
 
@@ -163,16 +166,17 @@ class MainApp:
             self.group.set(result["group_type"])
         self.chat.after(0, self._update_sel_label)
 
-        # 记录本次详细查询（写入对应用户数据库 query_logs）
-        try:
-            db.log_query(
-                self.user_id, self.username, cat, grp, question,
-                (result.get("answer") or "")[:4000],
-                json.dumps(result.get("sources") or [], ensure_ascii=False),
-                result.get("lang") or i18n.I.lang,
-            )
-        except Exception:
-            pass
+        # 记录本次详细查询（语言切换重新生成时不重复写日志）
+        if record:
+            try:
+                db.log_query(
+                    self.user_id, self.username, cat, grp, question,
+                    (result.get("answer") or "")[:4000],
+                    json.dumps(result.get("sources") or [], ensure_ascii=False),
+                    result.get("lang") or i18n.I.lang,
+                )
+            except Exception:
+                pass
 
         return result
 
