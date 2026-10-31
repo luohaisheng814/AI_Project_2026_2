@@ -22,6 +22,15 @@
   header h1 { font-size: 18px; font-weight: 700; }
   header .sub { font-size: 12px; color: #7dd3fc; margin-top: 2px; }
 
+  /* 玩法 / 人数选择栏 */
+  #scopeBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+  .scope-pick { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .scope-pick label { font-size: 11px; color: #64748b; }
+  .scope-pick select {
+    padding: 9px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px;
+    background: #f8fafc; color: #0f172a; outline: none; max-width: 100%;
+  }
+
   #toolbar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
   #gpsBtn {
     flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
@@ -34,6 +43,10 @@
     background: #1e3a8a; color: #fff; display: none;
   }
   #installBtn.show { display: inline-block; }
+  #pkgBtn {
+    padding: 12px 14px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+    background: #059669; color: #fff; text-decoration: none; text-align: center;
+  }
 
   #locStatus { font-size: 11px; color: #64748b; padding: 6px 12px 0; background: #fff; flex-shrink: 0; display: none; }
 
@@ -58,12 +71,18 @@
   .nav-gmap { background: #475569; }
 
   #chat { flex: 1; overflow-y: auto; padding: 14px 12px; }
-  .msg { margin-bottom: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg { margin-bottom: 12px; max-width: 88%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
   .msg.user { margin-left: auto; background: #0ea5e9; color: #fff; padding: 10px 12px; border-radius: 14px 14px 4px 14px; }
   .msg.bot { background: #fff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 14px 14px 14px 4px; }
   .msg .meta { font-size: 11px; color: #94a3b8; margin-top: 6px; }
   .msg.bot b { color: #1e3a8a; }
   .follow { cursor: pointer; }
+
+  /* 跨类补充推荐卡片：排在主推荐之后，单独成段 */
+  .supp-box { margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+  .supp-box .supp-title { font-size: 12px; font-weight: 700; color: #059669; margin-bottom: 6px; }
+  .supp-item { font-size: 12.5px; color: #334155; margin-bottom: 6px; line-height: 1.5; }
+  .supp-item .tag { display: inline-block; font-size: 10px; color: #059669; background: #ecfdf5; border-radius: 6px; padding: 1px 6px; margin-right: 4px; }
 
   #inputBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
   #qInput { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
@@ -76,12 +95,24 @@
 <body>
   <header>
     <h1>🚗 Busan AI 旅行助手</h1>
-    <div class="sub">沙下区手机版 · GPS 定位附近景点 · 可安装到桌面</div>
+    <div class="sub">沙下区手机版 · 玩法/人数联动 · GPS 附近景点 · 可安装到桌面</div>
   </header>
+
+  <div id="scopeBar">
+    <div class="scope-pick">
+      <label for="catSel">玩法分类（可手动改）</label>
+      <select id="catSel"><option value="">自动识别 / 全部</option></select>
+    </div>
+    <div class="scope-pick">
+      <label for="grpSel">出行人数（可手动改）</label>
+      <select id="grpSel"><option value="">自动识别 / 默认</option></select>
+    </div>
+  </div>
 
   <div id="toolbar">
     <button id="gpsBtn">📍 定位附近景点</button>
-    <button id="installBtn">⤓ 安装 App</button>
+    <button id="installBtn">⤓ 安装到桌面</button>
+    <a id="pkgBtn" href="/download/Busan_Tour_App.zip" download>⤓ 下载安装包</a>
   </div>
   <div id="locStatus"></div>
 
@@ -91,7 +122,7 @@
   </div>
 
   <div id="chat">
-    <div class="msg bot">你好！我是釜山沙下区 AI 旅行助手。<br>点上方「定位附近景点」，或直接输入你的问题（中文/韩文/英文均可）。</div>
+    <div class="msg bot">你好！我是釜山沙下区 AI 旅行助手。<br>选择玩法与人数（也可直接提问，系统会自动识别联动），或点上方「定位附近景点」。中文/韩文/英文均可。</div>
   </div>
 
   <div id="inputBar">
@@ -105,11 +136,29 @@ const qInput = document.getElementById('qInput');
 const sendBtn = document.getElementById('sendBtn');
 const gpsBtn = document.getElementById('gpsBtn');
 const installBtn = document.getElementById('installBtn');
+const pkgBtn = document.getElementById('pkgBtn');
 const nearbyBox = document.getElementById('nearby');
 const nearbyList = document.getElementById('nearbyList');
 const locStatus = document.getElementById('locStatus');
+const catSel = document.getElementById('catSel');
+const grpSel = document.getElementById('grpSel');
 
 let lastLat = null, lastLng = null;
+
+// ---- 初始化玩法 / 人数选项 ----
+async function loadMeta() {
+  try {
+    const r = await fetch('/api/meta');
+    const data = await r.json();
+    (data.categories || []).forEach(c => {
+      const o = document.createElement('option'); o.value = c.key; o.textContent = c.label; catSel.appendChild(o);
+    });
+    (data.groups || []).forEach(g => {
+      const o = document.createElement('option'); o.value = g.key; o.textContent = g.label; grpSel.appendChild(o);
+    });
+  } catch (e) { console.warn('meta 加载失败', e); }
+}
+loadMeta();
 
 // ---- PWA：Service Worker 注册 + 安装到主屏幕 ----
 if ('serviceWorker' in navigator) {
@@ -147,6 +196,25 @@ function addMsg(text, who, meta) {
   }
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// 渲染跨类补充推荐（主推荐之后，限量、标注玩法与理由）
+function renderSupplements(container, supplements) {
+  if (!supplements || !supplements.length) return;
+  const box = document.createElement('div');
+  box.className = 'supp-box';
+  const title = document.createElement('div');
+  title.className = 'supp-title';
+  title.textContent = '其它玩法补充推荐（排在主推荐之后，限量 ' + supplements.length + ' 个）';
+  box.appendChild(title);
+  supplements.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'supp-item';
+    item.innerHTML = `<span class="tag">${s.cat_label || s.category || ''}</span><b>${s.name}</b>：${s.reason || ''}`;
+    box.appendChild(item);
+  });
+  container.appendChild(box);
 }
 
 async function ask(question) {
@@ -156,11 +224,23 @@ async function ask(question) {
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({question, category: '', group_type: '', ui_lang: 'zh'})
+      body: JSON.stringify({
+        question,
+        category: catSel.value,
+        group_type: grpSel.value,
+        ui_lang: 'zh'
+      })
     });
     const data = await r.json();
+
+    // 问答结果回写选择栏（自动识别联动；用户手动选择仍保留，未识别时不覆盖）
+    if (data.category) catSel.value = data.category;
+    if (data.group_type) grpSel.value = data.group_type;
+
     const meta = data.recognize ? ('识别：' + data.recognize) : '';
-    addMsg(data.answer || '（无结果）', 'bot', meta);
+    const botDiv = addMsg(data.answer || '（无结果）', 'bot', meta);
+    renderSupplements(botDiv, data.supplements);
+
     (data.followups || []).forEach(f => {
       const b = document.createElement('div');
       b.className = 'msg bot follow'; b.style.fontSize = '13px'; b.style.color = '#0ea5e9'; b.style.marginTop = '6px';
@@ -200,7 +280,7 @@ function renderNearby(spots) {
         <a class="nav-naver" href="${s.naver_url}" target="_blank" rel="noopener">🗺 Naver 导航</a>
         <a class="nav-gmap" href="${s.google_url}" target="_blank" rel="noopener">📍 Google</a>
       </div>`;
-    card.querySelector('.nav-chat').onclick = () => ask(s.name + ' 介绍一下');
+    card.querySelector('.nav-chat').onclick = () => { catSel.value = s.cat || ''; ask(s.name + ' 介绍一下'); };
     nearbyList.appendChild(card);
   });
   nearbyBox.style.display = 'block';

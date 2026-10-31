@@ -7,6 +7,7 @@ from tkinter import ttk
 import config
 import i18n
 import rag_core
+import intent_parser as IP
 import ui_style as S
 from chat_widget import ChatView, LangButton
 
@@ -82,8 +83,14 @@ class DesktopApp:
         grp = i18n.I.group_name(self.group.get()) if self.group.get() else i18n.t("please_select")
         self.lbl_sel.configure(text=f"{i18n.t('current_selection')}：\n· {cat}\n· {grp}")
 
-    def _on_select(self):
+    def _apply_scope(self):
+        """玩法切换：立即把所选分类文件夹设为唯一主数据源并重载、重算。"""
+        if self.category.get():
+            rag_core.KB.set_active_category(self.category.get())
         self._update_sel_label()
+
+    def _on_select(self):
+        self._apply_scope()
 
     def refresh_ui(self):
         keep_cat, keep_grp = self.category.get(), self.group.get()
@@ -92,11 +99,20 @@ class DesktopApp:
         self.build()
         self.category.set(keep_cat)
         self.group.set(keep_grp)
-        self._update_sel_label()
+        self._apply_scope()
 
     def answer_question(self, question):
+        # ① 按问题推断玩法 / 人数，实时联动左侧选择栏（手动点选仍保留）
+        inferred_cat = IP.infer_category(question, self.category.get() or None)
+        inferred_grp = IP.infer_group(question)
+        if inferred_cat:
+            self.category.set(inferred_cat)
+        if inferred_grp:
+            self.group.set(inferred_grp)
+        self._apply_scope()
+
         # lang=None -> 由 lang_detect 按提问语言自动决定回答语言
-        return rag_core.answer(
+        result = rag_core.answer(
             question,
             category=self.category.get(),
             group_type=self.group.get(),
@@ -104,6 +120,13 @@ class DesktopApp:
             ui_lang=i18n.I.lang,
             username="desktop_tester",
         )
+        # ② 回写最终解析出的玩法 / 人数
+        if result.get("category"):
+            self.category.set(result["category"])
+        if result.get("group_type"):
+            self.group.set(result["group_type"])
+        self._update_sel_label()
+        return result
 
 
 def launch():

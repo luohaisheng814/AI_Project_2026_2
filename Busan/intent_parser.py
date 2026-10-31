@@ -132,9 +132,113 @@ EXTRA_SPOT_HINTS = [
 ]
 
 
-def recognize_summary(question, spot_name=None, field=None, lang=None):
-    """生成状态栏识别摘要：语言=中文 · 意图=交通 · 景点=甘川文化村。"""
+# ==================================================================
+# 玩法分类 / 出行人数：由用户提问实时推断（联动左侧选择栏；手动选择仍优先）
+# ==================================================================
+
+# 分类关键词（三语）：命中越多得分越高；顺序不影响打分
+CATEGORY_KEYWORDS = {
+    "01_艺术村落_文化街区": [
+        "艺术", "村落", "文化村", "文化街区", "小巷", "涂鸦", "壁画", "文创", "街拍", "村落",
+        "예술", "마을", "문화마을", "골목", "벽화", "그림",
+        "art", "village", "culture", "alley", "mural", "craft",
+    ],
+    "02_海岸休闲_日落夜景": [
+        "海岸", "海边", "沙滩", "海水浴场", "海滩", "日落", "夜景", "喷泉", "看海", "踏浪",
+        "해안", "바다", "해변", "해수욕장", "일몰", "노을", "야경", "분수",
+        "coast", "beach", "seaside", "sunset", "night view", "fountain", "sea",
+    ],
+    "03_湿地生态_自然观景": [
+        "湿地", "生态", "候鸟", "鸟", "芦苇", "观景台", "自然", "河口", "滩涂", "观鸟",
+        "습지", "생태", "철새", "갈대", "전망대", "자연", "강하구", "갯벌",
+        "wetland", "ecology", "bird", "birdwatching", "reed", "nature", "lookout", "estuary",
+    ],
+    "04_小众渔港_文艺拍照": [
+        "渔港", "港口", "码头", "浦口", "小众", "拍照", "文艺", "渔市",
+        "어항", "포구", "항구", "부두", "사진", "감성",
+        "port", "harbor", "fishing port", "photo", "fishing village",
+    ],
+}
+
+# 出行人数关键词（三语）；solo 再按性别细分
+GROUP_KEYWORDS = {
+    "two_mf": [
+        "情侣", "夫妻", "约会", "男女", "恋人", "对象",
+        "커플", "남녀", "연인", "데이트",
+        "couple", "boyfriend", "girlfriend", "date", "partner", "romantic",
+    ],
+    "two_mm": [
+        "两个男生", "男男", "哥们", "兄弟俩", "两位男士",
+        "남성 둘", "남자 둘", "친구 둘",
+        "two guys", "male friends", "two men", "buddies",
+    ],
+    "two_ff": [
+        "两个女生", "闺蜜", "女女", "姐妹俩", "两位女士",
+        "여성 둘", "여자 둘", "친구 둘",
+        "two girls", "female friends", "two women", "besties", "girlfriends",
+    ],
+    "group_3plus": [
+        "三人", "四个人", "一家", "家庭", "全家", "朋友一群", "团体", "多人", "亲子", "孩子们",
+        "3인", "가족", "단체", "여럿", "아이들",
+        "family", "group", "three people", "four people", "kids", "children", "together",
+    ],
+}
+
+SOLO_WORDS = ["一个人", "独自", "单人", "一人", "独游", "혼자", "나 홀로", "solo", "alone", "by myself"]
+MALE_WORDS = ["男", "男生", "男性", "남", "male", "guy", "man"]
+FEMALE_WORDS = ["女", "女生", "女性", "여", "female", "girl", "woman"]
+
+
+def _hit_count(q, words):
+    q = (q or "").lower()
+    return sum(1 for w in words if w and w.lower() in q)
+
+
+def infer_category(question, category_hint=None):
+    """
+    推断玩法分类。
+    优先使用已识别景点所属分类（category_hint）；否则按三语关键词打分，
+    最高分且至少命中 1 个词才返回，否则返回 None（保持当前手动选择）。
+    """
+    if category_hint:
+        return category_hint
+    q = question or ""
+    scores = {}
+    for cat, words in CATEGORY_KEYWORDS.items():
+        scores[cat] = _hit_count(q, words)
+    best = max(scores, key=scores.get)
+    if scores[best] >= 1:
+        return best
+    return None
+
+
+def infer_group(question):
+    """
+    推断出行人数分组；无把握返回 None（保持当前手动选择）。
+    先判非 solo 的两人/团体，再判 solo，solo 按男女细分。
+    """
+    q = question or ""
+    scores = {}
+    for g, words in GROUP_KEYWORDS.items():
+        scores[g] = _hit_count(q, words)
+    best = max(scores, key=scores.get)
+    if scores[best] >= 1:
+        return best
+
+    if _hit_count(q, SOLO_WORDS) >= 1:
+        if _hit_count(q, FEMALE_WORDS) >= 1:
+            return "solo_female"
+        if _hit_count(q, MALE_WORDS) >= 1:
+            return "solo_male"
+        # 只说"一个人"未指明性别：不强行细分，返回 None
+    return None
+
+
+def recognize_summary(question, spot_name=None, field=None, lang=None,
+                      category=None, group=None):
+    """生成状态栏识别摘要：语言=中文 · 意图=交通 · 玩法=海岸日落 · 人数=情侣 · 景点=没云台。"""
     from lang_detect import detect_name
+    import config as _cfg
     parts = []
     if lang:
         parts.append(f"语言={detect_name(lang)}")
@@ -143,6 +247,19 @@ def recognize_summary(question, spot_name=None, field=None, lang=None):
         parts.append(f"意图={label}")
     else:
         parts.append("意图=全部")
+    if category:
+        # 复用 i18n 显示名；i18n 未加载时退回文件夹名
+        try:
+            import i18n
+            parts.append(f"玩法={i18n.I.cat_name(category)}")
+        except Exception:
+            parts.append(f"玩法={category}")
+    if group:
+        try:
+            import i18n
+            parts.append(f"人数={i18n.I.group_name(group)}")
+        except Exception:
+            parts.append(f"人数={group}")
     if spot_name:
         parts.append(f"景点={spot_name}")
     return " · ".join(parts)

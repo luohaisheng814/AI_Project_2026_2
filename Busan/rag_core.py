@@ -36,7 +36,13 @@ class SpotDoc:
 
 
 class KnowledgeBase:
-    """一次性加载全部 txt 常驻内存（改了 txt 调 KB.load(force=True) 热更新）。"""
+    """
+    全量常驻内存 + 作用域隔离：
+      - load() 一次性把四个分类文件夹、重点档案、rules.txt、适合人群全部读入；
+      - set_active_category(cat) 把所选玩法文件夹设为「当前唯一主数据源」，
+        并立即从磁盘重载该文件夹（切换玩法即重算）；
+      - 主回答只允许使用当前分类内的档案；其它分类仅在「个性化推荐补充」中限量出现。
+    """
 
     def __init__(self):
         self.spots = {}
@@ -44,53 +50,64 @@ class KnowledgeBase:
         self.rules_text = ""
         self.audience = {"zh": "", "ko": "", "en": ""}
         self.spot_profiles = {}     # 分类 -> docs 下重点档案（甘川 / 多大浦）
+        self.active_category = None  # 当前唯一主数据源分类
         self.loaded = False
+
+    # ---------- 单分类文件夹读取 ----------
+    def _read_category_folder(self, cat):
+        """读取某分类文件夹，返回该分类的 SpotDoc 列表。"""
+        docs = []
+        folder = os.path.join(config.ACTIVITY_DIR, cat)
+        if not os.path.isdir(folder):
+            return docs
+        for fn in sorted(os.listdir(folder)):
+            if not fn.lower().endswith(".txt"):
+                continue
+            path = os.path.join(folder, fn)
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    text = f.read()
+            except Exception:
+                continue
+
+            base = fn[:-4]
+            # 适合人群多语言文件：按后缀归档到对应语言（跨分类共享参考）
+            if base.startswith("适合人群"):
+                lang = "zh"
+                if base.endswith(("_한국어", "_韩文", "_ko")):
+                    lang = "ko"
+                elif base.endswith(("_English", "_英文", "_en")):
+                    lang = "en"
+                self.audience[lang] += ("\n" if self.audience[lang] else "") + f"[{cat}]\n{text.strip()}"
+                continue
+
+            doc = SpotDoc(base, path, cat)
+            doc.raw = text
+            doc.fields = IP.parse_fields(text)
+            for key in ("景点名称", "韩文名", "英文名", "别名"):
+                m = re.search(rf"{key}\s*[:：]\s*(.+)", text)
+                if m:
+                    for a in re.split(r"[,，/、]", m.group(1).strip()):
+                        if a.strip():
+                            doc.aliases.add(a.strip())
+            docs.append(doc)
+        return docs
 
     def load(self, force=False):
         if self.loaded and not force:
             return
         self.spots.clear()
         self.by_category = {c: [] for c in config.CATEGORIES}
+        self.audience = {"zh": "", "ko": "", "en": ""}
 
-        # ① 四大玩法分类库
+        # ① 四大玩法分类库（全量载入，供跨类补充推荐使用）
         for cat in config.CATEGORIES:
-            folder = os.path.join(config.ACTIVITY_DIR, cat)
-            if not os.path.isdir(folder):
-                continue
-            for fn in sorted(os.listdir(folder)):
-                if not fn.lower().endswith(".txt"):
-                    continue
-                path = os.path.join(folder, fn)
-                try:
-                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                        text = f.read()
-                except Exception:
-                    continue
+            docs = self._read_category_folder(cat)
+            self.by_category[cat] = docs
+            for doc in docs:
+                self.spots[doc.name] = doc
 
-                base = fn[:-4]
-                # 适合人群多语言文件：按后缀归档到对应语言
-                if base.startswith("适合人群"):
-                    lang = "zh"
-                    if base.endswith(("_한국어", "_韩文", "_ko")):
-                        lang = "ko"
-                    elif base.endswith(("_English", "_英文", "_en")):
-                        lang = "en"
-                    self.audience[lang] += ("\n" if self.audience[lang] else "") + f"[{cat}]\n{text.strip()}"
-                    continue
-
-                doc = SpotDoc(base, path, cat)
-                doc.raw = text
-                doc.fields = IP.parse_fields(text)
-                for key in ("景点名称", "韩文名", "英文名", "别名"):
-                    m = re.search(rf"{key}\s*[:：]\s*(.+)", text)
-                    if m:
-                        for a in re.split(r"[,，/、]", m.group(1).strip()):
-                            if a.strip():
-                                doc.aliases.add(a.strip())
-                self.spots[base] = doc
-                self.by_category[cat].append(doc)
-
-        # ② 核心数据库 rules.txt
+        # ② 核心数据库 rules.txt（仅作为通用规则/格式参考，不作为具体景点事实来源）
         if os.path.exists(config.RULES_FILE):
             try:
                 with open(config.RULES_FILE, "r", encoding="utf-8", errors="ignore") as f:
@@ -119,38 +136,93 @@ class KnowledgeBase:
 
         self.loaded = True
 
-    def _doc_by_alias(self, alias):
-        for doc in self.spots.values():
+    # ---------- 作用域切换：选定玩法 -> 该文件夹成为唯一主数据源 ----------
+    def set_active_category(self, cat):
+        """切换玩法：设置当前分类并立即从磁盘重载该分类文件夹，重算主数据源。"""
+        if cat == self.active_category:
+            return
+        self.active_category = cat
+        if cat:
+            self.reload_category(cat)
+
+    def reload_category(self, cat):
+        """从磁盘重新读取指定分类文件夹，刷新主数据源（不影响其它分类补充池）。"""
+        if not cat:
+            return
+        # 先移除旧的该分类条目，避免改名/删文件后残留
+        for old in list(self.by_category.get(cat, [])):
+            self.spots.pop(old.name, None)
+        docs = self._read_category_folder(cat)
+        self.by_category[cat] = docs
+        for doc in docs:
+            self.spots[doc.name] = doc
+
+    def active_docs(self):
+        """当前唯一主数据源内的档案。"""
+        if not self.active_category:
+            return []
+        return self.by_category.get(self.active_category, [])
+
+    def _doc_by_alias(self, alias, scope=None):
+        """在指定作用域内按别名找档案；scope=None 时全库查找。"""
+        pool = self.active_docs() if scope == "active" else list(self.spots.values())
+        for doc in pool:
             if alias in doc.aliases:
                 return doc
         return None
 
     def find_spot(self, query, category=None):
-        """识别问题里的景点名：本分类重点档案优先 → 本分类 → 全库；最长匹配优先。"""
+        """
+        识别问题里的景点名（主回答作用域）：
+          当前分类重点档案优先 -> 当前分类档案 -> 当前分类内别名；
+          若已选定分类，不在其它分类里找主景点（其它分类只进补充推荐）。
+        """
         q = (query or "").lower()
+        scope_cat = category or self.active_category
 
-        prof = self.spot_profiles.get(category or "")
+        prof = self.spot_profiles.get(scope_cat or "")
         if prof:
             for n in sorted(prof.aliases, key=len, reverse=True):
                 if n and n.lower() in q:
                     return prof
 
-        if category:
+        if scope_cat:
             names = []
-            for doc in self.by_category.get(category, []):
+            for doc in self.by_category.get(scope_cat, []):
                 names.extend(doc.aliases)
             for c, doc in self.spot_profiles.items():
-                if c == category:
+                if c == scope_cat:
                     names.extend(doc.aliases)
             for n in sorted(set(names), key=len, reverse=True):
                 if n and n.lower() in q:
-                    return self._doc_by_alias(n)
+                    return self._doc_by_alias(n, scope="active")
 
-        all_names = set().union(*[d.aliases for d in self.spots.values()] or [set()])
-        for n in sorted(all_names, key=len, reverse=True):
-            if len(n) >= 2 and n.lower() in q:
-                return self._doc_by_alias(n)
+        # 未选定分类时才允许全库兜底（保证主回答仍可命中）
+        if not scope_cat:
+            all_names = set().union(*[d.aliases for d in self.spots.values()] or [set()])
+            for n in sorted(all_names, key=len, reverse=True):
+                if len(n) >= 2 and n.lower() in q:
+                    return self._doc_by_alias(n)
         return None
+
+    def cross_category_docs(self, category, limit=2):
+        """个性化推荐补充池：当前分类之外的档案，跨其它分类轮询取点、限量返回。"""
+        others = [c for c in config.CATEGORIES if c != category]
+        pools = {c: list(self.by_category.get(c, [])) for c in others}
+        out, idx = [], 0
+        # 轮询：每个其它分类轮流出一个，保证补充点来自不同玩法
+        while len(out) < limit:
+            progressed = False
+            for c in others:
+                if idx < len(pools[c]):
+                    out.append(pools[c][idx])
+                    progressed = True
+                    if len(out) >= limit:
+                        return out
+            if not progressed:
+                break
+            idx += 1
+        return out
 
 
 KB = KnowledgeBase()
@@ -160,10 +232,13 @@ KB = KnowledgeBase()
 # 二、检索：本地库 -> 核心库 -> 官网/百科
 # ==================================================================
 def build_context(spot, field, category, group_type, lang):
-    """返回 (context_text, sources, web_hits)"""
+    """
+    返回 (context_text, sources, web_hits, supplements)
+    主数据源 = 当前所选分类文件夹内档案；supplements = 其它分类限量补充（仅个性化推荐）。
+    """
     sources, blocks = [], []
 
-    # ① 本地分类资料库 / 重点景点档案
+    # ① 主数据源：仅当前所选分类文件夹 / 重点档案
     if spot:
         if field and spot.get(field):
             body, head = spot.get(field), f"【{spot.name} · {field}】"
@@ -171,31 +246,31 @@ def build_context(spot, field, category, group_type, lang):
             body, head = spot.full_text(), f"【{spot.name} · 全部信息】"
         rel = os.path.relpath(spot.path, config.BASE_DIR).replace("\\", "/")
         is_profile = rel.startswith("docs/")
-        blocks.append(f"=== {'重点景点档案' if is_profile else '本地分类资料库'}：{rel} ===\n{head}\n{body}")
+        blocks.append(f"=== {'重点景点档案' if is_profile else '本地分类资料库（当前玩法）'}：{rel} ===\n{head}\n{body}")
         sources.append({
             "type": "profile" if is_profile else "local",
             "label": i18n.t("source_profile") if is_profile else i18n.t("source_local"),
             "detail": rel,
         })
 
-        # 补齐：同分类里同名景点的其它条目（档案缺的字段补上）
+        # 补齐：仅限当前分类里同名景点的其它条目（档案缺的字段补上）
         for d in KB.by_category.get(category or "", []):
             if d is spot or not (d.aliases & spot.aliases or d.name == spot.name):
                 continue
             miss = [d.get(f) for f in IP.FIELD_ORDER if not spot.get(f) and d.get(f)]
             if miss:
                 rel2 = os.path.relpath(d.path, config.BASE_DIR).replace("\\", "/")
-                blocks.append(f"=== 本地分类资料库（补充）：{rel2} ===\n" + "\n\n".join(miss))
+                blocks.append(f"=== 本地分类资料库（当前玩法·补充）：{rel2} ===\n" + "\n\n".join(miss))
                 sources.append({"type": "local", "label": i18n.t("source_local"), "detail": rel2})
 
         others = [d.name for d in KB.by_category.get(category, []) if d.name != spot.name]
         if others:
-            blocks.append("=== 同分类其它景点（可用于串联推荐） ===\n" + "、".join(others[:12]))
+            blocks.append("=== 当前玩法其它景点（可用于串联推荐，仅限本分类） ===\n" + "、".join(others[:12]))
     else:
         docs = KB.by_category.get(category, [])
         if docs:
             lines = [f"- {d.name}：{(d.get('overview') or d.raw)[:260].replace(chr(10), ' ')}" for d in docs[:12]]
-            blocks.append(f"=== 本地分类资料库：activity_classified/{category} ===\n" + "\n".join(lines))
+            blocks.append(f"=== 本地分类资料库（当前玩法）：activity_classified/{category} ===\n" + "\n".join(lines))
             sources.append({"type": "local", "label": i18n.t("source_local"),
                             "detail": f"activity_classified/{category}/"})
 
@@ -204,12 +279,21 @@ def build_context(spot, field, category, group_type, lang):
     if aud:
         blocks.append("=== 适合人群参考 ===\n" + aud[:1500])
 
-    # ② 核心数据库 rules.txt
+    # ② 核心数据库 rules.txt：仅作为通用规则/格式参考，不作为具体景点事实来源
     if KB.rules_text:
-        blocks.append("=== 核心数据库 rules.txt ===\n" + KB.rules_text[:6000])
+        blocks.append("=== 核心数据库 rules.txt（通用规则参考，景点事实以当前玩法文件夹为准） ===\n" + KB.rules_text[:6000])
         sources.append({"type": "core", "label": i18n.t("source_core"), "detail": "docs/rules.txt"})
 
-    # ③ 官网 / 百科在线查询（仅 01 / 02 重点景点，URL 来自 txt「来源网址」段）
+    # ③ 其它玩法补充推荐：限量、标注所属玩法与理由，仅供个性化推荐，排在主推荐之后
+    supplements = RC.build_cross_supplement(KB, category, group_type, lang, limit=RC.CROSS_LIMIT)
+    if supplements:
+        sup_lines = [f"- {s['name']}（{s['cat_label']}）：{s['reason']}" for s in supplements]
+        blocks.append(
+            "=== 其它玩法补充推荐（仅限「个性化推荐」末尾使用，排在主推荐之后，最多 "
+            f"{RC.CROSS_LIMIT} 个；必须标注所属玩法与推荐理由） ===\n" + "\n".join(sup_lines)
+        )
+
+    # ④ 官网 / 百科在线查询（仅 01 / 02 重点景点，URL 来自 txt「来源网址」段）
     web_hits = []
     profile = KB.spot_profiles.get(category or "")
     if profile and config.ENABLE_WEB_LOOKUP:
@@ -229,7 +313,7 @@ def build_context(spot, field, category, group_type, lang):
                 sources.append({"type": "web", "label": i18n.t("source_web"),
                                 "detail": i18n.t("web_failed")})
 
-    return "\n\n".join(blocks), sources, web_hits
+    return "\n\n".join(blocks), sources, web_hits, supplements
 
 
 # ==================================================================
@@ -243,6 +327,12 @@ def _system_prompt(lang):
         f"原始资料以中文为主，请自行准确翻译为 {target} 后再回答。\n"
         "【准确性铁律】只能依据<检索到的资料>回答，资料里没有的不要编造；"
         "资料不足时先说明已知信息，再明确告知哪部分需以官方现场公告为准。\n"
+        "【数据源隔离】主回答只能使用「当前玩法分类」文件夹内的资料；"
+        "其它玩法的景点不得出现在主推荐、路线、交通、开放信息等主体内容里。\n"
+        "【跨类补充规则】只有在末尾的「个性化推荐」环节，才允许引用资料中"
+        "「其它玩法补充推荐」列出的景点：数量不得超过给定上限（默认 2 个），"
+        "必须逐条标注其所属玩法分类与推荐理由，且必须排在主推荐之后，"
+        "单独成段，标题为「其它玩法补充推荐」。资料未列出的跨类景点不要自行补充。\n"
         "【个性化】严格按<用户画像>里的玩法骨架与出行策略组织答案，做到因人而异、可照着走。\n"
         "【完整性】用户只给景点名时，必须完整列出介绍、交通、开放信息、来源网址等全部字段，不得只显示前几行。"
         "用户指定了字段时，只聚焦该字段，不堆砌无关内容。\n"
@@ -288,12 +378,34 @@ def _user_prompt(question, context, category, group_type, field, spot_name, lang
 # ==================================================================
 # 四、离线兜底（未配置 LLM_API_KEY 时仍可完整演示检索链路）
 # ==================================================================
-def _local_fallback(spot, field, category, group_type, lang, sources):
+SUPPLEMENT_TITLE = {
+    "zh": "### 其它玩法补充推荐",
+    "ko": "### 다른 테마 추천 (주 추천 이후)",
+    "en": "### Other-theme recommendations",
+}
+
+
+def render_supplements(supplements, lang):
+    """把跨类补充排成「主推荐之后」的独立段落；空列表返回空字符串。"""
+    if not supplements:
+        return ""
+    lines = [SUPPLEMENT_TITLE.get(lang, SUPPLEMENT_TITLE["zh"]), ""]
+    for s in supplements:
+        lines.append(f"- {s['name']}（{s['cat_label']}）：{s['reason']}")
+    return "\n".join(lines)
+
+
+def _local_fallback(spot, field, category, group_type, lang, sources, supplements=None):
     if spot:
         body = spot.get(field) if (field and spot.get(field)) else spot.full_text()
         content = f"**{spot.name}**\n\n{IP.localize_labels(body, lang)}"
     else:
         content = i18n.t("no_result")
+
+    # 主回答之后，单独成段给出限量跨类补充（标注玩法 + 理由）
+    sup_block = render_supplements(supplements or [], lang)
+    if sup_block:
+        content = content + "\n\n" + sup_block
 
     src_lines = "\n".join(f"- {s['label']}：{s['detail']}" for s in sources)
     return (f"{content}\n\n---\n**{i18n.t('sources_label')}**\n{src_lines}"
@@ -306,7 +418,9 @@ def _local_fallback(spot, field, category, group_type, lang, sources):
 def answer(question, category=None, group_type=None, lang=None, username=None, ui_lang=None):
     """
     返回 dict：
-        answer / sources / followups / spot / field / lang / offline
+        answer / sources / followups / spot / field / lang / offline / recognize / supplements
+    数据源规则：选定玩法后，该分类文件夹为唯一主数据源；切换即重载；
+    跨分类景点仅出现在 supplements（个性化推荐补充，限量、标注玩法与理由、排在主推荐之后）。
     """
     question = (question or "").strip()
     # 回答语言：优先提问语言（lang_detect），识别不出才用界面语言
@@ -315,30 +429,46 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
 
     KB.load()
 
+    # 未显式传分类时，先按问题推断玩法（供作用域定位）；spot 命中后以其所属分类为准
+    inferred_cat = IP.infer_category(question, category)
+    category = category or inferred_cat
+    # 未显式传人数时按问题推断
+    group_type = group_type or IP.infer_group(question)
+
+    # 切换玩法：把所选分类文件夹设为当前唯一主数据源，并立即从磁盘重载、重算
+    KB.set_active_category(category)
+
     spot = KB.find_spot(question, category)
+    # 景点命中后，以景点真实所属分类校正作用域（关键词推断偏差时自动归位）
+    if spot and spot.category and spot.category != category:
+        category = spot.category
+        KB.set_active_category(category)
     field, _hit = IP.detect_field_detail(question)
 
     # 只输入景点名 -> 输出全部（显式置为 None）
     if spot and field and IP.is_only_spot_name(question, spot.aliases):
         field = None
 
-    recognize = IP.recognize_summary(question, spot.name if spot else None, field, lang)
-    context, sources, _ = build_context(spot, field, category, group_type, lang)
+    recognize = IP.recognize_summary(question, spot.name if spot else None, field, lang,
+                                     category, group_type)
+    context, sources, _, supplements = build_context(spot, field, category, group_type, lang)
 
     if not sources:
         return {"answer": i18n.t("no_result"), "sources": [], "followups": [],
                 "spot": None, "field": field, "lang": lang, "offline": True,
-                "recognize": recognize}
+                "recognize": recognize, "supplements": []}
 
     def fallback():
         return {
-            "answer": _local_fallback(spot, field, category, group_type, lang, sources),
+            "answer": _local_fallback(spot, field, category, group_type, lang, sources, supplements),
             "sources": sources,
             "followups": RC.suggest_questions(spot.name if spot else "", field, lang,
                                               spot.fields if spot else None),
             "spot": spot.name if spot else None,
             "field": field, "lang": lang, "offline": True,
             "recognize": recognize,
+            "supplements": supplements,
+            "category": category, "group_type": group_type,
         }
 
     if not core_api.is_configured():
@@ -367,9 +497,14 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
         followups = RC.suggest_questions(spot.name if spot else "", field, lang,
                                          spot.fields if spot else None)
 
+    # 在线模型未输出跨类补充段时，用结构化 supplements 在前端补齐（保持限量与标注规则）
+    if supplements and SUPPLEMENT_TITLE.get(lang, "") not in text:
+        text = text + "\n\n" + render_supplements(supplements, lang)
+
     return {"answer": text, "sources": sources, "followups": followups,
             "spot": spot.name if spot else None, "field": field, "lang": lang,
-            "offline": False, "recognize": recognize}
+            "offline": False, "recognize": recognize, "supplements": supplements,
+            "category": category, "group_type": group_type}
 
 
 if __name__ == "__main__":

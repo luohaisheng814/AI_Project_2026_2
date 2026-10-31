@@ -24,6 +24,7 @@ import config
 import db_config as db
 import i18n
 import rag_core
+import intent_parser as IP
 import ui_style as S
 from chat_widget import ChatView, LangButton
 
@@ -115,8 +116,15 @@ class MainApp:
         grp = i18n.I.group_name(self.group.get()) if self.group.get() else i18n.t("please_select")
         self.lbl_sel.configure(text=f"{i18n.t('current_selection')}：\n· {cat}\n· {grp}")
 
-    def _on_select(self):
+    def _apply_scope(self):
+        """玩法切换：立即把所选分类文件夹设为唯一主数据源并重载、重算。"""
+        if self.category.get():
+            rag_core.KB.set_active_category(self.category.get())
         self._update_sel_label()
+
+    def _on_select(self):
+        """手动点选：保留用户选择，同时立即重载对应分类数据库。"""
+        self._apply_scope()
 
     def refresh_ui(self):
         # 语言切换后：玩法/人数选择保持，欢迎语换成新语言，对话历史原样保留
@@ -126,10 +134,20 @@ class MainApp:
 
     # ================= 问答 =================
     def answer_question(self, question):
-        """（在子线程中调用）检索 -> LLM -> 记录日志 -> 返回结果"""
+        """（在子线程中调用）推断联动选择栏 -> 检索 -> LLM -> 记录日志 -> 返回结果"""
+        # ① 先按问题推断玩法 / 人数，实时联动左侧两个选择栏（用户手动点选仍保留并优先）
+        inferred_cat = IP.infer_category(question, self.category.get() or None)
+        inferred_grp = IP.infer_group(question)
+        if inferred_cat:
+            self.category.set(inferred_cat)
+        if inferred_grp:
+            self.group.set(inferred_grp)
+        # 切换玩法：立即重载对应分类数据库，作为当前唯一数据源
+        self._apply_scope()
+
         cat = self.category.get()
         if not cat:
-            return {"answer": i18n.t("need_theme"), "sources": [], "followups": []}
+            return {"answer": i18n.t("need_theme"), "sources": [], "followups": [], "supplements": []}
 
         grp = self.group.get()
 
@@ -137,6 +155,13 @@ class MainApp:
         # lang 传 None：由 lang_detect 按提问语言决定（中文问中文答 / 韩文问韩文答 / 英文问英文答）
         result = rag_core.answer(question, category=cat, group_type=grp, lang=None,
                                  ui_lang=i18n.I.lang, username=self.username)
+
+        # ② 以问答最终解析出的玩法 / 人数回写选择栏（推断结果与手动选择统一显示）
+        if result.get("category"):
+            self.category.set(result["category"])
+        if result.get("group_type"):
+            self.group.set(result["group_type"])
+        self.chat.after(0, self._update_sel_label)
 
         # 记录本次详细查询（写入对应用户数据库 query_logs）
         try:

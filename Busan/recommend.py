@@ -95,6 +95,49 @@ def build_profile_text(category, group_type, lang):
     return "\n".join([p for p in parts if p])
 
 
+# ---------------- 跨分类个性化补充（限量、标注玩法与理由、排在主推荐之后） ----------------
+CROSS_LIMIT = 2  # 其它玩法补充最多出现的数量
+
+# 各语言下补充推荐的理由模板：结合出行人数策略
+CROSS_REASON = {
+    "zh": "与当前所选玩法节奏不同，可作为主推荐之后的延伸安排；{group} 前往也合适。",
+    "ko": "현재 테마와는 다른 분위기로, 주 추천 이후의 연장 코스로 적합합니다. {group} 방문도 무난합니다.",
+    "en": "A different vibe from the chosen theme; suitable as an extension after the main picks. Good for {group}.",
+}
+
+
+def build_cross_supplement(kb, category, group_type, lang, limit=CROSS_LIMIT):
+    """
+    从「当前分类之外」挑选限量景点作为个性化补充。
+    返回 [{name, ko, category, cat_label, reason, doc}]，供主回答末尾单独成段展示。
+    规则：数量受限（默认 2）；必须标注所属玩法；给出推荐理由；排在主推荐之后。
+    """
+    import i18n
+    group_label = i18n.I.group_name(group_type) if group_type else ""
+
+    out = []
+    for doc in kb.cross_category_docs(category, limit=limit):
+        if not doc.name:
+            continue
+        # 理由 = 该景点自身玩法骨架的一句提炼 + 人数适配说明
+        style = CATEGORY_STYLE.get(doc.category, {}).get(lang, "")
+        style_brief = style.split("。")[0] if style else ""
+        reason_tpl = CROSS_REASON.get(lang, CROSS_REASON["zh"])
+        reason = reason_tpl.format(group=group_label)
+        if style_brief:
+            reason = f"{style_brief}；{reason}"
+        out.append({
+            "name": doc.name,
+            "category": doc.category,
+            "cat_label": i18n.I.cat_name(doc.category),
+            "reason": reason,
+            "doc": doc,
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 # ---------------- 预测下一个问题 ----------------
 QUESTION_TEMPLATES = {
     "overview":  {"zh": "{name} 是什么样的地方？", "ko": "{name} 어떤 곳인가요?", "en": "What is {name} like?"},

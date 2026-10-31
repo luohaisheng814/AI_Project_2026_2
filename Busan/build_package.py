@@ -1,0 +1,217 @@
+# -*- coding: utf-8 -*-
+"""
+build_package.py —— 把手机版运行时打包成可分发的安装压缩包 Busan_Tour_App.zip
+
+产物：
+  dist/Busan_Tour_App.zip
+    └── Busan_Tour_App/
+          ├── start_windows.bat      Windows 一键启动（自动建 venv、装依赖、起服务、开浏览器）
+          ├── start.sh               macOS / Linux 一键启动
+          ├── README.txt              使用说明（手机访问 / 离线缓存 / 安装到主屏）
+          ├── requirements.txt
+          ├── mobile_app.py          手机版服务端
+          ├── mobile/index.html       手机版 H5 页面
+          ├── 运行所需 .py 模块
+          ├── docs/                  核心数据库与重点档案
+          └── activity_classified/   四大玩法分类数据库
+
+排除：.env（密钥）、*.db、__pycache__、logs、ppt_work、.lark-slides、日志、测试脚本、PPTX。
+用法：
+  python build_package.py            # 生成 dist/Busan_Tour_App.zip
+"""
+import os
+import sys
+import zipfile
+
+import config
+
+BASE_DIR = config.BASE_DIR
+DIST_DIR = os.path.join(BASE_DIR, "dist")
+PKG_NAME = "Busan_Tour_App"
+ZIP_PATH = os.path.join(DIST_DIR, f"{PKG_NAME}.zip")
+
+# 手机版服务端直接/间接依赖的 Python 模块（不含登录、桌面、后台管理链路）
+REQUIRED_MODULES = [
+    "mobile_app.py",
+    "rag_core.py",
+    "recommend.py",
+    "intent_parser.py",
+    "lang_detect.py",
+    "config.py",
+    "i18n.py",
+    "core_api.py",
+    "web_lookup.py",
+]
+
+# 需要整目录打包的数据
+DATA_DIRS = ["docs", "activity_classified", "mobile"]
+
+EXCLUDE_DIRS = {"__pycache__", "dist", "logs", "ppt_work", ".lark-slides", ".git", ".venv"}
+EXCLUDE_EXT = {".db", ".log", ".pyc", ".pptx", ".zip"}
+EXCLUDE_FILES = {".env", "test_scope.py"}
+
+BAT_LAUNCHER = """@echo off
+chcp 65001 >nul
+title Busan AI Tour App
+cd /d "%~dp0"
+
+echo ============================================
+echo   Busan AI 旅行助手 · 手机版一键启动
+echo ============================================
+
+where python >nul 2>nul
+if errorlevel 1 (
+  echo [错误] 未检测到 Python，请先安装 Python 3.9+ 并勾选 Add to PATH。
+  pause
+  exit /b 1
+)
+
+if not exist ".venv" (
+  echo [1/3] 正在创建虚拟环境 .venv ...
+  python -m venv .venv
+)
+
+call ".venv\\Scripts\\activate.bat"
+
+echo [2/3] 正在安装依赖（首次运行需要联网）...
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+echo [3/3] 正在启动手机版服务...
+echo 手机与电脑连同一 Wi-Fi，浏览器访问命令行里显示的地址即可。
+echo 本窗口保持打开；关闭窗口即停止服务。
+start "" http://127.0.0.1:8000/
+python mobile_app.py 8000
+pause
+"""
+
+SH_LAUNCHER = """#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+echo "============================================"
+echo "  Busan AI 旅行助手 · 手机版一键启动"
+echo "============================================"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "[错误] 未检测到 python3，请先安装 Python 3.9+。"; exit 1
+fi
+
+if [ ! -d ".venv" ]; then
+  echo "[1/3] 创建虚拟环境 .venv ..."
+  python3 -m venv .venv
+fi
+
+source .venv/bin/activate
+echo "[2/3] 安装依赖（首次运行需要联网）..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+echo "[3/3] 启动手机版服务 ..."
+echo "手机与电脑连同一 Wi-Fi，浏览器访问终端里显示的地址。"
+python3 mobile_app.py 8000
+"""
+
+README = """Busan AI 旅行助手 · 手机版安装包
+======================================
+
+一、包内容
+  mobile_app.py            手机版服务端（问答 / GPS 附近景点 / 玩法分类 / 安装包下载）
+  mobile/index.html        手机版 H5 页面（聊天、定位、分类与人数选择栏、离线缓存）
+  docs/                    核心数据库 rules.txt 与重点景点档案
+  activity_classified/     四大玩法分类数据库（01 艺术村落 / 02 海岸日落 / 03 湿地生态 / 04 小众渔港）
+  requirements.txt         Python 依赖清单
+  start_windows.bat        Windows 一键启动
+  start.sh                 macOS / Linux 一键启动
+
+二、在电脑上启动（同一 Wi-Fi 下供手机访问）
+  Windows：双击 start_windows.bat
+  macOS / Linux：在终端执行 bash start.sh
+  启动后终端会打印：
+    本机访问： http://127.0.0.1:8000/
+    手机访问： http://<电脑局域网IP>:8000/
+  手机浏览器打开「手机访问」地址即可使用。
+
+三、把应用放到手机上
+  1) 在线使用：手机浏览器打开上面的地址 → 浏览器菜单选「添加到主屏幕」，
+     桌面会生成图标，点开即以独立窗口打开（首次加载后 Service Worker 缓存，可离线打开页面框架）。
+  2) 安装包分发：本 zip 即为完整应用压缩包，可通过微信/QQ/邮件/网盘传到手机留存备份；
+     手机端 H5 页面内也有「下载安装包」按钮可直接获取本压缩包。
+  说明：纯网页应用不需要在手机上单独安装 APK；问答与景点数据由服务端提供，
+        离线状态下可查看已缓存页面，实时问答需服务在线。
+
+四、玩法分类与数据规则
+  · 左侧（手机端顶部）选择玩法后，仅加载该玩法文件夹作为当前唯一主数据源；
+  · 切换玩法会立即重载对应分类库并重算结果；
+  · 其它玩法的景点只出现在回答末尾「其它玩法补充推荐」中，限量 2 个，
+    并标注所属玩法与推荐理由，排在主推荐之后。
+
+五、常见问题
+  · 手机定位失败：浏览器定位要求 HTTPS 或 localhost；局域网 HTTP 下可改用
+    景点卡片上的 Naver / Google 导航按钮手动选点，或用隧道（cloudflared/ngrok）暴露 HTTPS。
+  · 首次启动慢：首次会创建虚拟环境并安装依赖，之后启动会很快。
+  · 未配置 LLM_API_KEY 时为本地检索直出模式，仍可完整演示问答链路。
+"""
+
+
+def _should_skip_file(name):
+    if name in EXCLUDE_FILES:
+        return True
+    ext = os.path.splitext(name)[1].lower()
+    return ext in EXCLUDE_EXT
+
+
+def collect_files():
+    """返回 [(zip_arcname, local_abs_path), ...]。"""
+    files = []
+
+    for mod in REQUIRED_MODULES:
+        p = os.path.join(BASE_DIR, mod)
+        if os.path.exists(p):
+            files.append((f"{PKG_NAME}/{mod}", p))
+
+    for d in DATA_DIRS:
+        root = os.path.join(BASE_DIR, d)
+        if not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [x for x in dirnames if x not in EXCLUDE_DIRS]
+            for fn in filenames:
+                if _should_skip_file(fn):
+                    continue
+                local = os.path.join(dirpath, fn)
+                arc = os.path.join(PKG_NAME, os.path.relpath(local, BASE_DIR))
+                files.append((arc.replace("\\", "/"), local))
+    return files
+
+
+def main():
+    os.makedirs(DIST_DIR, exist_ok=True)
+    files = collect_files()
+
+    # 清单内补充启动器 / README / requirements
+    extra = {
+        f"{PKG_NAME}/start_windows.bat": BAT_LAUNCHER,
+        f"{PKG_NAME}/start.sh": SH_LAUNCHER,
+        f"{PKG_NAME}/README.txt": README,
+    }
+    req_src = os.path.join(BASE_DIR, "requirements.txt")
+    if os.path.exists(req_src):
+        extra[f"{PKG_NAME}/requirements.txt"] = open(req_src, encoding="utf-8").read()
+
+    if os.path.exists(ZIP_PATH):
+        os.remove(ZIP_PATH)
+
+    with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as zf:
+        for arc, local in files:
+            zf.write(local, arc)
+        for arc, content in extra.items():
+            zf.writestr(arc, content)
+
+    size_kb = os.path.getsize(ZIP_PATH) / 1024
+    print(f"打包完成：{ZIP_PATH}")
+    print(f"  包含 {len(files)} 个运行/数据文件 + {len(extra)} 个启动说明文件")
+    print(f"  压缩包大小：{size_kb:.1f} KB")
+
+
+if __name__ == "__main__":
+    main()

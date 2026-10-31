@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-mobile_app.py —— Busan AI 旅行助手 · 手机版（零依赖，内置 http.server + PWA）
+mobile_app.py —— Busan AI 旅行助手 · 手机版（内置 http.server，零第三方 Web 框架）
 
 功能：
-  GET  /                移动端 H5 页面（聊天 + GPS 定位附近景点）
-  GET  /manifest.json   PWA 清单（可"添加到主屏幕"安装到手机）
-  GET  /sw.js           Service Worker（离线缓存）
-  GET  /icon-192.png    应用图标
+  GET  /                     移动端 H5 页面（聊天 + GPS 附近景点 + 玩法/人数选择栏）
+  GET  /manifest.json       PWA 清单（可"添加到主屏幕"安装到手机）
+  GET  /sw.js                Service Worker（离线缓存，点开即用）
+  GET  /icon-192.png         应用图标
   GET  /icon-512.png
-  POST /api/chat        问答接口（复用 rag_core.answer）
-  POST /api/nearby      GPS 附近景点（浏览器经纬度 -> haversine 距离排序）
-  GET  /api/navigate    生成地图导航链接（Naver / Google Maps）
+  GET  /api/meta             玩法分类 / 出行人数选项（供手机端选择栏初始化）
+  GET  /download/Busan_Tour_App.zip   下载完整安装压缩包（含一键启动器与离线资源）
+  POST /api/chat             问答接口（复用 rag_core.answer，作用域隔离 + 跨类限量补充）
+  POST /api/nearby           GPS 附近景点（浏览器经纬度 -> haversine 距离排序）
 
 启动：
   python mobile_app.py            # 默认 0.0.0.0:8000
   python mobile_app.py 8080       # 自定义端口
-手机与电脑连同一 Wi-Fi，手机浏览器访问 http://<电脑局域网IP>:8000/，
-浏览器菜单选"添加到主屏幕"即可像 App 一样使用。
+手机与电脑连同一 Wi-Fi，手机浏览器访问 http://<电脑局域网IP>:8000/：
+  · 可直接在页面问答、定位附近景点；
+  · 点「下载安装包」获取 Busan_Tour_App.zip，解压后一键启动即可使用；
+  · 浏览器菜单选「添加到主屏幕」可像 App 一样放到桌面离线打开。
 注意：浏览器定位 API 要求 HTTPS 或 localhost；局域网 HTTP 下定位可能被拒，
-此时可手动长按地图选点，或用隧道（如 cloudflared）暴露为 HTTPS。
+此时可点景点卡片上的「Naver / Google 导航」手动选点，或用隧道暴露为 HTTPS。
 """
 import json
 import math
@@ -35,6 +38,8 @@ config.ensure_runtime()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MOBILE_DIR = os.path.join(BASE_DIR, "mobile")
 HTML_FILE = os.path.join(MOBILE_DIR, "index.html")
+DIST_DIR = os.path.join(BASE_DIR, "dist")
+PACKAGE_ZIP = os.path.join(DIST_DIR, "Busan_Tour_App.zip")
 
 # 沙下区景点坐标（与 rules.txt 一致，近似坐标）
 SPOTS_GEO = [
@@ -53,6 +58,15 @@ CAT_LABEL = {
     "02_海岸休闲_日落夜景": "🌅 海岸日落",
     "03_湿地生态_自然观景": "🏞️ 湿地生态",
     "04_小众渔港_文艺拍照": "📸 小众渔港",
+}
+
+GROUP_LABEL = {
+    "solo_male": "一人（男）",
+    "solo_female": "一人（女）",
+    "two_mf": "两人（男女）",
+    "two_mm": "两人（男男）",
+    "two_ff": "两人（女女）",
+    "group_3plus": "三人及以上",
 }
 
 
@@ -99,9 +113,9 @@ MANIFEST_JSON = json.dumps({
 }, ensure_ascii=False, indent=2)
 
 SW_JS = """
-// Busan Tour service worker: 简单缓存首屏
-const CACHE = 'busan-tour-v1';
-const ASSETS = ['/', '/manifest.json'];
+// Busan Tour service worker: 缓存首屏与静态资源，断网后仍可打开
+const CACHE = 'busan-tour-v2';
+const ASSETS = ['/', '/manifest.json', '/sw.js', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
@@ -110,6 +124,7 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (e.request.url.includes('/api/') || e.request.url.includes('/download/')) return; // 接口与安装包不缓存
   e.respondWith(
     caches.match(e.request).then(hit => hit || fetch(e.request).then(resp => {
       const copy = resp.clone();
@@ -122,16 +137,14 @@ self.addEventListener('fetch', e => {
 
 
 def make_icon(size):
-    """生成一个简易应用图标（蓝色圆角底 + 白色 B 字），返回 PNG bytes。"""
+    """生成一个简易应用图标（蓝色底 + 白色 B 字），返回 PNG bytes。"""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except Exception:
         return None
     img = Image.new("RGBA", (size, size), (15, 23, 42, 255))
     d = ImageDraw.Draw(img)
-    # 斜切色块
     d.polygon([(0, size), (size, size * 0.55), (size, size), (0, size)], fill=(14, 165, 233, 255))
-    # 字母 B
     try:
         font = ImageFont.truetype("arialbd.ttf", int(size * 0.55))
     except Exception:
@@ -150,7 +163,7 @@ def make_icon(size):
 
 
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code, body, ctype="application/json; charset=utf-8", cache=False):
+    def _send(self, code, body, ctype="application/json; charset=utf-8", cache=False, extra=None):
         data = body if isinstance(body, (bytes, bytearray)) else body.encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype)
@@ -160,6 +173,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         if cache:
             self.send_header("Cache-Control", "max-age=3600")
+        if extra:
+            for k, v in extra.items():
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
 
@@ -183,10 +199,13 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, f.read(), "text/html; charset=utf-8")
             except FileNotFoundError:
                 self._send(500, "mobile/index.html 缺失", "text/plain; charset=utf-8")
+
         elif path == "/manifest.json":
             self._send(200, MANIFEST_JSON, "application/manifest+json; charset=utf-8", cache=True)
+
         elif path == "/sw.js":
             self._send(200, SW_JS, "application/javascript; charset=utf-8", cache=True)
+
         elif path in ("/icon-192.png", "/icon-512.png"):
             size = 192 if "192" in path else 512
             png = make_icon(size)
@@ -194,6 +213,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, png, "image/png", cache=True)
             else:
                 self._send(404, "icon unavailable (pip install pillow)", "text/plain; charset=utf-8")
+
+        elif path == "/api/meta":
+            self._send(200, json.dumps({
+                "categories": [{"key": c, "label": CAT_LABEL.get(c, c)} for c in config.CATEGORIES],
+                "groups": [{"key": g, "label": GROUP_LABEL.get(g, g)} for g in config.GROUP_TYPES],
+            }, ensure_ascii=False))
+
+        elif path == "/download/Busan_Tour_App.zip":
+            if os.path.exists(PACKAGE_ZIP):
+                with open(PACKAGE_ZIP, "rb") as f:
+                    data = f.read()
+                self._send(200, data, "application/zip", extra={
+                    "Content-Disposition": 'attachment; filename="Busan_Tour_App.zip"',
+                })
+            else:
+                self._send(404, json.dumps({
+                    "error": "安装包尚未生成，请先在电脑上运行 python build_package.py"
+                }, ensure_ascii=False), "application/json; charset=utf-8")
+
         else:
             self._send(404, "not found", "text/plain; charset=utf-8")
 
@@ -205,10 +243,19 @@ class Handler(BaseHTTPRequestHandler):
             grp = body.get("group_type") or ""
             ui = body.get("ui_lang") or "zh"
             if not q:
-                self._send(200, json.dumps({"answer": "", "sources": [], "followups": [], "recognize": ""}, ensure_ascii=False))
+                self._send(200, json.dumps({
+                    "answer": "", "sources": [], "followups": [], "recognize": "",
+                    "supplements": [], "category": None, "group_type": None,
+                }, ensure_ascii=False))
                 return
             r = rag_core.answer(q, category=cat or None, group_type=grp or None,
                                  lang=None, ui_lang=ui, username="mobile_user")
+            # supplements 内含内部 SpotDoc 对象，出参前只保留可序列化字段
+            supplements = [
+                {"name": s.get("name"), "category": s.get("category"),
+                 "cat_label": s.get("cat_label"), "reason": s.get("reason")}
+                for s in r.get("supplements", [])
+            ]
             self._send(200, json.dumps({
                 "answer": r.get("answer", ""),
                 "sources": r.get("sources", []),
@@ -218,6 +265,9 @@ class Handler(BaseHTTPRequestHandler):
                 "lang": r.get("lang"),
                 "recognize": r.get("recognize", ""),
                 "offline": r.get("offline", True),
+                "supplements": supplements,
+                "category": r.get("category"),
+                "group_type": r.get("group_type"),
             }, ensure_ascii=False))
             return
 
@@ -257,10 +307,10 @@ def main():
     host = "0.0.0.0"
     rag_core.KB.load()
     ip = print_lan_ip()
-    print("🚗 Busan 手机版（PWA）已启动：", flush=True)
+    print("🚗 Busan 手机版已启动：", flush=True)
     print(f"   本机访问：   http://127.0.0.1:{port}/", flush=True)
     print(f"   手机访问：   http://{ip}:{port}/", flush=True)
-    print("   浏览器菜单选「添加到主屏幕」即可安装到手机桌面。", flush=True)
+    print("   页面内可点「下载安装包」获取 Busan_Tour_App.zip；也可「添加到主屏幕」。", flush=True)
     print("   提示：浏览器定位要求 HTTPS 或 localhost；局域网 HTTP 下可用隧道暴露。", flush=True)
     ThreadingHTTPServer((host, port), Handler).serve_forever()
 
