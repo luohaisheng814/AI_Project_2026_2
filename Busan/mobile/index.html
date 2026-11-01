@@ -188,6 +188,33 @@ const UI_STR = {
 };
 const ui = () => UI_STR[uiLang] || UI_STR.zh;
 
+// 玩法 / 人数下拉选项标签：按当前按钮语言映射（后端 meta 仅提供 key，不依赖后端中文标签）
+const META_LABELS = {
+  categories: {
+    "01_艺术村落_文化街区": {zh: "01 艺术村落·文化街区", ko: "01 예술마을·문화거리", en: "01 Art Village · Cultural Streets"},
+    "02_海岸休闲_日落夜景": {zh: "02 海岸休闲·日落夜景", ko: "02 해안 휴식·일몰 야경", en: "02 Coastal Leisure · Sunset"},
+    "03_湿地生态_自然观景": {zh: "03 湿地生态·自然观景", ko: "03 습지 생태·자연 전망", en: "03 Wetland Ecology · Nature"},
+    "04_小众渔港_文艺拍照": {zh: "04 小众渔港·文艺拍照", ko: "04 이색 어항·감성 사진", en: "04 Hidden Ports · Photo Spots"},
+  },
+  groups: {
+    "solo_male":   {zh: "一人（男）", ko: "1인(남)", en: "Solo (Male)"},
+    "solo_female": {zh: "一人（女）", ko: "1인(여)", en: "Solo (Female)"},
+    "two_mf":      {zh: "两人（男女）", ko: "2인(남녀)", en: "Two (M&F)"},
+    "two_mm":      {zh: "两人（男男）", ko: "2인(남남)", en: "Two (M&M)"},
+    "two_ff":      {zh: "两人（女女）", ko: "2인(여여)", en: "Two (F&F)"},
+    "group_3plus": {zh: "三人及以上", ko: "3인 이상", en: "3 or More"},
+  }
+};
+
+function refreshMetaLabels() {
+  for (const o of catSel.options) {
+    const m = META_LABELS.categories[o.value]; if (m) o.textContent = m[uiLang];
+  }
+  for (const o of grpSel.options) {
+    const m = META_LABELS.groups[o.value]; if (m) o.textContent = m[uiLang];
+  }
+}
+
 function applyLangUI() {
   langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === uiLang));
   welcomeMsg.textContent = ui().welcome;
@@ -198,6 +225,7 @@ function applyLangUI() {
   pkgBtn.textContent = ui().pkg;
   catSel.previousElementSibling.textContent = ui().theme;
   grpSel.previousElementSibling.textContent = ui().group;
+  refreshMetaLabels();
   document.querySelector('#nearby h3').textContent = ui().nearbyTitle;
   document.documentElement.lang = uiLang === 'zh' ? 'zh-CN' : uiLang;
 }
@@ -212,10 +240,14 @@ async function loadMeta() {
     const r = await fetch('/api/meta');
     const data = await r.json();
     (data.categories || []).forEach(c => {
-      const o = document.createElement('option'); o.value = c.key; o.textContent = c.label; catSel.appendChild(o);
+      const o = document.createElement('option'); o.value = c.key;
+      o.textContent = (META_LABELS.categories[c.key] || {})[uiLang] || c.label;
+      catSel.appendChild(o);
     });
     (data.groups || []).forEach(g => {
-      const o = document.createElement('option'); o.value = g.key; o.textContent = g.label; grpSel.appendChild(o);
+      const o = document.createElement('option'); o.value = g.key;
+      o.textContent = (META_LABELS.groups[g.key] || {})[uiLang] || g.label;
+      grpSel.appendChild(o);
     });
   } catch (e) { console.warn('meta 加载失败', e); }
 }

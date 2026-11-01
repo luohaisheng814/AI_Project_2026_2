@@ -134,6 +134,12 @@ class KnowledgeBase:
             self.spot_profiles[cat] = doc
             self.spots[doc.name] = doc
 
+        # 重点档案里的韩 / 英别名合并到同名分类档案，保证补充推荐也能取到惯用译名
+        for prof in self.spot_profiles.values():
+            for doc in self.by_category.get(prof.category, []):
+                if doc.name == prof.name or doc.aliases & prof.aliases:
+                    doc.aliases |= prof.aliases
+
         self.loaded = True
 
     # ---------- 作用域切换：选定玩法 -> 该文件夹成为唯一主数据源 ----------
@@ -156,6 +162,12 @@ class KnowledgeBase:
         self.by_category[cat] = docs
         for doc in docs:
             self.spots[doc.name] = doc
+        # 重载后再次合并重点档案别名（韩 / 英惯用名不丢失）
+        prof = self.spot_profiles.get(cat)
+        if prof:
+            for doc in docs:
+                if doc.name == prof.name or doc.aliases & prof.aliases:
+                    doc.aliases |= prof.aliases
 
     def active_docs(self):
         """当前唯一主数据源内的档案。"""
@@ -330,7 +342,8 @@ def _draft_system_prompt():
     """草稿阶段系统提示：始终用简体中文基于中文数据库生成回答。"""
     return (
         "你是「釜山 AI 旅行助手」，一位熟悉釜山本地玩法的资深向导。\n"
-        "【语言铁律】本轮必须使用简体中文生成草稿：标题、正文、来源说明、预测问题一律用中文。\n"
+        "【语言铁律】用户问题可能是简体中文、韩文或英文：先准确理解其意图、景点与字段，"
+        "但本轮草稿必须使用简体中文生成：标题、正文、来源说明、预测问题一律用中文。\n"
         "【准确性铁律】只能依据<检索到的资料>回答，资料里没有的不要编造；"
         "资料不足时先说明已知信息，再明确告知哪部分需以官方现场公告为准。\n"
         "【数据源隔离】主回答只能使用「当前玩法分类」文件夹内的资料；"
@@ -406,12 +419,25 @@ def _translator_system_prompt(out_lang, glossary):
         "2. 专有名词优先使用上表给出的目标语言惯用译法，同一名称全文译法必须统一；"
         "没有通用译法时，保留中文原名，并在**首次出现**时于括号内标注目标语言译法，之后沿用同一形式。\n"
         "3. 不得新增草稿中没有的条目、建议或景点，也不得删除草稿中已有的任何条目。\n"
-        "4. 原样保留 Markdown 结构：标题层级、**加粗**、项目符号 `-`、`---` 分隔线、URL 不译不改；"
-        "保留 `###FOLLOWUP###` 分隔标记与其后每个预测问题各自独立成行。\n"
+        "4. 原样保留 Markdown 结构：标题层级、**加粗**、项目符号 `-`、`---` 分隔线、URL 不译不改。\n"
         "5. 语气风格与草稿保持一致（亲切、可照着走的向导口吻），不要总结、不要加译者说明。\n"
         f"{name_map}"
         "现在开始翻译，只输出译文正文。"
     )
+
+
+def _question_to_zh(question, input_lang):
+    """非中文提问先转成简体中文，仅用于本地中文库检索 / 字段识别；翻译失败原样返回。"""
+    if not core_api.is_configured():
+        return None
+    lang_name = LD.detect_name(input_lang) or "外语"
+    out = core_api.chat([
+        {"role": "system", "content": f"把用户的{lang_name}提问翻译成简体中文，只输出中文译文："
+                                      "不要解释、不要加引号、不要补写问题；若是景点专有名词，"
+                                      "给出中文惯用名称；翻译不了就原样返回。"},
+        {"role": "user", "content": question},
+    ], timeout=30, retries=1)
+    return (out or "").strip() or None
 
 
 def _translate_to(text, out_lang, glossary=None):
@@ -422,7 +448,7 @@ def _translate_to(text, out_lang, glossary=None):
     translated = core_api.chat([
         {"role": "system", "content": system},
         {"role": "user", "content": text},
-    ])
+    ], timeout=90, retries=1)
     return translated if translated else None
 
 
@@ -522,24 +548,29 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
 
     KB.load()
 
-    # 未显式传分类时，先按问题推断玩法（供作用域定位）；spot 命中后以其所属分类为准
-    inferred_cat = IP.infer_category(question, category)
+    # 非中文提问：先转成简体中文用于检索中文库；原问题保留给草稿生成与日志展示
+    zh_query = question
+    if input_lang and input_lang != "zh" and core_api.is_configured():
+        zh_query = _question_to_zh(question, input_lang) or question
+
+    # 未显式传分类时，先按中文问题推断玩法（供作用域定位）；spot 命中后以其所属分类为准
+    inferred_cat = IP.infer_category(zh_query, category)
     category = category or inferred_cat
-    # 未显式传人数时按问题推断
-    group_type = group_type or IP.infer_group(question)
+    # 未显式传人数时按中文问题推断
+    group_type = group_type or IP.infer_group(zh_query)
 
     # 切换玩法：把所选分类文件夹设为当前唯一主数据源，并立即从磁盘重载、重算
     KB.set_active_category(category)
 
-    spot = KB.find_spot(question, category)
+    spot = KB.find_spot(zh_query, category)
     # 景点命中后，以景点真实所属分类校正作用域（关键词推断偏差时自动归位）
     if spot and spot.category and spot.category != category:
         category = spot.category
         KB.set_active_category(category)
-    field, _hit = IP.detect_field_detail(question)
+    field, _hit = IP.detect_field_detail(zh_query)
 
     # 只输入景点名 -> 输出全部（显式置为 None）
-    if spot and field and IP.is_only_spot_name(question, spot.aliases):
+    if spot and field and IP.is_only_spot_name(zh_query, spot.aliases):
         field = None
 
     recognize = IP.recognize_summary(question, spot.name if spot else None, field, out_lang,
@@ -574,12 +605,12 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     if not core_api.is_configured():
         return fallback()
 
-    # ③ 第一段：基于中文资料生成简体中文草稿（系统/用户提示词均固定中文）
+    # ③ 第一段：基于中文资料生成简体中文草稿（系统/用户提示词均固定中文；长上下文给足超时 + 重试）
     raw = core_api.chat([
         {"role": "system", "content": _draft_system_prompt()},
         {"role": "user", "content": _draft_user_prompt(question, context, category, group_type,
                                                       field, spot.name if spot else None)},
-    ])
+    ], timeout=90, retries=1)
     if raw is None:
         return fallback()
 
@@ -593,6 +624,8 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
                 followups_zh.append(line)
             if len(followups_zh) == 3:
                 break
+    # 草稿正文若又自带一个分隔标记，标记之后的内容不进入正文（预测问题只走独立字段）
+    draft_text = draft_text.split("###FOLLOWUP###")[0].strip()
 
     if not followups_zh:
         followups_zh = RC.suggest_questions(spot.name if spot else "", field, "zh",
@@ -620,6 +653,9 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
             if any(q == f for q, f in zip(followups, followups_zh)):
                 followups = RC.suggest_questions(spot.name if spot else "", field, out_lang,
                                                 spot.fields if spot else None)
+
+    # 翻译 / 草稿若再次漏入分隔标记，正文只保留标记之前的内容（预测问题独立走 followups）
+    text = text.split("###FOLLOWUP###")[0].rstrip()
 
     # ⑤ 跨类补充段固定排在主回答之后；翻译后的正文不含补充段时用结构化 supplements 补齐
     if supplements and SUPPLEMENT_TITLE.get(out_lang, "") not in text:

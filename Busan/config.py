@@ -77,16 +77,16 @@ def env_get(key, default=""):
 # ------------------------------------------------------------------
 # LLM 配置（OpenAI 兼容协议）
 # 兼容两套变量名，你原有的 .env 不用改：
-#   通义千问 DashScope：DASHCOPE_API_KEY / DASHCOPE_BASE_URL
+#   通义千问 DashScope：DASHSCOPE_API_KEY / DASHSCOPE_BASE_URL
 #   通用写法          ：LLM_API_KEY      / LLM_BASE_URL
 # ------------------------------------------------------------------
 DASHSCOPE_COMPAT_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
-_env_key = env_get("DASHCOPE_API_KEY", "") or env_get("LLM_API_KEY", "")
-_env_url = env_get("DASHCOPE_BASE_URL", "") or env_get("LLM_BASE_URL", "")
+_env_key = env_get("DASHSCOPE_API_KEY", "") or env_get("LLM_API_KEY", "")
+_env_url = env_get("DASHSCOPE_BASE_URL", "") or env_get("LLM_BASE_URL", "")
 _env_model = env_get("LLM_MODEL", "")
 
-USING_DASHSCOPE = bool(env_get("DASHCOPE_API_KEY", "")) or "dashscope" in _env_url.lower()
+USING_DASHSCOPE = bool(env_get("DASHSCOPE_API_KEY", "")) or "dashscope" in _env_url.lower()
 
 # 地址：通义旧版 /api/v1 不是 OpenAI 兼容端点，自动换成 compatible-mode/v1
 if _env_url:

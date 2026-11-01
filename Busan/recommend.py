@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import re
+
 import intent_parser as IP
 
 # ---------------- 出行人数 -> 推荐策略 ----------------
@@ -108,6 +110,9 @@ CROSS_REASON = {
 
 def _group_label(group_type, lang):
     import i18n
+    if not group_type:
+        # 人数未识别时使用中性称呼，避免模板里出现 None
+        return {"zh": "各类出行者", "ko": "누구나", "en": "any traveler"}.get(lang, "any traveler")
     key = i18n.GROUP_KEYS.get(group_type)
     return i18n.STRINGS[key].get(lang) if key else group_type
 
@@ -118,12 +123,27 @@ def _cat_label(folder_name, lang):
     return i18n.STRINGS[key].get(lang) if key else folder_name
 
 
+def _localized_name(doc, lang):
+    """按目标语言取景点惯用名：韩文别名 -> 英文别名 -> 保留中文原名（无通用译法时）。"""
+    if not doc:
+        return ""
+    if lang == "ko":
+        ko = next((a for a in doc.aliases if re.search(r"[가-힣]", a)), "")
+        if ko:
+            return ko
+    elif lang == "en":
+        en = next((a for a in doc.aliases if re.fullmatch(r"[A-Za-z\s'\-()]+", a)), "")
+        if en:
+            return en
+    return doc.name
+
+
 def build_cross_supplement(kb, category, group_type, lang, limit=CROSS_LIMIT):
     """
     从「当前分类之外」挑选限量景点作为个性化补充。
-    返回 [{name, ko, category, cat_label, reason, doc}]，供主回答末尾单独成段展示。
+    返回 [{name, zh_name, category, cat_label, reason, doc}]，供主回答末尾单独成段展示。
     规则：数量受限（默认 2）；必须标注所属玩法；给出推荐理由；排在主推荐之后；
-    分类名 / 人数名 / 理由均按传入 lang 本地化，不依赖全局界面语言。
+    分类名 / 人数名 / 景点名 / 理由均按传入 lang 本地化，不依赖全局界面语言。
     """
     group_label = _group_label(group_type, lang)
 
@@ -131,15 +151,12 @@ def build_cross_supplement(kb, category, group_type, lang, limit=CROSS_LIMIT):
     for doc in kb.cross_category_docs(category, limit=limit):
         if not doc.name:
             continue
-        # 理由 = 该景点自身玩法骨架的一句提炼 + 人数适配说明
-        style = CATEGORY_STYLE.get(doc.category, {}).get(lang, "")
-        style_brief = style.split("。")[0] if style else ""
+        # 理由：跨玩法氛围互补 + 人数适配；不把“答案组织方式”等内部提示写进给用户的理由
         reason_tpl = CROSS_REASON.get(lang, CROSS_REASON["zh"])
         reason = reason_tpl.format(group=group_label)
-        if style_brief:
-            reason = f"{style_brief}；{reason}"
         out.append({
-            "name": doc.name,
+            "name": _localized_name(doc, lang),
+            "zh_name": doc.name,
             "category": doc.category,
             "cat_label": _cat_label(doc.category, lang),
             "reason": reason,

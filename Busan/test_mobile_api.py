@@ -7,7 +7,7 @@ BASE = "http://127.0.0.1:8011"
 
 
 def get(path):
-    with urllib.request.urlopen(BASE + path, timeout=15) as r:
+    with urllib.request.urlopen(BASE + path, timeout=30) as r:
         return r.status, r.read()
 
 
@@ -20,7 +20,7 @@ def post(path, payload):
     req = urllib.request.Request(
         BASE + path, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=15) as r:
+    with urllib.request.urlopen(req, timeout=120) as r:
         return r.status, json.loads(r.read().decode("utf-8"))
 
 
