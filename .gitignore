@@ -18,3 +18,9 @@ ppt_work/
 mobile_stdout.log
 mobile_stderr.log
 req.json
+
+# APK 构建：中间产物、翻译缓存、签名私钥、v4 签名文件
+Busan/apk_build/build/
+Busan/apk_build/cache/
+Busan/apk_build/keystore/
+*.idsig

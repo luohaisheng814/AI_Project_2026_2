@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>釜山旅行助手</title>
+<style>
+  :root{
+    --sea:#0f6e8c; --sea-dark:#0a4e63; --sand:#f6f1e7; --ink:#1c2530;
+    --muted:#6b7785; --line:#e2e6ea; --bubble:#ffffff; --user:#0f6e8c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Microsoft YaHei",sans-serif;
+    background:var(--sand); color:var(--ink); display:flex; flex-direction:column; height:100vh;
+    padding-top:env(safe-area-inset-top);
+  }
+  header{
+    background:linear-gradient(135deg,var(--sea),var(--sea-dark)); color:#fff;
+    padding:10px 14px 8px; flex:0 0 auto;
+  }
+  .brand{display:flex; align-items:center; justify-content:space-between}
+  .brand h1{margin:0; font-size:17px; font-weight:600; letter-spacing:.2px}
+  .langs{display:flex; gap:6px}
+  .langs button{
+    border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff;
+    border-radius:14px; padding:5px 9px; font-size:12px; line-height:1;
+  }
+  .langs button.on{background:#fff; color:var(--sea-dark); border-color:#fff; font-weight:600}
+  .selectors{flex:0 0 auto; background:#fff; border-bottom:1px solid var(--line); padding:8px 12px 6px}
+  .row{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none}
+  .row::-webkit-scrollbar{display:none}
+  .row .lbl{flex:0 0 auto; font-size:12px; color:var(--muted); align-self:center; margin-right:2px}
+  .chip{
+    flex:0 0 auto; border:1px solid var(--line); background:#fbfcfd; color:var(--ink);
+    border-radius:14px; padding:6px 11px; font-size:12.5px; white-space:nowrap;
+  }
+  .chip.on{background:var(--sea); color:#fff; border-color:var(--sea); font-weight:600}
+  .status{font-size:11.5px; color:var(--muted); padding:0 2px 2px}
+  #chat{flex:1 1 auto; overflow-y:auto; padding:12px 12px 6px; -webkit-overflow-scrolling:touch}
+  .msg{margin-bottom:12px; display:flex}
+  .msg.user{justify-content:flex-end}
+  .bubble{
+    max-width:86%; background:var(--bubble); border-radius:14px; padding:10px 12px;
+    font-size:14px; line-height:1.62; box-shadow:0 1px 3px rgba(28,37,48,.08);
+    word-break:break-word;
+  }
+  .msg.user .bubble{background:var(--user); color:#fff; box-shadow:none}
+  .bubble h3{margin:0 0 6px; font-size:15.5px; color:var(--sea-dark)}
+  .bubble strong{color:var(--sea-dark)}
+  .bubble .sep{border:0; border-top:1px dashed var(--line); margin:7px 0}
+  .bubble .foot{font-size:11.5px; color:var(--muted); margin-top:8px}
+  .pick{display:inline-block; margin:6px 6px 0 0; border:1px solid var(--line); background:#fbfcfd;
+        border-radius:12px; padding:5px 9px; font-size:11.5px; color:var(--sea-dark)}
+  #followups{padding:0 12px 8px; display:flex; flex-wrap:wrap; flex:0 0 auto; max-height:104px; overflow-y:auto}
+  #followups .pick:active{background:#eef6f9}
+  footer{flex:0 0 auto; background:#fff; border-top:1px solid var(--line);
+         padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+  .inputbar{display:flex; gap:8px; align-items:center}
+  #q{flex:1 1 auto; border:1px solid var(--line); border-radius:20px; padding:10px 14px;
+      font-size:14px; outline:none; background:#fbfcfd}
+  #q:focus{border-color:var(--sea)}
+  .icon-btn, .send{
+    border:0; border-radius:20px; padding:10px 14px; font-size:13px; color:#fff; background:var(--sea); font-weight:600;
+  }
+  .icon-btn{background:#eef6f9; color:var(--sea-dark); font-weight:500}
+  .hint{font-size:11px; color:var(--muted); padding:6px 2px 0; text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1 id="title">釜山旅行助手 · 离线版</h1>
+    <div class="langs">
+      <button data-lang="zh" class="on">中文</button>
+      <button data-lang="ko">한국어</button>
+      <button data-lang="en">English</button>
+    </div>
+  </div>
+</header>
+
+<div class="selectors">
+  <div class="row" id="catRow"><span class="lbl" id="catLbl">玩法</span></div>
+  <div class="row" id="grpRow"><span class="lbl" id="grpLbl">出行</span></div>
+  <div class="status" id="status"></div>
+</div>
+
+<div id="chat"></div>
+<div id="followups"></div>
+
+<footer>
+  <div class="inputbar">
+    <input id="q" type="text" autocomplete="off" placeholder="输入景点名或问题…">
+    <button class="icon-btn" id="gps" title="附近景点">附近</button>
+    <button class="send" id="send">发送</button>
+  </div>
+  <div class="hint" id="hint"></div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function(){
+  var E = window.BusanEngine, D = window.BUSAN_DATA;
+  var lang = "zh";
+  var autoCat = true, autoGrp = true;
+  var history = [];   // [{role:'user'|'bot', text, questions?}]
+  var chat = document.getElementById("chat");
+  var followups = document.getElementById("followups");
+
+  var UI = {
+    zh:{ title:"釜山旅行助手 · 离线版", cat:"玩法", grp:"出行", auto:"自动", ph:"输入景点名或问题…",
+         send:"发送", gps:"附近", hint:"全部资料已内置，不联网也能问", status:"当前玩法：{c} · 出行：{g}" },
+    ko:{ title:"부산 여행 도우미 · 오프라인", cat:"테마", grp:"동행", auto:"자동", ph:"명소 이름이나 질문을 입력…",
+         send:"전송", gps:"주변", hint:"모든 자료가 내장되어 인터넷 없이도 사용 가능", status:"현재 테마: {c} · 동행: {g}" },
+    en:{ title:"Busan Travel Assistant · Offline", cat:"Theme", grp:"Party", auto:"Auto", ph:"Type a spot or a question…",
+         send:"Send", gps:"Nearby", hint:"All data is bundled — works offline", status:"Theme: {c} · Party: {g}" }
+  };
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function md(text){
+    var out = esc(text)
+      .replace(/^###\s(.+)$/gm, "<h3>$1</h3>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/^---$/gm, '<hr class="sep">')
+      .replace(/^- (.+)$/gm, "• $1");
+    // 正文里的连续空行在手机上会撑出大片留白，统一压成一档；
+    // 标题与分隔线本身就是块级元素，去掉它们前后的多余换行
+    return out.replace(/\n{2,}/g, "<br>").replace(/\n/g, "<br>")
+      .replace(/<\/h3><br>/g, "</h3>")
+      .replace(/<br><hr class="sep"><br>/g, '<hr class="sep">')
+      .replace(/<hr class="sep"><br>/g, '<hr class="sep">')
+      .replace(/<br><hr class="sep">/g, '<hr class="sep">');
+  }
+
+  function currentState(){ return E.getState(); }
+
+  function renderChips(){
+    var catRow = document.getElementById("catRow");
+    var grpRow = document.getElementById("grpRow");
+    catRow.querySelectorAll(".chip").forEach(function(n){ n.remove(); });
+    grpRow.querySelectorAll(".chip").forEach(function(n){ n.remove(); });
+
+    var st = currentState();
+    var autoChip = document.createElement("button");
+    autoChip.className = "chip" + (autoCat ? " on" : "");
+    autoChip.textContent = UI[lang].auto;
+    autoChip.onclick = function(){ autoCat = true; E.setState({autoCategory:true}); rerenderAll(); };
+    catRow.appendChild(autoChip);
+
+    Object.keys(D.strings.categories).forEach(function(c){
+      var b = document.createElement("button");
+      b.className = "chip" + (!autoCat && st.category === c ? " on" : "");
+      b.textContent = D.strings.categories[c][lang];
+      b.onclick = function(){ autoCat = false; E.setState({autoCategory:false, category:c}); rerenderAll(); };
+      catRow.appendChild(b);
+    });
+
+    var autoG = document.createElement("button");
+    autoG.className = "chip" + (autoGrp ? " on" : "");
+    autoG.textContent = UI[lang].auto;
+    autoG.onclick = function(){ autoGrp = true; E.setState({autoGroup:true}); rerenderAll(); };
+    grpRow.appendChild(autoG);
+
+    D.strings.groups && Object.keys(D.strings.groups).forEach(function(g){
+      var b = document.createElement("button");
+      b.className = "chip" + (!autoGrp && st.group === g ? " on" : "");
+      b.textContent = D.strings.groups[g][lang];
+      b.onclick = function(){ autoGrp = false; E.setState({autoGroup:false, group:g}); rerenderAll(); };
+      grpRow.appendChild(b);
+    });
+
+    document.getElementById("status").textContent = UI[lang].status
+      .replace("{c}", D.strings.categories[st.category] ? D.strings.categories[st.category][lang] : "—")
+      .replace("{g}", st.group ? D.strings.groups[st.group][lang] : UI[lang].auto);
+  }
+
+  function applyUI(){
+    document.getElementById("title").textContent = UI[lang].title;
+    document.getElementById("catLbl").textContent = UI[lang].cat;
+    document.getElementById("grpLbl").textContent = UI[lang].grp;
+    document.getElementById("q").placeholder = UI[lang].ph;
+    document.getElementById("send").textContent = UI[lang].send;
+    document.getElementById("gps").textContent = UI[lang].gps;
+    document.getElementById("hint").textContent = UI[lang].hint;
+    document.querySelectorAll(".langs button").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-lang") === lang);
+    });
+  }
+
+  function addUser(text){
+    var m = document.createElement("div");
+    m.className = "msg user";
+    m.innerHTML = '<div class="bubble">' + esc(text) + "</div>";
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addBot(result){
+    var m = document.createElement("div");
+    m.className = "msg bot";
+    var html = '<div class="bubble">' + md(result.text);
+    if (result.sources && result.sources.length){
+      html += '<div class="foot">' + esc(result.sources.join(" · ")) + "</div>";
+    }
+    html += "</div>";
+    m.innerHTML = html;
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+    renderFollowups(result);
+  }
+
+  function renderFollowups(result){
+    followups.innerHTML = "";
+    var st = currentState();
+    if (result.switchTo){
+      var sw = document.createElement("button");
+      sw.className = "pick";
+      sw.textContent = "→ " + D.strings.categories[result.switchTo][lang];
+      sw.onclick = function(){
+        autoCat = false; E.setState({autoCategory:false, category:result.switchTo});
+        rerenderAll();
+      };
+      followups.appendChild(sw);
+   }
+    (result.followups || []).forEach(function(q){
+      var b = document.createElement("button");
+      b.className = "pick";
+      b.textContent = q;
+      b.onclick = function(){ ask(q); };
+      followups.appendChild(b);
+    });
+    (result.supplements || []).forEach(function(s){
+      var b = document.createElement("button");
+      b.className = "pick";
+      b.textContent = "+ " + s.name;
+      b.onclick = function(){
+        autoCat = false; E.setState({autoCategory:false, category:s.cat});
+        rerenderAll();
+        setTimeout(function(){ ask(s.name); }, 30);
+      };
+      followups.appendChild(b);
+    });
+  }
+
+  function answerNow(text){
+    var res = E.answer(text, {lang: lang, autoCategory: autoCat, autoGroup: autoGrp});
+    if (res.category) { /* 自动推断后同步选择栏 */ }
+    renderChips();
+    addBot(res);
+    return res;
+  }
+
+  function ask(text){
+    text = (text || "").trim();
+    if (!text) return;
+    history.push({role:"user", text:text});
+    addUser(text);
+    var res = answerNow(text);
+    history.push({role:"bot", text:res.text, result:res});
+    document.getElementById("q").value = "";
+  }
+
+  function rerenderAll(){
+    // 语言 / 玩法 / 出行人数变化：清空对话，按历史提问用新设定重新生成全部回答
+    chat.innerHTML = "";
+    followups.innerHTML = "";
+    applyUI();
+    renderChips();
+    var asks = history.filter(function(h){ return h.role === "user"; }).map(function(h){ return h.text; });
+    history = [];
+    if (!asks.length){
+      var w = E.answer("", {lang: lang});
+      addBot({text: E.strings[lang].welcome, sources: [], followups: []});
+      return;
+    }
+    asks.forEach(function(t){
+      history.push({role:"user", text:t});
+      addUser(t);
+      var res = E.answer(t, {lang: lang, autoCategory: autoCat, autoGroup: autoGrp});
+      history.push({role:"bot", text:res.text, result:res});
+      addBot(res);
+    });
+  }
+
+  document.querySelectorAll(".langs button").forEach(function(b){
+    b.onclick = function(){
+      lang = b.getAttribute("data-lang");
+      E.setLang(lang);
+      rerenderAll();
+    };
+  });
+
+  document.getElementById("send").onclick = function(){ ask(document.getElementById("q").value); };
+  document.getElementById("q").addEventListener("keydown", function(e){
+    if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
+  });
+
+  document.getElementById("gps").onclick = function(){
+    if (!navigator.geolocation){
+      addBot({text: E.strings[lang].nearbyNone, sources:[], followups:[]});
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var list = E.nearby(pos.coords.latitude, pos.coords.longitude, 5);
+      if (!list.length){
+        addBot({text: E.strings[lang].nearbyEmpty, sources:[], followups:[]});
+        return;
+      }
+      var lines = ["**" + E.strings[lang].nearbyTitle + "**"];
+      list.forEach(function(x){
+        lines.push("- **" + E.displayName(x.spot, lang) + "** · " +
+                   x.km.toFixed(1) + " " + E.strings[lang].km + " · " + E.catLabel(x.spot.category, lang));
+      });
+      addBot({text: lines.join("\n"), sources: [], followups: list.map(function(x){ return E.displayName(x.spot, lang); })});
+    }, function(){
+      addBot({text: E.strings[lang].nearbyNone, sources:[], followups:[]});
+    }, {enableHighAccuracy: false, timeout: 8000, maximumAge: 600000});
+  };
+
+  // 启动
+  E.init(D);
+  E.setLang(lang);
+  applyUI();
+  renderChips();
+  addBot({text: E.strings[lang].welcome, sources: [], followups: []});
+})();
+</script>
+</body>
+</html>
