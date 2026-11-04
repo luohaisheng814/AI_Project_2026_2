@@ -129,11 +129,18 @@ def build():
          "-encoding", "UTF-8", "-classpath", PLATFORM_JAR,
          "-d", os.path.join(BUILD_DIR, "classes")] + java_files)
 
-    # ④ 转 dex
+    # ④ 转 dex（必须收集全部 class：WebViewClient / WebChromeClient 等匿名内部类
+    #    会编译成 MainActivity$1.class，只传 MainActivity.class 会在真机上
+    #    抛 ClassNotFoundException: com.busan.tour.MainActivity$1 而闪退）
+    class_files = []
+    for root, _dirs, files in os.walk(os.path.join(BUILD_DIR, "classes")):
+        for f in files:
+            if f.endswith(".class"):
+                class_files.append(os.path.join(root, f))
+    if not class_files:
+        raise SystemExit("javac 未产出 class 文件")
     run([os.path.join(BUILD_TOOLS, "d8.bat"), "--lib", PLATFORM_JAR, "--min-api", "21",
-         "--output", os.path.join(BUILD_DIR, "dex"),
-         os.path.join(BUILD_DIR, "classes", "com", "busan", "tour", "MainActivity.class"),
-         os.path.join(BUILD_DIR, "classes", "com", "busan", "tour", "R.class")],
+         "--output", os.path.join(BUILD_DIR, "dex")] + class_files,
         cwd=BUILD_TOOLS)
 
     dex_src = os.path.join(BUILD_DIR, "dex", "classes.dex")
@@ -161,6 +168,17 @@ def build():
         for must in ("classes.dex", "assets/index.html", "assets/app.js", "assets/data.js"):
             if must not in names:
                 raise SystemExit(f"APK 缺少 {must}")
+
+    # 确认 dex 里真的包含每一个 class（含匿名内部类），避免装到手机上才闪退
+    dexdump = os.path.join(BUILD_TOOLS, "dexdump.exe")
+    if os.path.exists(dexdump):
+        out = subprocess.run([dexdump, "-f", dex_src], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace").stdout
+        for cf in class_files:
+            rel = os.path.relpath(cf, os.path.join(BUILD_DIR, "classes"))[:-6]
+            descriptor = "L" + rel.replace("\\", "/") + ";"
+            if descriptor not in out:
+                raise SystemExit(f"dex 缺少类 {descriptor}（d8 传入的 class 列表不完整）")
 
     size = os.path.getsize(OUT_APK)
     print(f"\n构建完成：{OUT_APK}\n体积：{size / 1024:.1f} KB")

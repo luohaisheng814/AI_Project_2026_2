@@ -105,7 +105,10 @@
       anyTraveler: "各类出行者",
       nearbyTitle: "附近景点（按直线距离）",
       nearbyNone: "定位不可用：请在系统设置里允许定位，或直接问某个景点。",
+      nearbyDenied: "定位权限未开启：请在系统设置里允许「釜山旅行助手」使用位置，或直接问某个景点。",
+      nearbyTimeout: "定位超时：信号弱时可再点一次「附近」，或直接问某个景点。",
       nearbyEmpty: "附近 15 公里内没有收录的景点。",
+      nearbyFar: "15 公里内没有收录景点，按直线距离最近的 {n} 个是：",
       km: "公里",
       listTitle: "「{cat}」收录景点",
       listMore: "想细问哪一个？直接打景点名即可。",
@@ -122,7 +125,10 @@
       anyTraveler: "누구나",
       nearbyTitle: "주변 명소 (직선거리 순)",
       nearbyNone: "위치를 사용할 수 없습니다. 설정에서 위치를 허용하거나 명소 이름을 직접 질문해 주세요.",
+      nearbyDenied: "위치 권한이 꺼져 있습니다. 설정에서 「부산 여행 도우미」의 위치 사용을 허용하거나 명소 이름을 직접 질문해 주세요.",
+      nearbyTimeout: "위치 확인 시간이 초과되었습니다. 신호가 약하면 「주변」을 다시 누르거나 명소 이름을 직접 질문해 주세요.",
       nearbyEmpty: "15km 이내에 수록된 명소가 없습니다.",
+      nearbyFar: "15km 이내에 수록된 명소가 없습니다. 직선거리 기준 가장 가까운 {n}곳은 다음과 같습니다:",
       km: "km",
       listTitle: "「{cat}」 수록 명소",
       listMore: "더 자세히 알고 싶은 명소 이름을 입력해 주세요.",
@@ -139,7 +145,10 @@
       anyTraveler: "any traveler",
       nearbyTitle: "Nearby spots (by straight-line distance)",
       nearbyNone: "Location unavailable. Allow location in system settings, or just ask about a spot by name.",
+      nearbyDenied: "Location permission is off. Allow location for “Busan Travel Assistant” in system settings, or ask about a spot by name.",
+      nearbyTimeout: "Location timed out. Tap “Nearby” again, or just ask about a spot by name.",
       nearbyEmpty: "No listed spots within 15 km.",
+      nearbyFar: "No listed spots within 15 km. The {n} closest are:",
       km: "km",
       listTitle: "Spots in “{cat}”",
       listMore: "Type a spot name to get details.",
@@ -397,8 +406,11 @@
       if (pool.length) {
         var lines = ["**" + T[lang].listTitle.replace("{cat}", catLabel(scope, lang)) + "**"];
         pool.slice(0, 6).forEach(function (s) {
-          var hi = fieldText(s, "overview", lang) || fieldText(s, "course", lang);
+          // 列表里的简介优先用「亮点」——概览只剩地址电话，当简介不好看
+          var hi = fieldText(s, "highlights", lang) || fieldText(s, "course", lang) ||
+                   fieldText(s, "overview", lang);
           var first = (hi || "").split(/\n/).filter(function (x) { return x.trim(); })[0] || "";
+          first = first.replace(/^[·•\-]\s*/, "");
           lines.push("- **" + displayName(s, lang) + "**" + (first ? "：" + first.trim() : ""));
         });
         lines.push("\n" + T[lang].listMore);
@@ -479,6 +491,16 @@
       .slice(0, limit);
   }
 
+  /** 不在釜山市区时的降级：直接给最近的几个，免得只剩一句「附近没有」。 */
+  function nearestAny(lat, lng, limit) {
+    limit = limit || 3;
+    return (data.spots || [])
+      .filter(function (s) { return s.lat && s.lng; })
+      .map(function (s) { return { spot: s, km: distanceKm(lat, lng, s.lat, s.lng) }; })
+      .sort(function (a, b) { return a.km - b.km; })
+      .slice(0, limit);
+  }
+
   function init(payload) {
     data = payload;
     if (!state.category) state.category = Object.keys(data.strings.categories)[0] || null;
@@ -491,6 +513,7 @@
     init: init,
     answer: answer,
     nearby: nearby,
+    nearestAny: nearestAny,
     setLang: setLang,
     displayName: displayName,
     catLabel: catLabel,

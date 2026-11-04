@@ -163,6 +163,93 @@ def _coords(raw):
         return None, None
 
 
+# 概览里混进「中文名 / 韩文名 / 类别 / 坐标」这类元信息，三语都要剔掉，
+# 只留地址 / 电话 / 官网 / 机场距离这些真正对旅行者有用的行
+_OVERVIEW_KEEP = re.compile(
+    r"(地址|주소|Address|电话|전화|Phone|官网|공식|Website|距离金海机场|공항|Airport)", re.I)
+
+
+def clean_overview(text):
+    kept = []
+    for line in (text or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if _OVERVIEW_KEEP.search(line):
+            kept.append(line)
+            continue
+        if "：" in line or ":" in line:      # 其余带标签的元信息行（中文名 / 坐标 / 类别…）
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+# 源档案里的「中文名 / 韩文名 / 类别 / 坐标」行在翻译后会变成 "Chinese Name: …"，
+# 对旅行者没有意义（景点标题已经给出名字），所有字段统一剔掉这几类标签行
+_META_LABEL = re.compile(
+    r"^\s*(中文名|韩文名|英文名|别名|名称|类别|所属分类|所属玩法分类|坐标"
+    r"|중문명|한글명|영문명|별칭|명칭|분류|좌표"
+    r"|Chinese Name|Korean Name|English Name|Alias|Category|Coordinates)\s*[：:]",
+    re.I)
+
+
+def strip_meta_lines(text):
+    return "\n".join(l for l in (text or "").splitlines() if not _META_LABEL.match(l))
+
+
+# 景点名在提问里通常只出现一部分（「Gamcheon admission」不会带全 Gamcheon Culture Village），
+# 所以给每个景点补「唯一的短名」当别名，撞到别的景点就丢掉
+_STOP_EN = {"sunset", "dream", "beach", "port", "park", "village", "center", "observatory",
+            "fountain", "river", "bird", "travel", "station", "culture", "cultural"}
+
+
+def _norm_alias(text):
+    return re.sub(r"[\s\-_]", "", str(text or "")).lower()
+
+
+def add_short_aliases(spots):
+    def cands_of(spot):
+        out = set()
+        for a in spot["aliases"]:
+            text = str(a).strip()
+            if " " in text and re.search(r"[A-Za-z]", text):
+                first = text.split()[0]
+                if len(first) >= 5 and first.lower() not in _STOP_EN:
+                    out.add(first)
+        ko = (spot.get("name_ko") or "").strip()
+        if " " in ko:
+            first = ko.split()[0]
+            if len(first) >= 3:
+                out.add(first)
+        zh = spot["name"]
+        if len(zh) >= 4:
+            out.add(zh[:2])
+        if len(zh) >= 5:
+            out.add(zh[:3])
+        return out
+
+    for spot in spots:
+        spare = []
+        for cand in cands_of(spot):
+            key = _norm_alias(cand)
+            if len(key) < 2:
+                continue
+            clash = False
+            for other in spots:
+                if other is spot:
+                    continue
+                for text in [other["name"], other.get("name_ko", ""), other.get("name_en", "")] + other["aliases"]:
+                    if _norm_alias(text).startswith(key):
+                        clash = True
+                        break
+                if clash:
+                    break
+            if not clash:
+                spare.append(cand)
+        if spare:
+            spot["aliases"] = sorted(set(spot["aliases"]) | set(spare))
+
+
 def _load_cache():
     if os.path.exists(CACHE_FILE):
         try:
@@ -272,6 +359,12 @@ def main():
             name = next((a for a in doc.aliases if re.search(pat, a)), "")
             entry["name_" + lg] = NAME_FIX.get(doc.name, {}).get(lg) or name
 
+        # 三语正式名也要能命中（原始别名里常常缺英文名 / 韩文名）
+        for lg in ("ko", "en"):
+            nm = entry.get("name_" + lg)
+            if nm:
+                entry["aliases"] = sorted(set(entry["aliases"]) | {nm})
+
         for lg in ("ko", "en"):
             if no_translate:
                 entry["fields"][lg] = zh_fields
@@ -282,6 +375,17 @@ def main():
 
     _save_cache(cache)
 
+    # 概览只留旅行者真要的信息，并给每个景点补唯一短名，方便只打半截名字也能命中
+    for spot in spots:
+        for lg in ("zh", "ko", "en"):
+            fields = spot["fields"].get(lg, {})
+            for key, body in list(fields.items()):
+                if not body:
+                    continue
+                body = strip_meta_lines(body)
+                fields[key] = clean_overview(body) if key == "overview" else body
+    add_short_aliases(spots)
+
     # 分类级「适合人群」：三语文件都已存在，直接取正文
     audience = {}
     for cat in config.CATEGORIES:
@@ -290,7 +394,12 @@ def main():
         for lg in ("zh", "ko", "en"):
             seg = re.search(rf"\[{re.escape(cat)}\]\s*(.+?)(?=\n\[|\Z)",
                             kb.audience.get(lg, ""), re.S)
-            audience[cat][lg] = (seg.group(1).strip() if seg else "")
+            val = (seg.group(1).strip() if seg else "")
+            # 韩 / 英文件里沿用中文类别标题行（如「🌅 海岸休闲 & 日落夜景类」），
+            # 直接拼进去会让韩文 / 英文回答里冒出中文，这里统一剔掉标题行与标签前缀
+            val = "\n".join(l for l in val.splitlines() if not ("类" in l and "&" in l))
+            val = re.sub(r"^(适合人群|추천 대상|Target audience)\s*[：:]\s*", "", val.strip(), flags=re.I)
+            audience[cat][lg] = val.strip()
 
     # 离线字段名：沿用桌面版三语字段名，另补 highlights（游玩亮点）三语名
     labels = {f: {lg: IP.FIELD_LABEL.get(f, {}).get(lg, f) for lg in config.SUPPORTED_LANGS}

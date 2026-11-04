@@ -53,7 +53,9 @@
   .bubble .foot{font-size:11.5px; color:var(--muted); margin-top:8px}
   .pick{display:inline-block; margin:6px 6px 0 0; border:1px solid var(--line); background:#fbfcfd;
         border-radius:12px; padding:5px 9px; font-size:11.5px; color:var(--sea-dark)}
-  #followups{padding:0 12px 8px; display:flex; flex-wrap:wrap; flex:0 0 auto; max-height:104px; overflow-y:auto}
+  #followups{padding:8px 12px 10px; background:#fff; border-top:1px solid var(--line);
+             display:flex; flex-wrap:wrap; flex:0 0 auto; max-height:27vh; overflow-y:auto;
+             -webkit-overflow-scrolling:touch}
   #followups .pick:active{background:#eef6f9}
   footer{flex:0 0 auto; background:#fff; border-top:1px solid var(--line);
          padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
@@ -298,26 +300,69 @@
     if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
   });
 
-  document.getElementById("gps").onclick = function(){
+  var locBusy = false;     // 正在取坐标
+  var locWaiting = false;  // 正在等系统授权回调
+
+  function locateOnce(){
+    if (locBusy) return;
     if (!navigator.geolocation){
       addBot({text: E.strings[lang].nearbyNone, sources:[], followups:[]});
       return;
     }
+    locBusy = true;
     navigator.geolocation.getCurrentPosition(function(pos){
-      var list = E.nearby(pos.coords.latitude, pos.coords.longitude, 5);
+      locBusy = false;
+      renderNearby(pos.coords.latitude, pos.coords.longitude);
+    }, function(err){
+      locBusy = false;
+      // 1 = 权限被拒，2 = 不可用，3 = 超时；给出各自的下一步
+      addBot({text: err && err.code === 1 ? E.strings[lang].nearbyDenied : E.strings[lang].nearbyTimeout,
+              sources:[], followups:[]});
+    }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000});
+  }
+
+  function renderNearby(lat, lng){
+    var list = E.nearby(lat, lng, 5);
+    var lines;
+    if (!list.length){
+      // 不在釜山市区（刚落地在机场、或人还在外地）时，给最近的几个而不是一句「没有」
+      list = E.nearestAny(lat, lng, 3);
       if (!list.length){
         addBot({text: E.strings[lang].nearbyEmpty, sources:[], followups:[]});
         return;
       }
-      var lines = ["**" + E.strings[lang].nearbyTitle + "**"];
-      list.forEach(function(x){
-        lines.push("- **" + E.displayName(x.spot, lang) + "** · " +
-                   x.km.toFixed(1) + " " + E.strings[lang].km + " · " + E.catLabel(x.spot.category, lang));
-      });
-      addBot({text: lines.join("\n"), sources: [], followups: list.map(function(x){ return E.displayName(x.spot, lang); })});
-    }, function(){
-      addBot({text: E.strings[lang].nearbyNone, sources:[], followups:[]});
-    }, {enableHighAccuracy: false, timeout: 8000, maximumAge: 600000});
+      lines = [E.strings[lang].nearbyFar.replace("{n}", String(list.length))];
+    } else {
+      lines = ["**" + E.strings[lang].nearbyTitle + "**"];
+    }
+    list.forEach(function(x){
+      lines.push("- **" + E.displayName(x.spot, lang) + "** · " +
+                 x.km.toFixed(1) + " " + E.strings[lang].km + " · " + E.catLabel(x.spot.category, lang));
+    });
+    addBot({text: lines.join("\n"), sources: [],
+            followups: list.map(function(x){ return E.displayName(x.spot, lang); })});
+  }
+
+  // 壳里授权完成后回调这里（浏览器直接打开时该函数不会被调用）
+  window.__busanLocReady = function(){
+    if (!locWaiting) return;   // 授权回调只处理一次，避免和兜底定时器重复取坐标
+    locWaiting = false;
+    locateOnce();
+  };
+
+  document.getElementById("gps").onclick = function(){
+    if (locWaiting || locBusy) return;
+    if (window.BusanHost && typeof window.BusanHost.requestLocation === "function"){
+      // 先走系统运行时授权；已授权时壳会立刻回调 __busanLocReady
+      locWaiting = true;
+      window.BusanHost.requestLocation();
+      setTimeout(function(){
+        // 2 秒没等到授权回调（例如授权框还开着）就直接取一次，别让按钮看起来没反应
+        if (locWaiting) { locWaiting = false; locateOnce(); }
+      }, 2000);
+    } else {
+      locateOnce();
+    }
   };
 
   // 启动
