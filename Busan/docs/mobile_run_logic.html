@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Busan 手机版运行逻辑图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1360px; background: #eef2f5; font-family: "Microsoft YaHei", "Segoe UI", sans-serif; color: #0b1622; -webkit-font-smoothing: antialiased; }
+  .page { padding: 38px 46px 40px; }
+  .head {
+    background: linear-gradient(120deg, #0b1622 0%, #0d2f3f 58%, #0891b2 165%);
+    border-radius: 16px; padding: 30px 36px; color: #fff; position: relative; overflow: hidden;
+  }
+  .head:after { content:""; position:absolute; right:-70px; top:-80px; width:300px; height:300px;
+    background: radial-gradient(circle, rgba(8,145,178,.5), rgba(8,145,178,0) 68%); }
+  .head h1 { font-size: 36px; letter-spacing: .5px; }
+  .head .sub { margin-top: 9px; font-size: 16px; color: #a8c7d5; }
+  .head .meta { margin-top: 14px; font-size: 13px; color: #7fa6b7; letter-spacing: .3px; }
+
+  .lane-head { display: grid; grid-template-columns: 1fr 56px 1fr 56px 1fr; gap: 0 10px; margin: 22px 0 8px; }
+  .lh { font-size: 13px; font-weight: 700; color: #0b4a5e; letter-spacing: .8px; border-bottom: 2px solid #cfe2e8; padding-bottom: 7px; }
+  .lh span { font-weight: 400; color: #7d9aa7; font-size: 11px; letter-spacing: .2px; margin-left: 6px; }
+
+  .flow { display: grid; grid-template-columns: 1fr 56px 1fr 56px 1fr; gap: 12px 10px; align-items: stretch; }
+  .cell { background: #fff; border-radius: 11px; border: 1px solid #dbe7ed; padding: 13px 15px; position: relative; }
+  .cell.client { border-left: 4px solid #0891b2; }
+  .cell.server { border-left: 4px solid #0e7490; background: #fbfdfe; }
+  .cell.data  { border-left: 4px solid #03a35a; }
+  .cell .k { font-size: 10.5px; letter-spacing: .9px; color: #7a97a4; font-weight: 700; }
+  .cell h4 { font-size: 14.5px; margin: 3px 0 6px; }
+  .cell p { font-size: 12.2px; line-height: 1.62; color: #47606d; }
+  .cell code { font-family: Consolas, monospace; font-size: 11.5px; background: #0f2230; color: #9fdcea; padding: 1px 6px; border-radius: 4px; }
+  .arrow { display: flex; align-items: center; justify-content: center; }
+  .arrow span {
+    font-size: 12px; color: #087a93; background: #dff2f7; border-radius: 20px;
+    padding: 4px 6px; letter-spacing: .5px; text-align: center; line-height: 1.3; min-width: 46px;
+  }
+  .arrow.ret span { background: #e9f7ef; color: #0a7a45; }
+
+  .rowgap { grid-column: 1 / -1; height: 2px; background: linear-gradient(90deg, #d6e6ec, #eef2f5); margin: 2px 0; }
+
+  .bottom { display: flex; gap: 14px; margin-top: 20px; }
+  .note { flex: 1; background: #fff; border: 1px solid #dbe7ed; border-radius: 11px; padding: 14px 16px; }
+  .note h4 { font-size: 13.5px; margin-bottom: 7px; color: #0b4a5e; }
+  .note p { font-size: 12px; line-height: 1.66; color: #47606d; }
+  .note.warn { background: #fff8ec; border-color: #efd6a8; }
+  .note.warn h4 { color: #8a5a12; }
+
+  .foot { margin-top: 18px; display: flex; align-items: center; gap: 14px; color: #58707c; font-size: 12px; }
+  .foot .line { flex: 1; height: 1px; background: #cfdde4; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <h1>釜山旅行助手 · 手机版运行逻辑</h1>
+    <div class="sub">手机浏览器（PWA）→ 局域网 Python 服务 → 官网 / 本地库 / 大模型 / NAVER 地图 App</div>
+    <div class="meta">Busan/mobile/index.html · Busan/mobile_app.py · rag_core.py · official_sites.py · db_config.py　·　2026-11-05</div>
+  </div>
+
+  <div class="lane-head">
+    <div class="lh">① 手机浏览器 · 前端<span>mobile/index.html</span></div>
+    <div></div>
+    <div class="lh">② 服务端 · mobile_app.py<span>HTTP JSON / Cookie</span></div>
+    <div></div>
+    <div class="lh">③ 数据与外部服务<span>DB / 官网 / LLM / 地图</span></div>
+  </div>
+
+  <div class="flow">
+
+    <!-- 打开页面 -->
+    <div class="cell client">
+      <div class="k">FLOW 01 · 打开</div>
+      <h4>进入首页 / 添加到主屏幕</h4>
+      <p>浏览器打开 <code>http://&lt;电脑IP&gt;:8000/</code>，拿到页面与 manifest；Service Worker 注册后，图标与离线回退页可缓存。</p>
+    </div>
+    <div class="arrow"><span>GET /</span></div>
+    <div class="cell server">
+      <div class="k">SERVE</div>
+      <h4>静态资源 + /api/meta</h4>
+      <p>返回 <code>index.html</code>、<code>/manifest.json</code>、<code>/sw.js</code>、图标；<code>/api/meta</code> 下发 4 个玩法与 6 种出行人数的三语标签。</p>
+    </div>
+    <div class="arrow"><span>读配置</span></div>
+    <div class="cell data">
+      <div class="k">DATA</div>
+      <h4>config.CATEGORIES / GROUP_TYPES</h4>
+      <p>玩法与人数枚举只有一处源头，前端下拉文案由它派生，避免代码与目录名两套写法不一致。</p>
+    </div>
+
+    <div class="rowgap"></div>
+
+    <!-- 登录 -->
+    <div class="cell client">
+      <div class="k">FLOW 02 · 登录</div>
+      <h4>点「登录 / 로그인 / Log in」</h4>
+      <p>弹窗输入用户名密码 → <code>POST /api/login</code>；成功后按钮变「退出」，指示灯转「已联网」，并拉一次 <code>/api/me</code>。</p>
+    </div>
+    <div class="arrow"><span>POST<br>login</span></div>
+    <div class="cell server">
+      <div class="k">AUTH</div>
+      <h4>校验 → 建会话 → 下发 Cookie</h4>
+      <p><code>db.verify_login</code> 校验 PBKDF2 哈希；通过后生成会话并 <code>Set-Cookie: busan_sid</code>（7 天，内存态）。</p>
+    </div>
+    <div class="arrow"><span>users 表</span></div>
+    <div class="cell data">
+      <div class="k">DB</div>
+      <h4>busan_travel.db · users</h4>
+      <p>与桌面版 / 网页版同一套表结构；默认管理员 <b>admin / admin</b>，注册走 <code>POST /api/register</code>（注册即登录）。</p>
+    </div>
+
+    <div class="rowgap"></div>
+
+    <!-- 提问 -->
+    <div class="cell client">
+      <div class="k">FLOW 03 · 提问</div>
+      <h4>发送问题</h4>
+      <p><code>POST /api/chat</code> 携带问题与按钮语言；回答按结构化块渲染：标签（已联网/本地/精简/官网 N 条）+ 正文 + 来源 + 追问。</p>
+    </div>
+    <div class="arrow"><span>POST<br>chat</span></div>
+    <div class="cell server">
+      <div class="k">RAG</div>
+      <h4>未登录只查本地；登录后双源</h4>
+      <p>会话存在 → <code>rag_core.answer(online=True)</code>：本地 8 景点档案 + <code>official_sites</code> 官网正文 → 中文草稿 → 按按钮语言翻译；结果写 <code>query_logs</code>。</p>
+    </div>
+    <div class="arrow"><span>抓取 / 生成</span></div>
+    <div class="cell data">
+      <div class="k">SOURCES</div>
+      <h4>官网 + 本地库 + 大模型</h4>
+      <p>沙下区 <code>saha.go.kr/tour</code>（正文 <code>#conts</code>）、甘川官网；资料库 <code>activity_classified/</code>、<code>docs/rules.txt</code>；qwen-plus 生成中文草稿。</p>
+    </div>
+
+    <div class="rowgap"></div>
+
+    <!-- 附近景点 -->
+    <div class="cell client">
+      <div class="k">FLOW 04 · 附近景点</div>
+      <h4>点「附近景点」</h4>
+      <p><code>navigator.geolocation</code> 取坐标（8 秒超时）；失败给提示，也可用 <code>?lat=&amp;lng=</code> 直接按坐标预览。</p>
+    </div>
+    <div class="arrow"><span>POST<br>nearby</span></div>
+    <div class="cell server">
+      <div class="k">GEO</div>
+      <h4>距离排序 + 四类链接</h4>
+      <p>8 个景点坐标做球面距离排序，返回 <code>distance_km</code> 与 <code>nmap://place</code>、<code>nmap://route/public</code>、网页地图、Google 路线。</p>
+    </div>
+    <div class="arrow"><span>唤起 App</span></div>
+    <div class="cell data">
+      <div class="k">MAP</div>
+      <h4>NAVER 地图 / 网页地图</h4>
+      <p>深链带 <code>appname=com.busan.tour</code>，手机装了 NAVER 地图即直接定位或导航；未安装则回落网页版搜索。</p>
+    </div>
+
+    <div class="rowgap"></div>
+
+    <!-- 安装包 -->
+    <div class="cell client">
+      <div class="k">FLOW 05 · 分发</div>
+      <h4>点「安装包 / 添加到主屏幕」</h4>
+      <p>前者下载整包自行部署，后者把页面装成桌面图标；两者都不需要应用商店。</p>
+    </div>
+    <div class="arrow"><span>GET<br>zip</span></div>
+    <div class="cell server">
+      <div class="k">PACK</div>
+      <h4>Busan_Tour_App.zip</h4>
+      <p><code>build_package.py</code> 打包：服务端模块 + 前端 + 数据目录 + 双平台一键启动脚本；排除密钥、数据库、日志。</p>
+    </div>
+    <div class="arrow"><span>解压即用</span></div>
+    <div class="cell data">
+      <div class="k">DEPLOY</div>
+      <h4>换一台电脑也能起</h4>
+      <p>解压 → 装依赖 → 起服务；首次运行自动建库并创建 admin，问答与登录链路与原环境一致。</p>
+    </div>
+
+  </div>
+
+  <div class="bottom">
+    <div class="note">
+      <h4>状态与降级</h4>
+      <p>未登录＝纯本地库直出，不联网不调模型；已登录但缺 API Key＝抓官网后本地成稿；定位被拒＝提示并保留坐标预览入口；旧缓存由 SW v4 的「导航网络优先」兜住。</p>
+    </div>
+    <div class="note warn">
+      <h4>边界（如实标注）</h4>
+      <p>会话在服务进程内存里，重启需重登；局域网 HTTP 下部分手机不给定位权限，需 HTTPS 隧道或坐标预览；安卓 APK 仍是离线版，不含本图里的登录与联网能力。</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div>本图由 Busan/docs/mobile_run_logic.html 渲染生成，与同轮 changelog 对应</div>
+    <div class="line"></div>
+    <div>Busan AI 旅行助手 · 手机版 · 2026-11-05</div>
+  </div>
+
+</div>
+</body>
+</html>
