@@ -190,8 +190,19 @@ FEMALE_WORDS = ["女", "女生", "女性", "여", "female", "girl", "woman"]
 
 
 def _hit_count(q, words):
+    """关键词命中计数。英文关键词按整词匹配，避免 port 命中 transport、man 命中 woman。"""
     q = (q or "").lower()
-    return sum(1 for w in words if w and w.lower() in q)
+    n = 0
+    for w in words:
+        if not w:
+            continue
+        lw = w.lower()
+        if lw.isascii():
+            if re.search(r"(?<![a-z0-9])" + re.escape(lw) + r"(?![a-z0-9])", q):
+                n += 1
+        elif lw in q:
+            n += 1
+    return n
 
 
 def infer_category(question, category_hint=None):

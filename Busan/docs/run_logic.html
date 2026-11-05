@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Busan 运行逻辑图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1360px; background: #eef2f5;
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif; color: #0b1622;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { padding: 40px 48px 44px; }
+  .head {
+    background: linear-gradient(120deg, #0b1622 0%, #0e2a3a 62%, #0891b2 160%);
+    border-radius: 18px; padding: 34px 40px; color: #fff; position: relative; overflow: hidden;
+  }
+  .head:after {
+    content: ""; position: absolute; right: -60px; top: -70px; width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(8,145,178,.55), rgba(8,145,178,0) 68%);
+  }
+  .head h1 { font-size: 40px; letter-spacing: 1px; }
+  .head .sub { margin-top: 10px; font-size: 17px; color: #a9c6d4; }
+  .head .meta { margin-top: 18px; font-size: 14px; color: #7fa6b7; letter-spacing: .4px; }
+  .band { margin-top: 26px; }
+  .band-title {
+    display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700;
+    color: #0b4a5e; letter-spacing: .6px; margin-bottom: 12px;
+  }
+  .band-title .no {
+    width: 26px; height: 26px; border-radius: 50%; background: #0891b2; color: #fff;
+    font-size: 14px; line-height: 26px; text-align: center; font-weight: 700;
+  }
+  .band-title .en { font-weight: 400; color: #6b8b99; font-size: 12px; letter-spacing: .3px; }
+  .row { display: flex; gap: 16px; }
+  .card {
+    background: #fff; border-radius: 14px; padding: 18px 20px; flex: 1;
+    box-shadow: 0 2px 10px rgba(11,22,34,.07); border: 1px solid #e3ebf0;
+  }
+  .card h3 { font-size: 17px; margin-bottom: 8px; }
+  .card .tag {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    background: #e6f6f9; color: #087a93; margin-bottom: 8px; letter-spacing: .4px;
+  }
+  .card p { font-size: 13.5px; line-height: 1.72; color: #405663; }
+  .card p b { color: #0b1622; }
+  .k { color: #0891b2; font-weight: 700; }
+  .arrow-down { text-align: center; font-size: 22px; color: #0891b2; margin: 10px 0 0; }
+
+  .flow { display: flex; align-items: stretch; gap: 10px; }
+  .step {
+    flex: 1; background: #fff; border-radius: 12px; border: 1px solid #d9e6ec;
+    border-top: 4px solid #0891b2; padding: 14px 14px 16px; position: relative;
+  }
+  .step .n { font-size: 11px; color: #0891b2; letter-spacing: 1px; font-weight: 700; }
+  .step h4 { font-size: 15px; margin: 4px 0 8px; }
+  .step p { font-size: 12.5px; line-height: 1.66; color: #47606d; }
+  .chev {
+    align-self: center; color: #0891b2; font-size: 20px; font-weight: 700; padding: 0 2px;
+  }
+  .branches { display: flex; gap: 16px; margin-top: 14px; }
+  .branch {
+    flex: 1; border-radius: 12px; padding: 16px 18px; border: 1px dashed #b9d3dc; background: #f7fbfc;
+  }
+  .branch h4 { font-size: 14.5px; margin-bottom: 6px; color: #0b4a5e; }
+  .branch p { font-size: 12.8px; line-height: 1.66; color: #47606d; }
+  .branch.hot { background: #fff8ec; border-color: #efd6a8; }
+  .branch.hot h4 { color: #8a5a12; }
+
+  .src { display: flex; gap: 16px; }
+  .src .card { border-top: 4px solid #0e7490; }
+  .src .card.green { border-top-color: #03c75a; }
+
+  .near { display: flex; gap: 12px; align-items: stretch; }
+  .near .pill {
+    background: #fff; border-radius: 12px; border: 1px solid #d9e6ec; padding: 14px 16px; flex: 1;
+  }
+  .near .pill h4 { font-size: 14px; margin-bottom: 6px; }
+  .near .pill p { font-size: 12.5px; line-height: 1.6; color: #47606d; }
+  .code {
+    font-family: Consolas, "Courier New", monospace; font-size: 12px;
+    background: #0f2230; color: #9fdcea; padding: 3px 7px; border-radius: 5px; display: inline-block;
+    margin-top: 4px;
+  }
+  .foot {
+    margin-top: 26px; display: flex; gap: 16px; align-items: center;
+    color: #58707c; font-size: 12.5px;
+  }
+  .foot .line { flex: 1; height: 1px; background: #cfdde4; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <h1>釜山旅行助手 · 运行逻辑</h1>
+    <div class="sub">三端共用一套账号与数据 · 登录后「景点官网 + 本地资料库」双源作答 · 手机版独有 NAVER 精准定位</div>
+    <div class="meta">AI_Project_2026_2 / Busan　·　2026-11-05　·　main_app.py · mobile_app.py · mobile/index.html · rag_core.py · official_sites.py</div>
+  </div>
+
+  <div class="band">
+    <div class="band-title"><span class="no">1</span>三个入口 <span class="en">ENTRY POINTS</span></div>
+    <div class="row">
+      <div class="card">
+        <span class="tag">桌面</span>
+        <h3>main_app.py（tkinter）</h3>
+        <p>启动先走 <b>login.py</b>，登录成功才进主窗口；顶部语言按钮 + 用户名 + 退出登录。问答固定 <span class="k">online=True</span>（登录即联网）。</p>
+      </div>
+      <div class="card">
+        <span class="tag">手机网页 / PWA</span>
+        <h3>mobile_app.py + mobile/index.html</h3>
+        <p>纯原生 JS 单页，498×654 手机版式；<b>登录按钮文案随中 / 韩 / EN 切换</b>；可「添加到主屏幕」，断网仍能打开。</p>
+      </div>
+      <div class="card">
+        <span class="tag">安卓离线包</span>
+        <h3>dist/Busan旅行助手.apk</h3>
+        <p>128 KB，权限仅定位、<b>刻意无 INTERNET</b>；内置 data.js 离线问答，本轮未改动，保持离线形态。</p>
+      </div>
+    </div>
+    <div class="arrow-down">↓</div>
+  </div>
+
+  <div class="band">
+    <div class="band-title"><span class="no">2</span>登录 · 会话 · 语言 <span class="en">AUTH &amp; LANGUAGE</span></div>
+    <div class="row">
+      <div class="card">
+        <h3>一套用户库，三端互通</h3>
+        <p><span class="code">Busan/busan_travel.db</span><br>
+        表 <b>users</b>（PBKDF2-SHA256 6 万次加盐）与 <b>query_logs</b> 三端共用；默认管理员 <b>admin / admin</b>。网页端登录写 <b>busan_sid</b> Cookie，会话 7 天（内存态，服务重启失效）。</p>
+      </div>
+      <div class="card">
+        <h3>登录 = 联网开关</h3>
+        <p>未登录：<b>只查本地资料库</b>，不抓官网、不调大模型，页脚提示「登录后联网」。<br>
+        已登录：<b>官网在线检索 + 本地库</b> 同时注入上下文，顶部指示灯变「已联网」。</p>
+      </div>
+      <div class="card">
+        <h3>语言只由按钮决定</h3>
+        <p>中文 / 한국어 / EN 三个按钮决定<b>输出语言</b>，与提问语种、数据来源无关；切语言后按最后一问<b>整段重新生成</b>，而不是翻译旧答案。</p>
+      </div>
+    </div>
+    <div class="arrow-down">↓</div>
+  </div>
+
+  <div class="band">
+    <div class="band-title"><span class="no">3</span>一次问答的完整链路 <span class="en">ANSWER PIPELINE</span></div>
+    <div class="flow">
+      <div class="step">
+        <div class="n">STEP 01</div>
+        <h4>问题归一</h4>
+        <p>非中文问题先机翻成中文再检索；译文找不到景点时退回原文，避免「몰운대」被音译成「茂云台」而识别失败。</p>
+      </div>
+      <div class="chev">›</div>
+      <div class="step">
+        <div class="n">STEP 02</div>
+        <h4>景点 / 玩法 / 意图</h4>
+        <p>别名表三语匹配景点，关键词推断玩法与出行人数（英文按整词匹配，避免 transport 命中渔港类）；解析交通 / 门票 / 开放 / 拍照等字段。</p>
+      </div>
+      <div class="chev">›</div>
+      <div class="step">
+        <div class="n">STEP 03</div>
+        <h4>双源检索</h4>
+        <p>本地 8 景点资料 + <b>official_sites</b> 抓官网正文（沙下区 <b>#conts</b> 锚点、甘川官网），拼成中文上下文；来源逐条登记。</p>
+      </div>
+      <div class="chev">›</div>
+      <div class="step">
+        <div class="n">STEP 04</div>
+        <h4>中文草稿</h4>
+        <p>qwen-plus 生成中文答案，<b>官网优先</b>：地址、电话、开放时间、票价以官网为准，冲突要说明差异，不得编造数字。</p>
+      </div>
+      <div class="chev">›</div>
+      <div class="step">
+        <div class="n">STEP 05</div>
+        <h4>按按钮语言出稿</h4>
+        <p>中文直出；韩 / 英整体翻译一遍（只换语言不换内容，专名统一）。渲染正文 + 来源 + 跨玩法补充（限 2 条）+ 追问。</p>
+      </div>
+    </div>
+    <div class="branches">
+      <div class="branch hot">
+        <h4>分支 A｜只输入景点名 → 精简回答</h4>
+        <p><b>is_only_spot_name</b> 命中即 <span class="k">concise=True</span>：一句话定位 + 2–3 个亮点 + 交通一句 + 门票/开放一句，全文 200 字内，不再罗列全字段；追问入口交给「你可能还想问」。</p>
+      </div>
+      <div class="branch">
+        <h4>分支 B｜未登录 / 无密钥 → 本地兜底</h4>
+        <p>早退 <b>_local_fallback</b>：只用本地档案成稿，页脚如实标注「登录后联网」，不冒充大模型结果；景点名场景走 <b>_concise_local</b> 精简模板。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="band-title"><span class="no">4</span>数据来源 <span class="en">DATA SOURCES</span></div>
+    <div class="src">
+      <div class="card">
+        <span class="tag">本地</span>
+        <h3>8 景点 · 4 玩法资料库</h3>
+        <p>activity_classified 下 8 份景点档案 + 三语「适合人群」；docs/rules.txt 规则库；甘川 / 多大浦另有 docs 精读档案。玩法内数据为唯一主源，跨玩法只做限量补充。</p>
+      </div>
+      <div class="card">
+        <span class="tag">官网</span>
+        <h3>official_sites.py 在线抓取</h3>
+        <p>登记 8 处官方入口：沙下区文化观光 <b>saha.go.kr/tour</b>（正文容器 <b>#conts</b>）与甘川官网 <b>gamcheon.or.kr</b>；10 分钟缓存。请求头固定韩文语种，规避防火墙对 zh-CN 的 403。</p>
+      </div>
+      <div class="card green">
+        <span class="tag">留痕</span>
+        <h3>query_logs + 本轮日志</h3>
+        <p>每次问答写库（用户、玩法、问题、答案、来源、语言、时间），手机端与桌面端同一张表；每轮迭代产出 changelog，含已知限制与验证清单。</p>
+      </div>
+    </div>
+    <div class="arrow-down">↓</div>
+  </div>
+
+  <div class="band">
+    <div class="band-title"><span class="no">5</span>手机版独有：定位 → NAVER 精准直达 <span class="en">LOCATION &amp; NAVER DEEPLINK</span></div>
+    <div class="near">
+      <div class="pill">
+        <h4>① 取当前位置</h4>
+        <p>浏览器 <b>geolocation</b>（8 秒超时），或 <span class="code">?lat=&amp;lng=</span> 直接传坐标预览。</p>
+      </div>
+      <div class="pill">
+        <h4>② 服务端算距离</h4>
+        <p><b>/api/nearby</b> 用 8 个景点坐标做球面距离排序，返回 km 与四类链接。</p>
+      </div>
+      <div class="pill">
+        <h4>③ 坐标直给 NAVER</h4>
+        <p><span class="code">nmap://place?lat=&amp;lng=</span><br><span class="code">nmap://route/public?slat=&amp;dlat=</span></p>
+      </div>
+      <div class="pill">
+        <h4>④ 兜底与对照</h4>
+        <p>网页地图 <b>map.naver.com</b> 与 Google 路线并列；所有深链带 <b>appname=com.busan.tour</b>，手机装了 NAVER 地图即直接唤起。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div>本图由 Busan/docs/run_logic.html 渲染生成（对应代码版本见同轮 changelog）</div>
+    <div class="line"></div>
+    <div>Busan AI 旅行助手 · 2026-11-05</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,442 +1,699 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Busan Tour">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1622">
 <title>Busan AI 旅行助手</title>
+<link rel="manifest" href="/manifest.json">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f1f5f9; color: #0f172a; }
-  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-
-  header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-    color: #fff; padding: 14px 16px 12px; flex-shrink: 0;
+  :root{
+    --navy:#0b1622; --navy2:#122536; --ocean:#0891b2; --ocean-l:#22d3ee;
+    --sand:#f3efe7; --ink:#0f1b26; --muted:#64748b; --line:#e2e8f0;
+    --ok:#0f9d76; --warn:#c2740c; --card:#ffffff;
   }
-  header h1 { font-size: 18px; font-weight: 700; }
-  header .sub { font-size: 12px; color: #7dd3fc; margin-top: 2px; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",
+    "PingFang SC","Microsoft YaHei",sans-serif;background:#eef2f6;color:var(--ink);
+    display:flex;flex-direction:column;min-height:100vh;
+  }
+  header{
+    background:linear-gradient(150deg,#0b1622 0%,#122536 55%,#0e3a45 100%);
+    color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 12px;
+    position:sticky;top:0;z-index:20;box-shadow:0 6px 18px rgba(8,20,32,.18);
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:34px;height:34px;border-radius:10px;background:rgba(34,211,238,.16);
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#67e8f9;
+    border:1px solid rgba(103,232,249,.35);font-size:15px
+  }
+  .brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.4px}
+  .brand p{margin:2px 0 0;font-size:11px;color:#9fb3c8}
+  .head-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .langs{display:flex;gap:4px;background:rgba(255,255,255,.08);padding:3px;border-radius:999px}
+  .lang-btn{
+    border:0;background:transparent;color:#c9d7e3;font-size:12px;padding:5px 10px;
+    border-radius:999px;font-weight:600
+  }
+  .lang-btn.on{background:#22d3ee;color:#062733}
+  .spacer{flex:1}
+  .auth-btn{
+    border:1px solid rgba(103,232,249,.5);background:rgba(34,211,238,.12);color:#a5f3fc;
+    font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:999px;
+  }
+  .auth-btn.out{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#e6eef5}
+  .who{font-size:11.5px;color:#9fb3c8;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status{
+    display:inline-flex;align-items:center;gap:5px;font-size:11px;
+    padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:#cfe0ea
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:#f59e0b}
+  .dot.on{background:#34d399}
 
-  /* 玩法 / 人数选择栏 */
-  #scopeBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
-  .scope-pick { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-  .scope-pick label { font-size: 11px; color: #64748b; }
-  .scope-pick select {
-    padding: 9px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px;
-    background: #f8fafc; color: #0f172a; outline: none; max-width: 100%;
+  .controls{
+    display:flex;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10
+  }
+  .controls label{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+  .controls span{font-size:10.5px;color:var(--muted);letter-spacing:.3px}
+  select{
+    appearance:none;width:100%;border:1px solid var(--line);background:#f8fafc;color:var(--ink);
+    font-size:12.5px;padding:8px 10px;border-radius:10px
   }
 
-  #toolbar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; flex-wrap: wrap; }
-  #langBar { display: flex; gap: 4px; background: #f1f5f9; border-radius: 10px; padding: 3px; }
-  .lang-btn { padding: 8px 10px; border: none; border-radius: 8px; font-size: 12px; background: transparent; color: #475569; }
-  .lang-btn.active { background: #1e3a8a; color: #fff; font-weight: 600; }
-  #gpsBtn {
-    flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
-    background: #0ea5e9; color: #fff;
+  main{flex:1;padding:12px 12px calc(112px + env(safe-area-inset-bottom));overflow-y:auto}
+  .welcome{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;
+    box-shadow:0 4px 14px rgba(15,27,38,.05)
   }
-  #gpsBtn:active { background: #0284c7; }
-  #gpsBtn.busy { background: #94a3b8; }
-  #installBtn {
-    padding: 12px 14px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
-    background: #1e3a8a; color: #fff; display: none;
+  .welcome h2{margin:0 0 6px;font-size:14px}
+  .welcome p{margin:0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+  .chip{
+    border:1px solid #d9e4ec;background:#f6fafc;color:#0f4b5c;font-size:12px;
+    padding:7px 11px;border-radius:999px
   }
-  #installBtn.show { display: inline-block; }
-  #pkgBtn {
-    padding: 12px 14px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
-    background: #059669; color: #fff; text-decoration: none; text-align: center;
+  .turn{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  .q{align-self:flex-end;max-width:86%;background:linear-gradient(135deg,#0e7490,#0891b2);
+     color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:13px;line-height:1.5}
+  .a{align-self:flex-start;max-width:96%;background:var(--card);border:1px solid var(--line);
+     border-radius:14px 14px 14px 4px;padding:12px 13px;font-size:13px;line-height:1.65;
+     box-shadow:0 3px 12px rgba(15,27,38,.05);word-break:break-word}
+  .meta-line{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .tag{font-size:10.5px;padding:2px 7px;border-radius:999px;background:#eef4f8;color:#41627a}
+  .tag.online{background:#e4f7f1;color:var(--ok)}
+  .tag.local{background:#fdf3e3;color:var(--warn)}
+  .tag.concise{background:#e8f1fb;color:#28618f}
+  .answer h3{font-size:13.5px;margin:10px 0 4px;color:#0c3c4c}
+  .answer p{margin:5px 0}
+  .answer li{margin:3px 0}
+  .answer strong{color:#0b3b47}
+  .answer hr{border:0;border-top:1px dashed var(--line);margin:10px 0}
+  .src-block{margin-top:9px;border-top:1px dashed var(--line);padding-top:8px;font-size:11.5px;color:var(--muted)}
+  .src-block b{display:block;color:#41627a;font-size:11.5px;margin-bottom:4px}
+  .src-line{display:flex;gap:6px;margin:3px 0;word-break:break-all}
+  .src-line .k{color:#0e7490;flex:0 0 auto}
+  .src-line .v{color:#475569}
+  .sup{margin-top:9px;border-top:1px dashed var(--line);padding-top:8px;font-size:12px}
+  .sup b{display:block;font-size:12px;color:#0c3c4c;margin-bottom:5px}
+  .sup-item{margin:4px 0;color:#334155}
+  .sup-item i{font-style:normal;color:var(--muted);font-size:11px}
+  .fu{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .fu button{border:1px solid #cfe3ec;background:#f4fbfd;color:#0b5266;font-size:11.5px;
+    padding:5px 9px;border-radius:10px}
+  .thinking{color:var(--muted);font-size:12px}
+
+  .nearby{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+  .nearby h3{margin:0 0 4px;font-size:13px}
+  .nearby .hint{margin:0 0 9px;font-size:11px;color:var(--muted)}
+  .spot{border-top:1px solid var(--line);padding:9px 0}
+  .spot-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .spot-name{font-size:12.5px;font-weight:700}
+  .dist{font-size:11.5px;color:var(--ocean);font-weight:700;flex:0 0 auto}
+  .spot-ko{font-size:11px;color:var(--muted);margin-top:1px}
+  .map-row{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .map-btn{
+    font-size:11.5px;text-decoration:none;padding:6px 10px;border-radius:9px;font-weight:700;
+    border:1px solid #cfe3ec;color:#0b5266;background:#f4fbfd
+  }
+  .map-btn.naver{background:#03c75a;border-color:#03c75a;color:#fff}
+  .map-btn.g{background:#fff;border-color:#d8dee6;color:#334155}
+
+  .composer{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,255,255,.97);
+    border-top:1px solid var(--line);padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+    backdrop-filter:blur(8px)
+  }
+  .tools{display:flex;gap:6px;margin-bottom:7px;overflow-x:auto}
+  .tool{
+    flex:0 0 auto;border:1px solid var(--line);background:#f6fafc;color:#0f4b5c;
+    font-size:11.5px;padding:6px 10px;border-radius:9px;font-weight:600
+  }
+  .input-row{display:flex;gap:8px}
+  textarea{
+    flex:1;resize:none;height:42px;max-height:96px;border:1px solid var(--line);border-radius:12px;
+    padding:10px 11px;font-size:13px;font-family:inherit;line-height:1.4;background:#f8fafc
+  }
+  .send{
+    width:66px;border:0;border-radius:12px;background:linear-gradient(135deg,#0e7490,#0891b2);
+    color:#fff;font-size:13px;font-weight:700
   }
 
-  #locStatus { font-size: 11px; color: #64748b; padding: 6px 12px 0; background: #fff; flex-shrink: 0; display: none; }
-
-  #nearby { padding: 10px 12px 0; display: none; flex-shrink: 0; max-height: 40vh; overflow-y: auto; }
-  #nearby h3 { font-size: 13px; color: #475569; margin-bottom: 8px; }
-  .nearby-card {
-    background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
-    border: 1px solid #e2e8f0;
+  .mask{
+    position:fixed;inset:0;background:rgba(8,20,32,.55);z-index:40;display:none;
+    align-items:flex-end;justify-content:center;padding:0
   }
-  .nearby-card .row1 { display: flex; justify-content: space-between; align-items: center; }
-  .nearby-card .name { font-size: 14px; font-weight: 600; }
-  .nearby-card .ko { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-  .nearby-card .cat { display: inline-block; font-size: 10px; color: #0ea5e9; background: #e0f2fe; border-radius: 6px; padding: 2px 6px; margin-top: 4px; }
-  .nearby-card .dist { font-size: 13px; color: #0ea5e9; font-weight: 700; }
-  .nearby-card .row2 { display: flex; gap: 8px; margin-top: 8px; }
-  .nearby-card .row2 a {
-    flex: 1; text-align: center; font-size: 12px; padding: 6px 0; border-radius: 8px;
-    text-decoration: none; color: #fff;
+  .mask.show{display:flex}
+  .sheet{
+    width:100%;max-width:460px;background:#fff;border-radius:18px 18px 0 0;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(8,20,32,.25)
   }
-  .nav-naver { background: #03c75a; }
-  .nav-chat { background: #1e3a8a; }
-  .nav-gmap { background: #475569; }
-
-  #chat { flex: 1; overflow-y: auto; padding: 14px 12px; }
-  .msg { margin-bottom: 12px; max-width: 88%; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
-  .msg.user { margin-left: auto; background: #0ea5e9; color: #fff; padding: 10px 12px; border-radius: 14px 14px 4px 14px; }
-  .msg.bot { background: #fff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 14px 14px 14px 4px; }
-  .msg .meta { font-size: 11px; color: #94a3b8; margin-top: 6px; }
-  .msg.bot b { color: #1e3a8a; }
-  .follow { cursor: pointer; }
-
-  /* 跨类补充推荐卡片：排在主推荐之后，单独成段 */
-  .supp-box { margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
-  .supp-box .supp-title { font-size: 12px; font-weight: 700; color: #059669; margin-bottom: 6px; }
-  .supp-item { font-size: 12.5px; color: #334155; margin-bottom: 6px; line-height: 1.5; }
-  .supp-item .tag { display: inline-block; font-size: 10px; color: #059669; background: #ecfdf5; border-radius: 6px; padding: 1px 6px; margin-right: 4px; }
-
-  #inputBar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
-  #qInput { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
-  #qInput:focus { border-color: #0ea5e9; }
-  #sendBtn { padding: 0 18px; border: none; border-radius: 10px; background: #1e3a8a; color: #fff; font-size: 15px; font-weight: 600; }
-  #sendBtn:active { background: #1e40af; }
-  #sendBtn:disabled { background: #94a3b8; }
+  .sheet h3{margin:0 0 4px;font-size:15px}
+  .sheet p{margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.55}
+  .field{margin-bottom:9px}
+  .field span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+  .field input{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 11px;
+    font-size:13px;background:#f8fafc
+  }
+  .sheet-error{color:#b42318;font-size:11.5px;min-height:16px;margin:2px 0 6px}
+  .sheet-actions{display:flex;gap:8px;margin-top:6px}
+  .btn-ghost{flex:1;border:1px solid var(--line);background:#f8fafc;border-radius:11px;
+    padding:11px;font-size:13px;font-weight:600;color:#41586b}
+  .btn-main{flex:1.2;border:0;border-radius:11px;padding:11px;font-size:13px;font-weight:700;
+    color:#fff;background:linear-gradient(135deg,#0e7490,#0891b2)}
+  .btn-link{
+    display:block;width:100%;margin-top:10px;border:0;background:transparent;color:#0e7490;
+    font-size:12px;font-weight:600;text-decoration:underline
+  }
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom));
+    background:rgba(11,22,34,.92);color:#fff;font-size:12px;padding:9px 14px;border-radius:10px;
+    z-index:50;opacity:0;transition:opacity .25s;pointer-events:none;max-width:86vw
+  }
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
-  <header>
-    <h1>🚗 Busan AI 旅行助手</h1>
-    <div class="sub">沙下区手机版 · 玩法/人数联动 · GPS 附近景点 · 可安装到桌面</div>
-  </header>
 
-  <div id="scopeBar">
-    <div class="scope-pick">
-      <label for="catSel">玩法分类（可手动改）</label>
-      <select id="catSel"><option value="">自动识别 / 全部</option></select>
-    </div>
-    <div class="scope-pick">
-      <label for="grpSel">出行人数（可手动改）</label>
-      <select id="grpSel"><option value="">自动识别 / 默认</option></select>
+<header>
+  <div class="brand">
+    <div class="logo">B</div>
+    <div>
+      <h1 id="appTitle">釜山 AI 旅行助手</h1>
+      <p id="appSub">沙下区 · 景点官网 + 本地数据库</p>
     </div>
   </div>
-
-  <div id="toolbar">
-    <div id="langBar">
+  <div class="head-row">
+    <div class="langs">
       <button class="lang-btn" data-lang="zh">中文</button>
       <button class="lang-btn" data-lang="ko">한국어</button>
-      <button class="lang-btn" data-lang="en">English</button>
+      <button class="lang-btn" data-lang="en">EN</button>
     </div>
-    <button id="gpsBtn">📍 定位附近景点</button>
-    <button id="installBtn">⤓ 安装到桌面</button>
-    <a id="pkgBtn" href="/download/Busan_Tour_App.zip" download>⤓ 下载安装包</a>
+    <div class="spacer"></div>
+    <span class="status"><i class="dot" id="statusDot"></i><span id="statusText">本地模式</span></span>
+    <button class="auth-btn" id="authBtn">登录</button>
   </div>
-  <div id="locStatus"></div>
+  <div class="who" id="whoLine"></div>
+</header>
 
-  <div id="nearby">
-    <h3>附近景点（按距离排序）</h3>
-    <div id="nearbyList"></div>
-  </div>
+<div class="controls">
+  <label><span id="lblCat">玩法</span><select id="catSel"></select></label>
+  <label><span id="lblGroup">出行人数</span><select id="grpSel"></select></label>
+</div>
 
-  <div id="chat">
-    <div class="msg bot" id="welcomeMsg"></div>
-  </div>
+<main id="main">
+  <section class="welcome" id="welcome">
+    <h2 id="welcomeTitle">你好，我是釜山旅行助手</h2>
+    <p id="welcomeBody">问景点、交通、门票、开放时间都可以。登录后我会同时检索各景点官方网站与本地数据库。</p>
+    <div class="chips" id="chips"></div>
+  </section>
+  <div id="turns"></div>
+</main>
 
-  <div id="inputBar">
-    <input id="qInput" type="text" placeholder="问：没云台怎么去？" autocomplete="off">
-    <button id="sendBtn">发送</button>
+<div class="composer">
+  <div class="tools">
+    <button class="tool" id="gpsBtn">附近景点</button>
+    <button class="tool" id="pkgBtn">安装包</button>
+    <button class="tool" id="installBtn">添加到主屏幕</button>
+    <button class="tool" id="clearBtn">清空</button>
   </div>
+  <div class="input-row">
+    <textarea id="input" rows="1" placeholder="问点什么…"></textarea>
+    <button class="send" id="sendBtn">发送</button>
+  </div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="sheet">
+    <h3 id="loginTitle">登录账号</h3>
+    <p id="loginDesc">登录后开启联网：AI 会同时引用各景点官方网站与本地数据库。</p>
+    <div class="field"><span id="lblUser">用户名</span><input id="uName" autocomplete="username"></div>
+    <div class="field"><span id="lblPwd">密码</span><input id="uPwd" type="password" autocomplete="current-password"></div>
+    <div class="sheet-error" id="errLine"></div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="cancelBtn">取消</button>
+      <button class="btn-main" id="doLogin">登录</button>
+    </div>
+    <button class="btn-link" id="doRegister">注册新账号（与电脑端共用同一账号）</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-const chat = document.getElementById('chat');
-const qInput = document.getElementById('qInput');
-const sendBtn = document.getElementById('sendBtn');
-const gpsBtn = document.getElementById('gpsBtn');
-const installBtn = document.getElementById('installBtn');
-const pkgBtn = document.getElementById('pkgBtn');
-const nearbyBox = document.getElementById('nearby');
-const nearbyList = document.getElementById('nearbyList');
-const locStatus = document.getElementById('locStatus');
-const catSel = document.getElementById('catSel');
-const grpSel = document.getElementById('grpSel');
-const langBtns = document.querySelectorAll('.lang-btn');
-const welcomeMsg = document.getElementById('welcomeMsg');
-
-let lastLat = null, lastLng = null;
-
-// ---- 界面语言状态（决定回答语言，与提问语言无关）----
-let uiLang = localStorage.getItem('busan-lang') || 'zh';
 const UI_STR = {
   zh: {
-    welcome: '你好！我是釜山沙下区 AI 旅行助手。选择玩法与人数（也可直接提问，系统会自动识别联动），或点上方「定位附近景点」。回答语言以顶部按钮为准。',
-    placeholder: '问：没云台怎么去？',
-    send: '发送', gps: '📍 定位附近景点', install: '⤓ 安装到桌面', pkg: '⤓ 下载安装包',
-    theme: '玩法分类（可手动改）', group: '出行人数（可手动改）',
-    nearbyTitle: '附近景点（按距离排序）', recognize: '识别：',
-    suppTitle: n => '其它玩法补充推荐（排在主推荐之后，限量 ' + n + ' 个）',
-    askIntro: '介绍一下',
+    title:"釜山 AI 旅行助手", sub:"沙下区 · 景点官网 + 本地数据库",
+    login:"登录", logout:"退出", who:"", local:"本地模式", online:"已联网",
+    lblCat:"玩法", lblGroup:"出行人数",
+    welcomeTitle:"你好，我是釜山旅行助手",
+    welcomeBody:"问景点、交通、门票、开放时间都可以。登录后我会同时检索各景点官方网站与本地数据库。",
+    placeholder:"问点什么…", send:"发送",
+    gps:"附近景点", pkg:"安装包", install:"添加到主屏幕", clear:"清空",
+    loginTitle:"登录账号", loginDesc:"登录后开启联网：AI 会同时引用各景点官方网站与本地数据库。",
+    lblUser:"用户名", lblPwd:"密码", submit:"登录", register:"注册新账号（与电脑端共用同一账号）",
+    cancel:"取消", needFields:"请填写用户名和密码", badLogin:"用户名或密码错误",
+    loginOk:"登录成功，已开启联网", logoutOk:"已退出登录，回到本地模式",
+    regOk:"注册成功，已自动登录", userExists:"该用户名已存在", regFail:"注册失败，请重试",
+    guest:"未登录 · 本地资料库",
+    src:"资料来源", sup:"其它玩法补充推荐", fu:"你可能还想问",
+    near:"附近景点（按直线距离）", nearHint:"点「NAVER 导航」可直接唤起地图 App，用你当前位置精准导航；唤不起时可点网页地图。",
+    locate:"正在定位…", locateFail:"定位不可用：请在 HTTPS 或允许定位后重试，也可手动用地图按钮导航。",
+    nav:"NAVER 导航", place:"NAVER 地点", web:"网页地图", g:"Google",
+    thinking:"AI 正在检索景点官网与本地资料…",
+    more:"想细看哪一项？直接继续问交通 / 门票 / 开放时间 / 周边。",
+    tagOnline:"已联网", tagLocal:"本地库", tagConcise:"精简", tagWeb:"官网 %n 条",
+    emptyQ:"请输入问题"
   },
   ko: {
-    welcome: '안녕하세요! 부산 사하구 AI 여행 도우미입니다. 테마와 인원 수를 선택하거나 바로 질문해 주세요(자동으로 연동됩니다). 답변 언어는 상단 언어 버튼을 따릅니다.',
-    placeholder: '예: 몰운대 어떻게 가나요?',
-    send: '전송', gps: '📍 위치 기반 명소', install: '⤓ 홈 화면에 설치', pkg: '⤓ 설치 패키지 다운로드',
-    theme: '테마 분류(직접 변경 가능)', group: '인원 수(직접 변경 가능)',
-    nearbyTitle: '가까운 명소(거리 순)', recognize: '인식: ',
-    suppTitle: n => '다른 테마 추천(주 추천 이후, 최대 ' + n + '개)',
-    askIntro: '소개해 주세요',
+    title:"부산 AI 여행 도우미", sub:"사하구 · 명소 공식 홈페이지 + 로컬 DB",
+    login:"로그인", logout:"로그아웃", who:"", local:"로컬 모드", online:"온라인",
+    lblCat:"테마", lblGroup:"인원",
+    welcomeTitle:"안녕하세요, 부산 여행 도우미입니다",
+    welcomeBody:"명소, 교통, 요금, 개방 시간 무엇이든 물어보세요. 로그인하면 명소 공식 홈페이지와 로컬 DB를 함께 조회합니다.",
+    placeholder:"무엇이든 물어보세요…", send:"전송",
+    gps:"주변 명소", pkg:"설치 패키지", install:"홈 화면에 추가", clear:"지우기",
+    loginTitle:"로그인", loginDesc:"로그인하면 온라인 모드가 켜집니다: 명소 공식 홈페이지 + 로컬 DB를 함께 사용합니다.",
+    lblUser:"아이디", lblPwd:"비밀번호", submit:"로그인", register:"새 계정 만들기 (PC와 같은 계정)",
+    cancel:"취소", needFields:"아이디와 비밀번호를 입력하세요", badLogin:"아이디 또는 비밀번호가 틀렸습니다",
+    loginOk:"로그인 성공, 온라인 모드가 켜졌습니다", logoutOk:"로그아웃되었습니다. 로컬 모드로 전환",
+    regOk:"가입 성공, 자동 로그인되었습니다", userExists:"이미 있는 아이디입니다", regFail:"가입 실패, 다시 시도하세요",
+    guest:"비로그인 · 로컬 자료",
+    src:"자료 출처", sup:"다른 테마 추천", fu:"이런 질문은 어떨까요",
+    near:"주변 명소 (직선 거리)", nearHint:"「NAVER 길찾기」를 누르면 지도 앱이 열리고 현재 위치에서 정확히 안내합니다. 앱이 열리지 않으면 웹 지도를 누르세요.",
+    locate:"위치 확인 중…", locateFail:"위치를 사용할 수 없습니다. HTTPS 또는 위치 권한을 확인하거나 지도 버튼을 사용하세요.",
+    nav:"NAVER 길찾기", place:"NAVER 장소", web:"웹 지도", g:"Google",
+    thinking:"명소 공식 홈페이지와 로컬 자료를 조회 중…",
+    more:"더 자세히 보고 싶으면 교통 / 요금 / 개방 시간 / 주변을 이어서 물어보세요.",
+    tagOnline:"온라인", tagLocal:"로컬", tagConcise:"간단히", tagWeb:"공식 %n건",
+    emptyQ:"질문을 입력하세요"
   },
   en: {
-    welcome: 'Hi! I am the Busan Saha-gu AI travel assistant. Pick a theme and group size, or just ask a question (auto-linked). The reply language follows the top language button.',
-    placeholder: 'Ask: How do I get to Molundae?',
-    send: 'Send', gps: '📍 Nearby spots', install: '⤓ Install', pkg: '⤓ Download package',
-    theme: 'Theme (editable)', group: 'Group size (editable)',
-    nearbyTitle: 'Nearby spots (by distance)', recognize: 'Detected: ',
-    suppTitle: n => 'Other-theme picks (after main, max ' + n + ')',
-    askIntro: 'Tell me about it',
+    title:"Busan AI Travel Assistant", sub:"Saha-gu · Official sites + local database",
+    login:"Log in", logout:"Log out", who:"", local:"Local mode", online:"Online",
+    lblCat:"Theme", lblGroup:"Party",
+    welcomeTitle:"Hi, I'm your Busan travel assistant",
+    welcomeBody:"Ask about spots, transport, tickets or opening hours. Log in and I will check each attraction's official website together with the local database.",
+    placeholder:"Ask anything…", send:"Send",
+    gps:"Nearby", pkg:"Install pkg", install:"Add to home", clear:"Clear",
+    loginTitle:"Log in", loginDesc:"Logging in enables online mode: official attraction websites plus the local database.",
+    lblUser:"Username", lblPwd:"Password", submit:"Log in", register:"Create account (same account as desktop)",
+    cancel:"Cancel", needFields:"Please fill in username and password", badLogin:"Incorrect username or password",
+    loginOk:"Logged in — online mode enabled", logoutOk:"Logged out — back to local mode",
+    regOk:"Account created and logged in", userExists:"That username already exists", regFail:"Registration failed, try again",
+    guest:"Not logged in · local database",
+    src:"Sources", sup:"Other themes you may like", fu:"You may also ask",
+    near:"Nearby attractions (straight-line distance)", nearHint:"Tap “NAVER route” to open the map app and navigate from your current location. If it does not open, use the web map.",
+    locate:"Locating…", locateFail:"Location unavailable. Use HTTPS or allow permission, or tap the map buttons.",
+    nav:"NAVER route", place:"NAVER place", web:"Web map", g:"Google",
+    thinking:"Checking official sites and local data…",
+    more:"Want more detail? Keep asking about transport / tickets / opening hours / nearby.",
+    tagOnline:"Online", tagLocal:"Local", tagConcise:"Brief", tagWeb:"%n official",
+    emptyQ:"Please type a question"
   }
 };
-const ui = () => UI_STR[uiLang] || UI_STR.zh;
 
-// 玩法 / 人数下拉选项标签：按当前按钮语言映射（后端 meta 仅提供 key，不依赖后端中文标签）
 const META_LABELS = {
-  categories: {
-    "01_艺术村落_文化街区": {zh: "01 艺术村落·文化街区", ko: "01 예술마을·문화거리", en: "01 Art Village · Cultural Streets"},
-    "02_海岸休闲_日落夜景": {zh: "02 海岸休闲·日落夜景", ko: "02 해안 휴식·일몰 야경", en: "02 Coastal Leisure · Sunset"},
-    "03_湿地生态_自然观景": {zh: "03 湿地生态·自然观景", ko: "03 습지 생태·자연 전망", en: "03 Wetland Ecology · Nature"},
-    "04_小众渔港_文艺拍照": {zh: "04 小众渔港·文艺拍照", ko: "04 이색 어항·감성 사진", en: "04 Hidden Ports · Photo Spots"},
-  },
-  groups: {
-    "solo_male":   {zh: "一人（男）", ko: "1인(남)", en: "Solo (Male)"},
-    "solo_female": {zh: "一人（女）", ko: "1인(여)", en: "Solo (Female)"},
-    "two_mf":      {zh: "两人（男女）", ko: "2인(남녀)", en: "Two (M&F)"},
-    "two_mm":      {zh: "两人（男男）", ko: "2인(남남)", en: "Two (M&M)"},
-    "two_ff":      {zh: "两人（女女）", ko: "2인(여여)", en: "Two (F&F)"},
-    "group_3plus": {zh: "三人及以上", ko: "3인 이상", en: "3 or More"},
-  }
+  zh: { "01_艺术村落_文化街区":"艺术村落","02_海岸休闲_日落夜景":"海岸日落","03_湿地生态_自然观景":"湿地生态","04_小众渔港_文艺拍照":"小众渔港",
+        "solo_male":"一人（男）","solo_female":"一人（女）","two_mf":"两人（男女）","two_mm":"两人（男男）","two_ff":"两人（女女）","group_3plus":"三人及以上" },
+  ko: { "01_艺术村落_文化街区":"예술 마을","02_海岸休闲_日落夜景":"해안 노을","03_湿地生态_自然观景":"습지 생태","04_小众渔港_文艺拍照":"작은 항구",
+        "solo_male":"1인(남)","solo_female":"1인(여)","two_mf":"2인(남녀)","two_mm":"2인(남남)","two_ff":"2인(여여)","group_3plus":"3인 이상" },
+  en: { "01_艺术村落_文化街区":"Art village","02_海岸休闲_日落夜景":"Coast & sunset","03_湿地生态_自然观景":"Wetland","04_小众渔港_文艺拍照":"Small harbor",
+        "solo_male":"Solo (M)","solo_female":"Solo (F)","two_mf":"Two (M+F)","two_mm":"Two (M+M)","two_ff":"Two (F+F)","group_3plus":"3+ people" }
 };
 
-function refreshMetaLabels() {
-  for (const o of catSel.options) {
-    const m = META_LABELS.categories[o.value]; if (m) o.textContent = m[uiLang];
-  }
-  for (const o of grpSel.options) {
-    const m = META_LABELS.groups[o.value]; if (m) o.textContent = m[uiLang];
-  }
-}
-
-function applyLangUI() {
-  langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === uiLang));
-  welcomeMsg.textContent = ui().welcome;
-  qInput.placeholder = ui().placeholder;
-  sendBtn.textContent = ui().send;
-  gpsBtn.textContent = ui().gps;
-  installBtn.textContent = ui().install;
-  pkgBtn.textContent = ui().pkg;
-  catSel.previousElementSibling.textContent = ui().theme;
-  grpSel.previousElementSibling.textContent = ui().group;
-  refreshMetaLabels();
-  document.querySelector('#nearby h3').textContent = ui().nearbyTitle;
-  document.documentElement.lang = uiLang === 'zh' ? 'zh-CN' : uiLang;
-}
-
-// 历史提问：切换语言后逐条重新生成（不回放旧语言文本）
-const historyQ = [];
-let regenerating = false;
-
-// ---- 初始化玩法 / 人数选项 ----
-async function loadMeta() {
-  try {
-    const r = await fetch('/api/meta');
-    const data = await r.json();
-    (data.categories || []).forEach(c => {
-      const o = document.createElement('option'); o.value = c.key;
-      o.textContent = (META_LABELS.categories[c.key] || {})[uiLang] || c.label;
-      catSel.appendChild(o);
-    });
-    (data.groups || []).forEach(g => {
-      const o = document.createElement('option'); o.value = g.key;
-      o.textContent = (META_LABELS.groups[g.key] || {})[uiLang] || g.label;
-      grpSel.appendChild(o);
-    });
-  } catch (e) { console.warn('meta 加载失败', e); }
-}
-loadMeta();
-
-// ---- PWA：Service Worker 注册 + 安装到主屏幕 ----
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW 注册失败', e));
-}
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.classList.add('show');
-});
-installBtn.onclick = async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  installBtn.classList.remove('show');
+const CHIPS = {
+  zh: ["甘川文化村","没云台 交通","多大浦海水浴场 开放时间","乙淑岛候鸟公园 门票","长林浦口 拍照"],
+  ko: ["감천문화마을","몰운대 교통","다대포해수욕장 개방시간","을숙도 철새도래지 입장료","장림포구 사진"],
+  en: ["Gamcheon Culture Village","Molundae transport","Dadaepo Beach opening hours","Eulsukdo tickets","Jangnim Port photo spots"]
 };
-window.addEventListener('appinstalled', () => installBtn.classList.remove('show'));
 
-function setLoc(text) {
-  locStatus.textContent = text || '';
-  locStatus.style.display = text ? 'block' : 'none';
+const S = {
+  lang: localStorage.getItem("busan-lang") || "zh",
+  cat: localStorage.getItem("busan-cat") || "",
+  grp: localStorage.getItem("busan-grp") || "",
+  logged: false, username: "", role: "",
+  lastQ: "", spots: [], meta: { categories: [], groups: [] }
+};
+
+const T = k => (UI_STR[S.lang] && UI_STR[S.lang][k]) || UI_STR.zh[k] || k;
+const $ = id => document.getElementById(id);
+
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200);
 }
 
-function addMsg(text, who, meta) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + who;
-  div.textContent = text;
-  if (meta) {
-    const m = document.createElement('div');
-    m.className = 'meta';
-    m.textContent = meta;
-    div.appendChild(m);
-  }
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
-}
-
-// 渲染跨类补充推荐（主推荐之后，限量、标注玩法与理由）
-function renderSupplements(container, supplements) {
-  if (!supplements || !supplements.length) return;
-  const box = document.createElement('div');
-  box.className = 'supp-box';
-  const title = document.createElement('div');
-  title.className = 'supp-title';
-  title.textContent = ui().suppTitle(supplements.length);
-  box.appendChild(title);
-  supplements.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'supp-item';
-    item.innerHTML = `<span class="tag">${s.cat_label || s.category || ''}</span><b>${s.name}</b>：${s.reason || ''}`;
-    box.appendChild(item);
-  });
-  container.appendChild(box);
-}
-
-async function ask(question, opts = {}) {
-  const { push = true } = opts;
-  if (push) historyQ.push(question);
-  addMsg(question, 'user');
-  sendBtn.disabled = true;
-  try {
-    const r = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        question,
-        category: catSel.value,
-        group_type: grpSel.value,
-        ui_lang: uiLang
-      })
-    });
-    const data = await r.json();
-
-    // 问答结果回写选择栏（自动识别联动；用户手动选择仍保留，未识别时不覆盖）
-    if (data.category) catSel.value = data.category;
-    if (data.group_type) grpSel.value = data.group_type;
-
-    const meta = data.recognize ? (ui().recognize + data.recognize) : '';
-    const botDiv = addMsg(data.answer || '（无结果）', 'bot', meta);
-    renderSupplements(botDiv, data.supplements);
-
-    (data.followups || []).forEach(f => {
-      const b = document.createElement('div');
-      b.className = 'msg bot follow'; b.style.fontSize = '13px'; b.style.color = '#0ea5e9'; b.style.marginTop = '6px';
-      b.textContent = '💡 ' + f;
-      b.onclick = () => ask(f);
-      chat.appendChild(b);
-    });
-    chat.scrollTop = chat.scrollHeight;
-  } catch (e) {
-    addMsg('网络错误：' + e.message, 'bot');
-  } finally {
-    sendBtn.disabled = false;
-    if (!regenerating) qInput.value = '';
-  }
-}
-
-// ---- 语言切换：按新按钮语言重新生成历史全部回答 ----
-async function regenerateAll() {
-  regenerating = true;
-  chat.innerHTML = '';
-  addMsg(ui().welcome, 'bot');
-  for (const q of historyQ) {
-    await ask(q, { push: false });
-  }
-  regenerating = false;
-}
-
-function setLang(lang) {
-  if (!['zh', 'ko', 'en'].includes(lang) || lang === uiLang) return;
-  uiLang = lang;
-  localStorage.setItem('busan-lang', lang);
+/* ---------------- 语言 ---------------- */
+function setLang(lang){
+  S.lang = lang; localStorage.setItem("busan-lang", lang);
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : (lang === "ko" ? "ko" : "en");
   applyLangUI();
-  regenerateAll();
+  if (S.lastQ) regenerateAll();
+}
+function applyLangUI(){
+  $("appTitle").textContent = T("title");
+  $("appSub").textContent = T("sub");
+  $("lblCat").textContent = T("lblCat");
+  $("lblGroup").textContent = T("lblGroup");
+  $("welcomeTitle").textContent = T("welcomeTitle");
+  $("welcomeBody").textContent = T("welcomeBody");
+  $("input").placeholder = T("placeholder");
+  $("sendBtn").textContent = T("send");
+  $("gpsBtn").textContent = T("gps");
+  $("pkgBtn").textContent = T("pkg");
+  $("installBtn").textContent = T("install");
+  $("clearBtn").textContent = T("clear");
+  $("loginTitle").textContent = T("loginTitle");
+  $("loginDesc").textContent = T("loginDesc");
+  $("lblUser").textContent = T("lblUser");
+  $("lblPwd").textContent = T("lblPwd");
+  $("cancelBtn").textContent = T("cancel");
+  $("doRegister").textContent = T("register");
+  // 登录按钮文案随语言切换：未登录=登录，已登录=退出
+  $("authBtn").textContent = S.logged ? T("logout") : T("login");
+  $("authBtn").className = "auth-btn" + (S.logged ? " out" : "");
+  $("doLogin").textContent = T("submit");
+  $("errLine").textContent = "";
+  renderChips();
+  renderAuth();
+  // 语言切换时下拉选项文案也要跟着换（保留当前选中值）
+  if (S.meta && S.meta.categories && S.meta.categories.length){
+    fillSelect($("catSel"), S.meta.categories, $("catSel").value || S.cat);
+    fillSelect($("grpSel"), S.meta.groups, $("grpSel").value || S.grp);
+  }
+  if (S.spots.length) renderNearby(S.spots, S.nearLat, S.nearLng, true);
 }
 
-langBtns.forEach(b => b.onclick = () => setLang(b.dataset.lang));
+function renderChips(){
+  const box = $("chips"); box.innerHTML = "";
+  (CHIPS[S.lang] || CHIPS.zh).forEach(q => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = q;
+    b.onclick = () => ask(q);
+    box.appendChild(b);
+  });
+}
 
-applyLangUI();
+function renderAuth(){
+  const dot = $("statusDot"), st = $("statusText"), who = $("whoLine");
+  if (S.logged){
+    dot.className = "dot on"; st.textContent = T("online");
+    who.textContent = S.username + (S.role === "admin" ? " · admin" : "");
+  } else {
+    dot.className = "dot"; st.textContent = T("local");
+    who.textContent = T("guest");
+  }
+}
 
-sendBtn.onclick = () => { const q = qInput.value.trim(); if (q) ask(q); };
-qInput.addEventListener('keydown', e => { if (e.key === 'Enter') { const q = qInput.value.trim(); if (q) ask(q); } });
+/* ---------------- 元数据与选择栏 ---------------- */
+async function loadMeta(){
+  try{
+    const r = await fetch("/api/meta"); const m = await r.json();
+    S.meta = m;
+    fillSelect($("catSel"), m.categories, S.cat);
+    fillSelect($("grpSel"), m.groups, S.grp);
+  }catch(e){}
+}
+function fillSelect(sel, items, cur){
+  sel.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = ""; empty.textContent = S.lang === "en" ? "Auto / all" : (S.lang === "ko" ? "자동 / 전체" : "自动 / 全部");
+  sel.appendChild(empty);
+  (items || []).forEach(it => {
+    const o = document.createElement("option");
+    o.value = it.key;
+    o.textContent = (META_LABELS[S.lang] && META_LABELS[S.lang][it.key]) || it.label || it.key;
+    sel.appendChild(o);
+  });
+  sel.value = cur || "";
+}
 
-// ---- GPS：定位附近景点 ----
-function renderNearby(spots) {
-  nearbyList.innerHTML = '';
+/* ---------------- 登录 ---------------- */
+async function checkMe(){
+  try{
+    const r = await fetch("/api/me"); const m = await r.json();
+    S.logged = !!m.logged_in; S.username = m.username || ""; S.role = m.role || "";
+  }catch(e){ S.logged = false; }
+  renderAuth(); $("authBtn").textContent = S.logged ? T("logout") : T("login");
+}
+function openLogin(){
+  $("errLine").textContent = "";
+  $("uName").value = ""; $("uPwd").value = "";
+  $("mask").classList.add("show");
+  setTimeout(() => $("uName").focus(), 120);
+}
+function closeLogin(){ $("mask").classList.remove("show"); }
+
+async function doLogin(){
+  const u = $("uName").value.trim(), p = $("uPwd").value.trim();
+  if (!u || !p){ $("errLine").textContent = T("needFields"); return; }
+  try{
+    const r = await fetch("/api/login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username:u, password:p})
+    });
+    const m = await r.json();
+    if (m.ok){
+      S.logged = true; S.username = m.username; S.role = m.role;
+      closeLogin(); applyLangUI(); toast(T("loginOk"));
+      if (S.lastQ) regenerateAll();
+    } else {
+      $("errLine").textContent = T("badLogin");
+    }
+  }catch(e){ $("errLine").textContent = T("badLogin"); }
+}
+
+async function doRegister(){
+  const u = $("uName").value.trim(), p = $("uPwd").value.trim();
+  if (!u || !p){ $("errLine").textContent = T("needFields"); return; }
+  try{
+    const r = await fetch("/api/register", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username:u, password:p})
+    });
+    const m = await r.json();
+    if (m.ok){
+      S.logged = true; S.username = m.username; S.role = m.role;
+      closeLogin(); applyLangUI(); toast(T("regOk"));
+      if (S.lastQ) regenerateAll();
+    } else {
+      $("errLine").textContent = (m.msg_key === "user_exists") ? T("userExists") : T("regFail");
+    }
+  }catch(e){ $("errLine").textContent = T("regFail"); }
+}
+
+async function doLogout(){
+  try{ await fetch("/api/logout", {method:"POST"}); }catch(e){}
+  S.logged = false; S.username = ""; S.role = "";
+  applyLangUI(); toast(T("logoutOk"));
+  if (S.lastQ) regenerateAll();
+}
+
+/* ---------------- 轻量 Markdown ---------------- */
+function esc(s){ return (s || "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function stripTail(t, data){
+  // LLM 草稿末尾自带「资料来源 / 其它玩法补充推荐」清单，前端已用结构化块单独渲染，这里去掉避免重复
+  let s = (t || "").replace(/\n+[#*>\-\s]*((资料来源|数据来源|Sources|출처)[^\n]*)\n[\s\S]*$/i, "");
+  if ((data.supplements || []).length){
+    s = s.replace(/\n+[#*\-]*(其它玩法补充推荐|其他玩法补充推荐|Other[ -]theme[^\n]*|다른 테마[^\n]*)\n[\s\S]*$/i, "");
+  }
+  return s.trim();
+}
+
+function mdLite(text){
+  let out = esc(text || "");
+  out = out.replace(/^###\s+(.*)$/gm, "<h3>$1</h3>");
+  out = out.replace(/^##\s+(.*)$/gm, "<h3>$1</h3>");
+  out = out.replace(/^#\s+(.*)$/gm, "<h3>$1</h3>");
+  out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  out = out.replace(/^\s*(?:-|•)\s+(.*)$/gm, "<li>$1</li>");
+  out = out.replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, "<ul>$1</ul>");
+  out = out.replace(/^\s*---+\s*$/gm, "<hr>");
+  out = out.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+  return "<p>" + out + "</p>";
+}
+
+/* ---------------- 问答 ---------------- */
+function clearTurns(){ $("turns").innerHTML = ""; }
+
+function renderTurn(q, data){
+  const wrap = document.createElement("div"); wrap.className = "turn";
+  const qb = document.createElement("div"); qb.className = "q"; qb.textContent = q;
+  wrap.appendChild(qb);
+
+  const ab = document.createElement("div"); ab.className = "a";
+  const tags = [];
+  tags.push(`<span class="tag ${data.online ? "online" : "local"}">${data.online ? T("tagOnline") : T("tagLocal")}</span>`);
+  if (data.concise) tags.push(`<span class="tag concise">${T("tagConcise")}</span>`);
+  if (data.web_count) tags.push(`<span class="tag">${T("tagWeb").replace("%n", data.web_count)}</span>`);
+  if (data.spot) tags.push(`<span class="tag">${esc(data.spot)}</span>`);
+  const meta = `<div class="meta-line">${tags.join("")}</div>`;
+
+  let body = `<div class="answer">${mdLite(stripTail(data.answer || "", data))}</div>`;
+
+  const srcs = (data.sources || []).filter(s => s.detail);
+  let srcHtml = "";
+  if (srcs.length){
+    srcHtml = `<div class="src-block"><b>${T("src")}</b>` + srcs.map(s => {
+      const v = /^https?:/.test(s.detail)
+        ? `<a href="${esc(s.detail)}" target="_blank" rel="noopener">${esc(s.detail)}</a>`
+        : esc(s.detail);
+      return `<div class="src-line"><span class="k">${esc(s.label || "")}</span><span class="v">${v}</span></div>`;
+    }).join("") + `</div>`;
+  }
+
+  const sups = data.supplements || [];
+  let supHtml = "";
+  if (sups.length){
+    supHtml = `<div class="sup"><b>${T("sup")}</b>` + sups.map(s =>
+      `<div class="sup-item">${esc(s.name)} <i>· ${esc(s.cat_label || s.category || "")} · ${esc(s.reason || "")}</i></div>`
+    ).join("") + `</div>`;
+  }
+
+  let fuHtml = "";
+  if ((data.followups || []).length){
+    fuHtml = `<div class="fu"><b style="font-size:11.5px;color:#41627a">${T("fu")}</b>` +
+      data.followups.map(f => `<button data-q="${esc(f)}">${esc(f)}</button>`).join("") + `</div>`;
+  }
+
+  ab.innerHTML = meta + body + srcHtml + supHtml + fuHtml;
+  ab.querySelectorAll(".fu button").forEach(b => b.onclick = () => ask(b.dataset.q));
+  wrap.appendChild(ab);
+  $("turns").appendChild(wrap);
+}
+
+async function ask(q){
+  q = (q || "").trim();
+  if (!q){ toast(T("emptyQ")); return; }
+  S.lastQ = q;
+  $("input").value = "";
+
+  const wrap = document.createElement("div"); wrap.className = "turn";
+  const qb = document.createElement("div"); qb.className = "q"; qb.textContent = q;
+  const ab = document.createElement("div"); ab.className = "a thinking"; ab.textContent = T("thinking");
+  wrap.appendChild(qb); wrap.appendChild(ab); $("turns").appendChild(wrap);
+  wrap.scrollIntoView({behavior:"smooth", block:"end"});
+
+  try{
+    const r = await fetch("/api/chat", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({question:q, category:$("catSel").value, group_type:$("grpSel").value, ui_lang:S.lang})
+    });
+    const m = await r.json();
+    if (m.category) $("catSel").value = m.category;
+    if (m.group_type) $("grpSel").value = m.group_type;
+    if (m.online !== undefined){ S.logged = !!m.online; }
+    wrap.remove();
+    renderTurn(q, m);
+    renderAuth();
+    const el = $("turns").lastElementChild;
+    if (el) el.scrollIntoView({behavior:"smooth", block:"end"});
+  }catch(e){
+    ab.classList.remove("thinking");
+    ab.textContent = "网络异常，请重试 / 네트워크 오류 / Network error";
+  }
+}
+
+function regenerateAll(){
+  const last = S.lastQ; clearTurns();
+  if (last) ask(last);
+}
+
+/* ---------------- 附近景点 + NAVER 深链 ---------------- */
+function renderNearby(spots, lat, lng, keep){
+  S.spots = spots; S.nearLat = lat; S.nearLng = lng;
+  if (!keep) clearTurns();
+  const sec = document.createElement("section"); sec.className = "nearby";
+  sec.innerHTML = `<h3>${T("near")}</h3><p class="hint">${T("nearHint")}</p>`;
   spots.forEach(s => {
-    const card = document.createElement('div');
-    card.className = 'nearby-card';
-    card.innerHTML = `
-      <div class="row1">
-        <div>
-          <div class="name">${s.name}</div>
-          <div class="ko">${s.ko}</div>
-          <div class="cat">${s.cat_label || ''}</div>
-        </div>
+    const row = document.createElement("div"); row.className = "spot";
+    row.innerHTML = `
+      <div class="spot-top">
+        <div><div class="spot-name">${esc(s.name)}</div><div class="spot-ko">${esc(s.ko)}</div></div>
         <div class="dist">${s.distance_km} km</div>
       </div>
-      <div class="row2">
-        <a class="nav-chat" href="javascript:void(0)">💬 问介绍</a>
-        <a class="nav-naver" href="${s.naver_url}" target="_blank" rel="noopener">🗺 Naver 导航</a>
-        <a class="nav-gmap" href="${s.google_url}" target="_blank" rel="noopener">📍 Google</a>
+      <div class="map-row">
+        <a class="map-btn naver" href="${esc(s.naver_route_url || s.naver_url)}">${T("nav")}</a>
+        <a class="map-btn" href="${esc(s.naver_place_url || s.naver_url)}">${T("place")}</a>
+        <a class="map-btn" href="${esc(s.naver_web_url || '')}" target="_blank" rel="noopener">${T("web")}</a>
+        <a class="map-btn g" href="${esc(s.google_url)}" target="_blank" rel="noopener">${T("g")}</a>
       </div>`;
-    card.querySelector('.nav-chat').onclick = () => { catSel.value = s.cat || ''; ask(s.name + ' ' + ui().askIntro); };
-    nearbyList.appendChild(card);
+    sec.appendChild(row);
   });
-  nearbyBox.style.display = 'block';
-  nearbyBox.scrollIntoView({behavior: 'smooth'});
+  $("turns").appendChild(sec);
+  sec.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
-async function loadNearby(lat, lng) {
-  setLoc(`定位成功：${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-  const r = await fetch('/api/nearby', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({lat, lng})
-  });
-  const data = await r.json();
-  renderNearby(data.spots || []);
+async function nearbyAt(lat, lng, keep){
+  try{
+    const r = await fetch("/api/nearby", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({lat, lng})
+    });
+    const m = await r.json();
+    renderNearby(m.spots || [], lat, lng, !!keep);
+  }catch(e){ toast(T("locateFail")); }
 }
 
-gpsBtn.onclick = () => {
-  if (!navigator.geolocation) { alert('当前浏览器不支持定位'); return; }
-  gpsBtn.classList.add('busy');
-  gpsBtn.textContent = '定位中...';
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    lastLat = pos.coords.latitude; lastLng = pos.coords.longitude;
-    try { await loadNearby(lastLat, lastLng); }
-    catch (e) { alert('获取附近景点失败：' + e.message); }
-    finally { gpsBtn.classList.remove('busy'); gpsBtn.textContent = '📍 定位附近景点'; }
-  }, (err) => {
-    gpsBtn.classList.remove('busy');
-    gpsBtn.textContent = '📍 定位附近景点';
-    let msg = '定位失败：' + err.message;
-    if (err.code === 1) msg += '\n\n权限被拒绝。请在浏览器设置中允许位置权限。';
-    if (err.code === 3) msg += '\n\n超时。请走到开阔处再试。';
-    if (location.protocol === 'http:' && location.hostname !== 'localhost') {
-      msg += '\n\n提示：当前是 HTTP 局域网地址，部分浏览器会禁用定位。请用 HTTPS 或 localhost 访问，或直接点景点下方「Naver 导航」手动选点。';
-    }
-    alert(msg);
-  }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 60000});
+function locateAndNearby(){
+  if (!navigator.geolocation){ toast(T("locateFail")); return; }
+  toast(T("locate"));
+  navigator.geolocation.getCurrentPosition(pos => {
+    nearbyAt(pos.coords.latitude, pos.coords.longitude);
+  }, () => toast(T("locateFail")), {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
+}
+
+/* ---------------- 事件绑定 ---------------- */
+document.querySelectorAll(".lang-btn").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll(".lang-btn").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    setLang(b.dataset.lang);
+  };
+});
+$("authBtn").onclick = () => { if (S.logged) doLogout(); else openLogin(); };
+$("cancelBtn").onclick = closeLogin;
+$("doLogin").onclick = doLogin;
+$("doRegister").onclick = doRegister;
+$("mask").onclick = e => { if (e.target === $("mask")) closeLogin(); };
+$("uPwd").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+$("sendBtn").onclick = () => ask($("input").value);
+$("input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); ask($("input").value); }
+});
+$("gpsBtn").onclick = locateAndNearby;
+$("clearBtn").onclick = () => { clearTurns(); S.lastQ = ""; };
+$("pkgBtn").onclick = () => { location.href = "/download/Busan_Tour_App.zip"; };
+$("installBtn").onclick = async () => {
+  if (window.deferredPrompt){ window.deferredPrompt.prompt(); window.deferredPrompt = null; }
+  else { toast("浏览器菜单 → 添加到主屏幕 / 브라우저 메뉴 → 홈 화면에 추가 / Browser menu → Add to Home Screen"); }
 };
+$("catSel").onchange = e => { S.cat = e.target.value; localStorage.setItem("busan-cat", S.cat); if (S.lastQ) regenerateAll(); };
+$("grpSel").onchange = e => { S.grp = e.target.value; localStorage.setItem("busan-grp", S.grp); if (S.lastQ) regenerateAll(); };
+
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); window.deferredPrompt = e; });
+
+(async function init(){
+  document.querySelectorAll(".lang-btn").forEach(b => {
+    if (b.dataset.lang === S.lang) b.classList.add("on");
+  });
+  await checkMe();
+  await loadMeta();
+  applyLangUI();
+  if ("serviceWorker" in navigator){ navigator.serviceWorker.register("/sw.js").catch(() => {}); }
+  // 调试/分享入口：?lat=35.09&lng=128.97 可直接按坐标展示附近景点（无需浏览器定位权限）
+  const qp = new URLSearchParams(location.search);
+  if (qp.get("lat") && qp.get("lng")){
+    nearbyAt(parseFloat(qp.get("lat")), parseFloat(qp.get("lng")));
+  }
+})();
 </script>
 </body>
 </html>

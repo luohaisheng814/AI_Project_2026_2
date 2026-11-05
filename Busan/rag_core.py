@@ -7,6 +7,7 @@ import config
 import i18n
 import core_api
 import web_lookup
+import official_sites
 import intent_parser as IP
 import recommend as RC
 import lang_detect as LD
@@ -217,6 +218,15 @@ class KnowledgeBase:
                     return self._doc_by_alias(n)
         return None
 
+    def find_spot_global(self, query):
+        """忽略当前玩法作用域，在全部已加载档案里按别名找景点（用于语言识别/翻译兜底）。"""
+        q = (query or "").lower()
+        all_names = set().union(*[d.aliases for d in self.spots.values()] or [set()])
+        for n in sorted(all_names, key=len, reverse=True):
+            if len(n) >= 2 and n.lower() in q:
+                return self._doc_by_alias(n)
+        return None
+
     def cross_category_docs(self, category, limit=2):
         """个性化推荐补充池：当前分类之外的档案，跨其它分类轮询取点、限量返回。"""
         others = [c for c in config.CATEGORIES if c != category]
@@ -243,10 +253,11 @@ KB = KnowledgeBase()
 # ==================================================================
 # 二、检索：本地库 -> 核心库 -> 官网/百科
 # ==================================================================
-def build_context(spot, field, category, group_type, lang):
+def build_context(spot, field, category, group_type, lang, online=True):
     """
     返回 (context_text, sources, web_hits, supplements)
     主数据源 = 当前所选分类文件夹内档案；supplements = 其它分类限量补充（仅个性化推荐）。
+    online=True（登录后的联网模式）才会访问景点官方网站；未登录时纯本地库。
     """
     sources, blocks = [], []
 
@@ -305,25 +316,48 @@ def build_context(spot, field, category, group_type, lang):
             f"{RC.CROSS_LIMIT} 个；必须标注所属玩法与推荐理由） ===\n" + "\n".join(sup_lines)
         )
 
-    # ④ 官网 / 百科在线查询（仅 01 / 02 重点景点，URL 来自 txt「来源网址」段）
+    # ④ 景点官方网站查询（登录后的联网模式；8 个景点全覆盖，不止 01/02 重点档案）
     web_hits = []
     profile = KB.spot_profiles.get(category or "")
-    if profile and config.ENABLE_WEB_LOOKUP:
-        urls = web_lookup.extract_urls(profile.get("source") or profile.raw)
-        if spot and spot is not profile:
+    if online and config.ENABLE_WEB_LOOKUP:
+        kw = []
+        focus_name = spot.name if spot else (profile.name if profile else None)
+        if focus_name:
+            kw.append(focus_name)
+        if field:
+            kw.append(IP.FIELD_LABEL.get(field, {}).get("zh", field))
+        kw = [k for k in kw if k]
+
+        # ① 官网登记表（official_sites：沙下区文化观光 / 甘川文化村官网等实测可达站点）
+        if spot:
+            for h in official_sites.fetch(spot.name, extra_keywords=kw[1:], max_pages=2):
+                web_hits.append(h)
+                blocks.append(
+                    f"=== 官方网站在线查询（{h.get('portal')}｜抓取于 {h.get('fetched_at')}）：{h['url']} ===\n"
+                    f"{h.get('snippet', '')[:2000]}"
+                )
+                sources.append({"type": "official", "label": h.get("portal") or i18n.t("source_official"),
+                                "detail": h["url"]})
+            note = (official_sites.entries(spot.name) or {}).get("note")
+            if note and not any(s["type"] == "official" for s in sources):
+                sources.append({"type": "official", "label": i18n.t("source_official"), "detail": note})
+
+        # ② 档案「来源网址」段登记的补充链接（重点档案 / 分类 txt 里写明的网址）
+        urls = []
+        if spot:
             urls += web_lookup.extract_urls(spot.get("source") or spot.raw)
-        urls = list(dict.fromkeys(urls))
+        if profile:
+            urls += web_lookup.extract_urls(profile.get("source") or profile.raw)
+        urls = [u for u in dict.fromkeys(urls) if not any(u == h["url"] for h in web_hits)]
         if urls:
-            kw = [spot.name if spot else profile.name]
-            if field:
-                kw.append(IP.FIELD_LABEL.get(field, {}).get("zh", field))
-            web_hits = web_lookup.lookup(urls, keywords=kw, max_pages=3)
-            for h in web_hits:
+            for h in web_lookup.lookup(urls, keywords=kw, max_pages=2):
+                web_hits.append(h)
                 blocks.append(f"=== 官网/百科在线查询：{h['url']} ===\n{h['snippet'][:2000]}")
                 sources.append({"type": "web", "label": i18n.t("source_web"), "detail": h["url"]})
-            if not web_hits:
-                sources.append({"type": "web", "label": i18n.t("source_web"),
-                                "detail": i18n.t("web_failed")})
+
+        if not web_hits:
+            sources.append({"type": "web", "label": i18n.t("source_web"),
+                            "detail": i18n.t("web_failed")})
 
     return "\n\n".join(blocks), sources, web_hits, supplements
 
@@ -338,9 +372,12 @@ def _normalize_lang(lang):
     return lang if lang in ("zh", "ko", "en") else "zh"
 
 
-def _draft_system_prompt():
-    """草稿阶段系统提示：始终用简体中文基于中文数据库生成回答。"""
-    return (
+def _draft_system_prompt(concise=False):
+    """草稿阶段系统提示：始终用简体中文基于中文数据库生成回答。
+
+    concise=True：用户只输入景点名时走精简版，只给 4 行结论，不罗列全部字段。
+    """
+    base = (
         "你是「釜山 AI 旅行助手」，一位熟悉釜山本地玩法的资深向导。\n"
         "【语言铁律】用户问题可能是简体中文、韩文或英文：先准确理解其意图、景点与字段，"
         "但本轮草稿必须使用简体中文生成：标题、正文、来源说明、预测问题一律用中文。\n"
@@ -350,8 +387,26 @@ def _draft_system_prompt():
         "其它玩法的景点不得出现在主推荐、路线、交通、开放信息等主体内容里。\n"
         "【跨类补充规则】跨类景点已由系统在末尾统一补齐，你不要在正文中自行补充其它玩法景点。\n"
         "【个性化】严格按<用户画像>里的玩法骨架与出行策略组织答案，做到因人而异、可照着走。\n"
-        "【完整性】用户只给景点名时，必须完整列出介绍、交通、开放信息、来源网址等全部字段，不得只显示前几行。"
-        "用户指定了字段时，只聚焦该字段，不堆砌无关内容。\n"
+        "【官网优先】资料中出现「官方网站在线查询」段落时，地址、电话、开放时间、票价、官网链接等"
+        "事实性信息以官网段落为准；本地库与官网不一致时，以官网为准并一句话说明差异；"
+        "引用官网时标注是哪个站点（如「沙下区文化观光官网」），不要虚构官网未给出的数字。\n"
+    )
+    if concise:
+        base += (
+            "【精简回答】用户只输入了景点名称，本次必须给一份「一眼看完」的短答：\n"
+            "1) 第一行：**景点名**——一句话定位（不超过 40 字）；\n"
+            "2) 第二段：2-3 个「最值得」的亮点，每条不超过 20 字；\n"
+            "3) 第三段：交通一句话（地铁/公交主线即可）+ 门票与开放时间一句话（官网有则用官网口径）；\n"
+            "4) 最后一行：提示可继续追问（交通细节 / 门票 / 开放时间 / 周边 / 适合人群）。\n"
+            "全文控制在 200 字以内，禁止罗列全部字段、禁止成段抄写资料原文、禁止贴多条周边与美食清单；"
+            "官方网站在资料中存在时，末尾可带 1 个官网链接。\n"
+        )
+    else:
+        base += (
+            "【完整性】用户指定了字段（如交通、门票、开放信息）时，只聚焦该字段并给足细节，不堆砌无关内容；"
+            "用户问的是自由问题（非单一字段）时，按问题本身组织答案，不必罗列全部字段。\n"
+        )
+    base += (
         "【格式】Markdown：小标题 + 短段落 + 要点列表；时间、票价、站点名等关键信息加粗。\n"
         "【结尾】必须包含两部分：\n"
         "1) 资料来源：逐条列出本次实际用到的资料（本地文件路径 / 核心数据库 / 官网或百科链接）；\n"
@@ -359,9 +414,10 @@ def _draft_system_prompt():
         "分隔规则：正文与来源写完后另起一行输出 ###FOLLOWUP###，"
         "随后三行各写一个预测问题（每行一个，不要编号、不要加 - 号以外的内容）。"
     )
+    return base
 
 
-def _draft_user_prompt(question, context, category, group_type, field, spot_name):
+def _draft_user_prompt(question, context, category, group_type, field, spot_name, concise=False):
     cat_name = i18n.I.cat_name(category) if category else "-"
     grp_name = i18n.I.group_name(group_type) if group_type else "-"
     profile_text = RC.build_profile_text(category, group_type, "zh")
@@ -369,8 +425,11 @@ def _draft_user_prompt(question, context, category, group_type, field, spot_name
     if field:
         fname = IP.FIELD_LABEL.get(field, {}).get("zh", field)
         focus = f"\n【本次聚焦字段】{fname}。只重点回答这一项，不要展开无关内容；不足时说明需查官方公告。"
+    elif concise:
+        focus = ("\n【本次回答形态】用户只输入了景点名称：按「一句话定位 + 2-3 个亮点 + 交通与门票各一句"
+                 "+ 可继续追问提示」输出精简版，全文 200 字以内，不要罗列全部字段。")
     else:
-        focus = ("\n【本次聚焦字段】用户只给了景点名称，请完整列出介绍、交通、开放信息、来源网址等全部资料，不要省略。")
+        focus = ("\n【本次回答形态】用户提了开放问题：围绕问题本身回答；只有确实相关时才补充背景信息，不要罗列全部字段。")
 
     return (
         f"<用户画像>\n玩法分类：{cat_name}\n出行人数：{grp_name}\n"
@@ -478,6 +537,7 @@ SOURCE_KEY = {
     "profile": "source_profile",
     "core": "source_core",
     "web": "source_web",
+    "official": "source_official",
 }
 
 
@@ -503,8 +563,85 @@ def _localize_sources(sources, lang):
     return out
 
 
-def _local_fallback(spot, field, category, group_type, out_lang, sources, supplements=None):
-    """离线（未配置 LLM_API_KEY）：无法在线翻译，正文保留中文资料库原文，仅本地化界面标签。"""
+_LEAD_LABEL = re.compile(
+    r"^[\s\-•·]*(景点名称|韩文名|英文名|别名|介绍|简介|概况|概览|详情|基本信息|"
+    r"交通信息|交通|开放信息|开放时间|门票|费用|票价|推荐路线|拍照打卡|美食|"
+    r"适合人群|注意事项|来源网址|周边|住宿|소개|교통|요금)\s*[:：]\s*")
+
+
+def _trim_field(text, max_chars=150):
+    """把一个字段压成一行短句：去掉标签行与重复标签前缀、折叠空白、按句号截断。"""
+    t = re.sub(r"^[\[【][^\]】]{1,12}[\]】]\s*", "", (text or "").strip())
+    t = re.sub(r"\s+", " ", t).strip()
+    # 字段原文常是「景点名称：甘川文化村 介绍：位于…」这类连写，循环剥掉开头标签
+    for _ in range(4):
+        new = _LEAD_LABEL.sub("", t, count=1)
+        if new == t:
+            break
+        t = new
+    m = re.search(r"(介绍|简介|概况|소개)\s*[:：]", t[:26])
+    if m:
+        t = t[m.end():].strip()
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= max_chars:
+        return t
+    cut = t[:max_chars]
+    for sep in ("。", "；", ".", ";", "·"):
+        pos = cut.rfind(sep)
+        if pos > max_chars // 2:
+            return cut[:pos + 1]
+    return cut.rstrip("，,、 ") + "…"
+
+
+def _concise_local(spot, out_lang, sources, supplements=None, online=True):
+    """只给景点名时的精简本地答（无 LLM 时使用）：一句话定位 + 亮点 + 交通 + 门票/开放。"""
+    overview = _trim_field(spot.get("overview"), 70)
+    highlights = []
+    for key in ("photo", "course", "tips"):
+        if spot.get(key):
+            for seg in re.split(r"[。；\n]", _trim_field(spot.get(key), 400)):
+                seg = seg.strip(" -·")
+                if seg and len(seg) >= 4:
+                    highlights.append(seg[:40])
+        if len(highlights) >= 3:
+            break
+    transport = _trim_field(spot.get("transport"), 90)
+    tickets = _trim_field(spot.get("ticket"), 60)
+    hours = _trim_field(spot.get("hours"), 60)
+
+    lines = [f"**{IP.localize_labels(spot.name, out_lang)}** —— {overview}"]
+    if highlights:
+        lines.append("")
+        lines.append("- " + "\n- ".join(highlights[:3]))
+    lines.append("")
+    lines.append(f"**{_localized_string('label_transport', out_lang)}**：{transport}")
+    pay = " ｜ ".join([x for x in (tickets, hours) if x])
+    if pay:
+        lines.append(f"**{_localized_string('label_ticket_hours', out_lang)}**：{pay}")
+    lines.append("")
+    lines.append(f"_{_localized_string('ask_more', out_lang)}_")
+    content = "\n".join([x for x in lines if x is not None])
+
+    sup_block = render_supplements(supplements or [], out_lang)
+    if sup_block:
+        content = content + "\n\n" + sup_block
+
+    src_lines = "\n".join(f"- {s['label']}：{s['detail']}" for s in sources)
+    footer = f"\n\n---\n**{_localized_string('sources_label', out_lang)}**\n{src_lines}"
+    if not online:
+        footer += f"\n\n_{_localized_string('login_required_online', out_lang)}_"
+    else:
+        footer += f"\n\n_{_localized_string('offline_mode', out_lang)}_"
+        if out_lang != "zh":
+            footer += f"\n_{_localized_string('offline_no_translate', out_lang)}_"
+    return content + footer
+
+
+def _local_fallback(spot, field, category, group_type, out_lang, sources, supplements=None,
+                    concise=False, online=True):
+    """离线（未登录或未配置 LLM_API_KEY）：无法在线翻译，正文保留中文资料库原文，仅本地化界面标签。"""
+    if spot and concise:
+        return _concise_local(spot, out_lang, sources, supplements, online=online)
     if spot:
         body = spot.get(field) if (field and spot.get(field)) else spot.full_text()
         content = f"**{spot.name}**\n\n{IP.localize_labels(body, out_lang)}"
@@ -518,19 +655,24 @@ def _local_fallback(spot, field, category, group_type, out_lang, sources, supple
 
     src_lines = "\n".join(f"- {s['label']}：{s['detail']}" for s in sources)
     footer = f"\n\n---\n**{_localized_string('sources_label', out_lang)}**\n{src_lines}"
-    footer += f"\n\n_{_localized_string('offline_mode', out_lang)}_"
-    if out_lang != "zh":
-        footer += f"\n_{_localized_string('offline_no_translate', out_lang)}_"
+    if not online:
+        footer += f"\n\n_{_localized_string('login_required_online', out_lang)}_"
+    else:
+        footer += f"\n\n_{_localized_string('offline_mode', out_lang)}_"
+        if out_lang != "zh":
+            footer += f"\n_{_localized_string('offline_no_translate', out_lang)}_"
     return content + footer
 
 
 # ==================================================================
 # 五、主入口
 # ==================================================================
-def answer(question, category=None, group_type=None, lang=None, username=None, ui_lang=None):
+def answer(question, category=None, group_type=None, lang=None, username=None, ui_lang=None,
+           online=None):
     """
     返回 dict：
         answer / sources / followups / spot / field / lang / offline / recognize / supplements
+        / online / web_count / concise
 
     语言策略（本轮重构）：
       - 输出语言只由顶部按钮语言（ui_lang，等价 i18n.I.lang）决定，与提问语言、数据来源无关；
@@ -538,7 +680,12 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
         按钮为韩文 / 英文时再把中文草稿整体翻译后输出；
       - 用户输入语言与按钮不一致时，仍以按钮语言作答；
       - 翻译只换语言不换内容：事实数据、条目数量、推荐顺序、Markdown 结构保持不变。
+
+    联网策略（本轮新增）：
+      - online=True：登录后的联网模式，访问各景点官方网站（official_sites）+ 在线 AI 草稿；
+      - online=False：未登录，只用本地数据库直出，不访问外网，回答里带离线说明。
     """
+    online_flag = True if online is None else bool(online)
     question = (question or "").strip()
 
     # ① 输出语言 = 按钮语言（显式 lang 参数视为按钮显式指定；不再按提问语言 detect 决定输出）
@@ -552,6 +699,10 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     zh_query = question
     if input_lang and input_lang != "zh" and core_api.is_configured():
         zh_query = _question_to_zh(question, input_lang) or question
+        # 机器翻译常把韩文/英文地名音译错（如 몰운대 -> "茂云台"），导致景点名识别失败：
+        # 译文里找不到任何景点时，退回用原文（别名表里本就登记了韩文/英文惯用名）重新匹配。
+        if not KB.find_spot_global(zh_query) and KB.find_spot_global(question):
+            zh_query = question
 
     # 未显式传分类时，先按中文问题推断玩法（供作用域定位）；spot 命中后以其所属分类为准
     inferred_cat = IP.infer_category(zh_query, category)
@@ -563,15 +714,20 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     KB.set_active_category(category)
 
     spot = KB.find_spot(zh_query, category)
+    # 关键词推断的玩法可能猜错（如英文 transport 误命中渔港类），此时用全库别名再兜一次
+    if not spot:
+        spot = KB.find_spot_global(zh_query)
     # 景点命中后，以景点真实所属分类校正作用域（关键词推断偏差时自动归位）
     if spot and spot.category and spot.category != category:
         category = spot.category
         KB.set_active_category(category)
     field, _hit = IP.detect_field_detail(zh_query)
 
-    # 只输入景点名 -> 输出全部（显式置为 None）
-    if spot and field and IP.is_only_spot_name(zh_query, spot.aliases):
+    # 只输入景点名 -> 置空字段并走精简回答（本轮：不再罗列全部字段）
+    only_name = bool(spot and IP.is_only_spot_name(zh_query, spot.aliases))
+    if spot and field and only_name:
         field = None
+    concise = only_name
 
     recognize = IP.recognize_summary(question, spot.name if spot else None, field, out_lang,
                                      category, group_type)
@@ -579,19 +735,22 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
         recognize += f" · 提问={LD.detect_name(input_lang)}"
 
     # ② 检索与草稿一律使用中文上下文（中文数据库）；补充推荐与来源标签随后按 out_lang 重标
-    context, sources, _, _supp_zh = build_context(spot, field, category, group_type, "zh")
+    context, sources, web_hits, _supp_zh = build_context(spot, field, category, group_type, "zh",
+                                                        online=online_flag)
     supplements = RC.build_cross_supplement(KB, category, group_type, out_lang, limit=RC.CROSS_LIMIT)
     sources = _localize_sources(sources, out_lang)
 
     if not sources:
         return {"answer": _localized_string("no_result", out_lang), "sources": [], "followups": [],
                 "spot": None, "field": field, "lang": out_lang, "offline": True,
-                "recognize": recognize, "supplements": []}
+                "recognize": recognize, "supplements": [],
+                "online": online_flag, "web_count": 0, "concise": concise}
 
     def fallback():
         return {
             "answer": _local_fallback(spot, field, category, group_type, out_lang,
-                                      sources, supplements),
+                                      sources, supplements, concise=concise,
+                                      online=online_flag),
             "sources": sources,
             "followups": RC.suggest_questions(spot.name if spot else "", field, out_lang,
                                               spot.fields if spot else None),
@@ -600,16 +759,22 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
             "recognize": recognize,
             "supplements": supplements,
             "category": category, "group_type": group_type,
+            "online": online_flag, "web_count": len(web_hits), "concise": concise,
         }
+
+    # 未登录 = 纯本地模式：不联网、不调在线 AI
+    if not online_flag:
+        return fallback()
 
     if not core_api.is_configured():
         return fallback()
 
     # ③ 第一段：基于中文资料生成简体中文草稿（系统/用户提示词均固定中文；长上下文给足超时 + 重试）
     raw = core_api.chat([
-        {"role": "system", "content": _draft_system_prompt()},
+        {"role": "system", "content": _draft_system_prompt(concise=concise)},
         {"role": "user", "content": _draft_user_prompt(question, context, category, group_type,
-                                                      field, spot.name if spot else None)},
+                                                      field, spot.name if spot else None,
+                                                      concise=concise)},
     ], timeout=90, retries=1)
     if raw is None:
         return fallback()
@@ -664,7 +829,8 @@ def answer(question, category=None, group_type=None, lang=None, username=None, u
     return {"answer": text, "sources": sources, "followups": followups,
             "spot": spot.name if spot else None, "field": field, "lang": out_lang,
             "offline": False, "recognize": recognize, "supplements": supplements,
-            "category": category, "group_type": group_type}
+            "category": category, "group_type": group_type,
+            "online": online_flag, "web_count": len(web_hits), "concise": concise}
 
 
 if __name__ == "__main__":
@@ -672,17 +838,17 @@ if __name__ == "__main__":
     print("已加载景点：", list(KB.spots.keys()))
     print("重点档案：", {c: d.name for c, d in KB.spot_profiles.items()})
     print("rules 长度：", len(KB.rules_text), "\n")
-    for q, cat, grp in [
-        ("甘川文化村", "01_艺术村落_文化街区", "two_mf"),
-        ("甘川文化村 交通", "01_艺术村落_文化街区", "solo_female"),
-        ("감천문화마을 개방시간", "01_艺术村落_文化街区", "solo_male"),
-        ("多大浦海水浴场 开放时间", "02_海岸休闲_日落夜景", "group_3plus"),
-        ("How do I get to Gamcheon Culture Village?", "01_艺术村落_文化街区", "two_ff"),
+    for q, cat, grp, on in [
+        ("甘川文化村", "01_艺术村落_文化街区", "two_mf", True),
+        ("甘川文化村", "01_艺术村落_文化街区", "two_mf", False),
+        ("甘川文化村 交通", "01_艺术村落_文化街区", "solo_female", True),
+        ("没云台", "02_海岸休闲_日落夜景", "two_ff", True),
+        ("감천문화마을 개방시간", "01_艺术村落_文化街区", "solo_male", True),
     ]:
-        r = answer(q, category=cat, group_type=grp)
+        r = answer(q, category=cat, group_type=grp, online=on)
         print("=" * 66)
-        print("Q:", q)
-        print(f"  spot={r['spot']}  field={r['field']}  lang={r['lang']}  offline={r['offline']}")
-        print("  A:", (r["answer"] or "")[:180].replace("\n", " "))
-        print("  SRC:", [s["detail"] for s in r["sources"]])
+        print(f"Q: {q}  online={on}  spot={r['spot']}  field={r['field']}  concise={r.get('concise')}"
+              f"  online_out={r.get('online')}  web={r.get('web_count')}  offline={r['offline']}")
+        print("  A:", (r["answer"] or "")[:220].replace("\n", " "))
+        print("  SRC:", [s["detail"] for s in r["sources"]][:4])
         print("  NEXT:", r["followups"])

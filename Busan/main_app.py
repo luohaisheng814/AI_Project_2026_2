@@ -155,9 +155,11 @@ class MainApp:
         grp = self.group.get()
 
         self.chat.after(0, lambda: self.chat.set_status(i18n.t("thinking"), busy=True))
-        # 输出语言只由顶部按钮语言 i18n.I.lang 决定；后端先中文检索/生成，再翻译为按钮语言
+        # 输出语言只由顶部按钮语言 i18n.I.lang 决定；后端先中文检索/生成，再翻译为按钮语言。
+        # 桌面版必须先通过 login.py 登录才会进入本窗口，因此这里固定走联网模式（景点官网 + 在线 AI），
+        # 与手机版「登录后联网」是同一套 rag_core 规则。
         result = rag_core.answer(question, category=cat, group_type=grp, lang=None,
-                                 ui_lang=i18n.I.lang, username=self.username)
+                                 ui_lang=i18n.I.lang, username=self.username, online=True)
 
         # ② 以问答最终解析出的玩法 / 人数回写选择栏（推断结果与手动选择统一显示）
         if result.get("category"):
