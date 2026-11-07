@@ -2,55 +2,74 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>Busan 手机版现场流程运行逻辑图</title>
+<title>Busan 手机版联网/离线分界与运行逻辑（v1.4 云端直连）</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { width: 1360px; background: #eef2f5; font-family: "Microsoft YaHei", "Segoe UI", sans-serif; color: #0b1622; -webkit-font-smoothing: antialiased; }
-  .page { padding: 34px 42px 34px; }
+  .page { padding: 32px 40px 30px; }
 
-  .head { background: linear-gradient(120deg, #0b1622 0%, #0d2f3f 58%, #0891b2 165%); border-radius: 16px; padding: 26px 32px; color: #fff; position: relative; overflow: hidden; }
-  .head:after { content:""; position:absolute; right:-70px; top:-90px; width:320px; height:320px; background: radial-gradient(circle, rgba(8,145,178,.5), rgba(8,145,178,0) 68%); }
-  .head h1 { font-size: 33px; letter-spacing: .4px; }
-  .head .sub { margin-top: 8px; font-size: 15px; color: #a8c7d5; }
-  .head .meta { margin-top: 12px; font-size: 12px; color: #7fa6b7; letter-spacing: .3px; }
+  .head { background: linear-gradient(120deg, #0b1622 0%, #0d2f3f 58%, #0891b2 165%); border-radius: 16px; padding: 24px 30px; color: #fff; position: relative; overflow: hidden; }
+  .head:after { content:""; position:absolute; right:-70px; top:-90px; width:300px; height:300px; background: radial-gradient(circle, rgba(8,145,178,.5), rgba(8,145,178,0) 68%); }
+  .head h1 { font-size: 30px; letter-spacing: .3px; }
+  .head .sub { margin-top: 7px; font-size: 14px; color: #a8c7d5; }
+  .head .meta { margin-top: 10px; font-size: 11.5px; color: #7fa6b7; letter-spacing: .3px; }
 
-  .roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
-  .role { background: #fff; border-radius: 11px; border: 1px solid #dbe7ed; border-top: 3px solid #0891b2; padding: 12px 14px; }
-  .role.gps { border-top-color: #f59e0b; }
-  .role.map { border-top-color: #03a35a; }
-  .role.data { border-top-color: #0e7490; }
-  .role .k { font-size: 10.5px; letter-spacing: .9px; color: #7a97a4; font-weight: 700; }
-  .role h4 { font-size: 14px; margin: 3px 0 6px; }
-  .role p { font-size: 11.6px; line-height: 1.6; color: #47606d; }
+  .boundary { margin-top: 16px; background: #fff; border: 1px solid #dbe7ed; border-left: 5px solid #0891b2; border-radius: 12px; padding: 14px 18px; display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: center; }
+  .boundary .k { font-size: 10.5px; letter-spacing: .9px; color: #7a97a4; font-weight: 700; }
+  .boundary h3 { font-size: 15px; margin: 3px 0 4px; color: #0b4a5e; }
+  .boundary p { font-size: 11.8px; line-height: 1.6; color: #47606d; }
+  .boundary code { font-family: Consolas, monospace; font-size: 10.8px; background: #0f2230; color: #9fdcea; padding: 1px 5px; border-radius: 4px; }
+  .conds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cond { background: #f5fafc; border: 1px solid #d8e9ef; border-radius: 9px; padding: 9px 12px; }
+  .cond b { display: block; font-size: 12.2px; color: #0b4a5e; margin-bottom: 2px; }
+  .cond span { font-size: 11.2px; color: #55707d; line-height: 1.5; }
 
-  .lane-head { display: grid; grid-template-columns: 1fr 96px 1fr 96px 1fr; gap: 0 8px; margin: 20px 0 8px; }
-  .lh { font-size: 12.5px; font-weight: 700; color: #0b4a5e; letter-spacing: .6px; border-bottom: 2px solid #cfe2e8; padding-bottom: 6px; }
-  .lh span { font-weight: 400; color: #7d9aa7; font-size: 10.5px; letter-spacing: .2px; margin-left: 5px; }
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .branch { background: #fff; border: 1px solid #dbe7ed; border-radius: 12px; overflow: hidden; }
+  .branch.online { border-top: 4px solid #03a35a; }
+  .branch.offline { border-top: 4px solid #f59e0b; }
+  .bhead { padding: 12px 16px; border-bottom: 1px solid #e6eff3; display: flex; align-items: baseline; gap: 9px; }
+  .bhead h4 { font-size: 15px; }
+  .bhead .tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 9px; }
+  .branch.online .tag { background: #e7f7ef; color: #067a45; }
+  .branch.offline .tag { background: #fff3df; color: #8a5a12; }
+  .bhead p { font-size: 11.4px; color: #6f8b98; margin-left: auto; }
+  .steps { padding: 10px 14px 12px; }
+  .step { display: grid; grid-template-columns: 26px 1fr; gap: 9px; padding: 7px 0; border-bottom: 1px dashed #e6eff3; }
+  .step:last-child { border-bottom: 0; }
+  .step .n { width: 22px; height: 22px; border-radius: 50%; background: #eef6f9; color: #0b4a5e; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .branch.online .step .n { background: #e7f7ef; color: #067a45; }
+  .branch.offline .step .n { background: #fff3df; color: #8a5a12; }
+  .step h5 { font-size: 12.4px; margin-bottom: 2px; }
+  .step p { font-size: 11.3px; line-height: 1.55; color: #47606d; }
+  .step code { font-family: Consolas, monospace; font-size: 10.4px; background: #f0f5f8; color: #0e5c72; padding: 1px 5px; border-radius: 4px; }
 
-  .flow { display: grid; grid-template-columns: 1fr 96px 1fr 96px 1fr; gap: 10px 8px; align-items: stretch; }
-  .cell { background: #fff; border-radius: 11px; border: 1px solid #dbe7ed; padding: 11px 13px; }
-  .cell.client { border-left: 4px solid #0891b2; }
-  .cell.server { border-left: 4px solid #0e7490; background: #fbfdfe; }
-  .cell.data   { border-left: 4px solid #03a35a; }
-  .cell .k { font-size: 10px; letter-spacing: .8px; color: #7a97a4; font-weight: 700; }
-  .cell h4 { font-size: 13.5px; margin: 2px 0 5px; }
-  .cell p { font-size: 11.6px; line-height: 1.58; color: #47606d; }
-  .cell code { font-family: Consolas, monospace; font-size: 10.8px; background: #0f2230; color: #9fdcea; padding: 1px 5px; border-radius: 4px; }
-  .arrow { display: flex; align-items: center; justify-content: center; }
-  .arrow span { font-size: 10.2px; color: #087a93; background: #dff2f7; border-radius: 14px; padding: 4px 6px; letter-spacing: .2px; text-align: center; line-height: 1.34; min-width: 84px; }
-  .arrow.ret span { background: #e9f7ef; color: #0a7a45; }
-  .cell.fail { background: #fff8ec; border-left-color: #f59e0b; }
-  .cell.fail h4 { color: #8a5a12; }
+  .merge { margin-top: 14px; background: #fff; border: 1px solid #dbe7ed; border-radius: 12px; padding: 13px 16px; }
+  .merge .k { font-size: 10.5px; letter-spacing: .9px; color: #7a97a4; font-weight: 700; }
+  .merge h4 { font-size: 14px; margin: 3px 0 7px; color: #0b4a5e; }
+  .mrow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
+  .mitem { background: #f7fbfc; border: 1px solid #dfeaf0; border-radius: 9px; padding: 9px 10px; }
+  .mitem b { display: block; font-size: 11.8px; color: #0b4a5e; margin-bottom: 3px; }
+  .mitem span { font-size: 10.9px; line-height: 1.5; color: #55707d; }
 
-  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
-  .note { background: #fff; border: 1px solid #dbe7ed; border-radius: 11px; padding: 13px 15px; }
-  .note h4 { font-size: 13px; margin-bottom: 6px; color: #0b4a5e; }
-  .note p { font-size: 11.4px; line-height: 1.62; color: #47606d; }
+  .uirow { margin-top: 14px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
+  .panel { background: #fff; border: 1px solid #dbe7ed; border-radius: 12px; padding: 13px 16px; }
+  .panel .k { font-size: 10.5px; letter-spacing: .9px; color: #7a97a4; font-weight: 700; }
+  .panel h4 { font-size: 14px; margin: 3px 0 7px; color: #0b4a5e; }
+  .panel ul { list-style: none; }
+  .panel li { font-size: 11.4px; line-height: 1.7; color: #47606d; padding-left: 13px; position: relative; }
+  .panel li:before { content: "·"; position: absolute; left: 3px; color: #0891b2; font-weight: 700; }
+  .panel code { font-family: Consolas, monospace; font-size: 10.6px; background: #f0f5f8; color: #0e5c72; padding: 1px 4px; border-radius: 3px; }
+
+  .notes { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .note { background: #fff; border: 1px solid #dbe7ed; border-radius: 11px; padding: 12px 15px; }
+  .note h4 { font-size: 13px; margin-bottom: 5px; color: #0b4a5e; }
+  .note p { font-size: 11.3px; line-height: 1.62; color: #47606d; }
   .note.warn { background: #fff8ec; border-color: #efd6a8; }
   .note.warn h4 { color: #8a5a12; }
   .note em { font-style: normal; color: #b45309; font-weight: 700; }
 
-  .foot { margin-top: 14px; display: flex; align-items: center; gap: 12px; color: #58707c; font-size: 11.5px; }
+  .foot { margin-top: 13px; display: flex; align-items: center; gap: 12px; color: #58707c; font-size: 11.4px; }
   .foot .line { flex: 1; height: 1px; background: #cfdde4; }
 </style>
 </head>
@@ -58,194 +77,99 @@
 <div class="page">
 
   <div class="head">
-    <h1>釜山旅行助手 · 手机版现场流程运行逻辑</h1>
-    <div class="sub">沙下区现场场景：先确认「人在哪、要去哪」，再补条件、给 1–2 个候选，最后用地图 App 走一段真路线</div>
-    <div class="meta">mobile/index.html · mobile_app.py · rag_core.py · official_sites.py · android MainActivity.java　·　2026-11-07</div>
+    <h1>釜山旅行助手 · 手机版联网 / 离线分界与运行逻辑</h1>
+    <div class="sub">分界不再看「电脑服务在不在」，只看手机：是否允许本 App 访问其所连网络、以及手机本身是否真的联网</div>
+    <div class="meta">android/assets/index.html · cloud.js · cloud_build.py · MainActivity.java · mobile/cloud/spots.json　·　v1.4　2026-11-08</div>
   </div>
 
-  <div class="roles">
-    <div class="role">
-      <div class="k">AI · 理解与表达</div>
-      <h4>判断意图、生成追问与理由</h4>
-      <p>区分「已有目的地」与「请推荐」；只补缺失的时间/兴趣/交通/步行条件；保留上下文，改条件时沿用前文。</p>
+  <div class="boundary">
+    <div>
+      <div class="k">THE BOUNDARY · 唯一分界</div>
+      <h3>手机自己说了算</h3>
+      <p>每次启动与点「重试」都重新判定，同一个 APK 在飞机上、在没给网络权限、在连不上互联网时都会自动落到包内数据。</p>
     </div>
-    <div class="role gps">
-      <div class="k">定位 · 只找周边候选</div>
-      <h4>GPS 拿起点，不做营业判断</h4>
-      <p>只有「请推荐」才申请定位；失败给「重试 / 手选已收录景点」。定位≠实时营业、≠拥挤程度。</p>
-    </div>
-    <div class="role map">
-      <div class="k">地图 · 距离与路线</div>
-      <h4>NAVER 深链交系统 App</h4>
-      <p>距离由服务端按坐标算直线；路线/换乘/时间交给 NAVER 地图 App 确认，模型不编造。</p>
-    </div>
-    <div class="role data">
-      <div class="k">资料 · 官网 + 本地库</div>
-      <h4>每条答案标来源与核对时间</h4>
-      <p>登录后并发抓沙下区官网（mId）与本地分类库；抓不到就如实说「未获取到内容」。</p>
+    <div class="conds">
+      <div class="cond"><b>① 系统是否允许访问网络</b><span>ConnectivityManager 取当前网络；无 <code>INTERNET</code> 能力 = 不允许 → 直接离线，不发任何请求。</span></div>
+      <div class="cond"><b>② 手机是否真的联通互联网</b><span>还要求 <code>NET_CAPABILITY_VALIDATED</code>（系统实测可上网）；连着 Wi-Fi 但打不开网页也判离线。</span></div>
     </div>
   </div>
 
-  <div class="lane-head">
-    <div class="lh">① 手机端 · 页面与交互<span>mobile/index.html</span></div>
-    <div></div>
-    <div class="lh">② 服务端 · 接口与会话<span>mobile_app.py</span></div>
-    <div></div>
-    <div class="lh">③ 资料 / 外部<span>DB · 官网 · LLM · 地图 App</span></div>
+  <div class="lanes">
+    <div class="branch online">
+      <div class="bhead"><h4>联网分支</h4><span class="tag">联网 · 云端库</span><p>不经过本电脑</p></div>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div><h5>判定通过，进入云模式</h5><p><code>BusanHost.netAllowed()</code> 返回 true → <code>cloud.js</code> 依次请求云端库。</p></div></div>
+        <div class="step"><div class="n">2</div><div><h5>读云端数据库</h5><p>GitHub raw 上的 <code>mobile/cloud/spots.json</code>（三语档案 + 坐标 + 官网 mId），12 s 超时。</p></div></div>
+        <div class="step"><div class="n">3</div><div><h5>抓景点官方网站</h5><p>沙下区 <code>saha.go.kr/tour/contents.do?mId=…</code>、甘川 <code>gamcheon.or.kr</code>；<code>Accept-Language: ko-KR</code>，saha 带 Referer，抽 <code>id="conts"</code> 正文前 12 行。</p></div></div>
+        <div class="step"><div class="n">4</div><div><h5>同一套资料组装</h5><p>按意图取字段（交通 / 门票 / 开放时间 / 拍照点 / 概览），正文压到 3–5 条；只输入景点名走精简版。</p></div></div>
+        <div class="step"><div class="n">5</div><div><h5>官网核对区</h5><p>显示官网原文（韩文）、抓取时间、官网链接；抓不到就标「未取到正文」，不假装读过。</p></div></div>
+      </div>
+    </div>
+
+    <div class="branch offline">
+      <div class="bhead"><h4>离线分支</h4><span class="tag">离线 · 包内数据</span><p>同一引擎，不降级版式</p></div>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div><h5>① 不允许联网</h5><p><code>netAllowed=false</code> → <code>reason="blocked"</code>，不发请求，直接读包内快照。</p></div></div>
+        <div class="step"><div class="n">2</div><div><h5>② 允许但取不到云端库</h5><p>两个 endpoint 全失败 → <code>reason="cloudFail"</code>，同样落到包内快照；顶部状态条 + 「重试」给出原因。</p></div></div>
+        <div class="step"><div class="n">3</div><div><h5>读包内快照</h5><p><code>cloud_snapshot.js</code> 同步写入 <code>window.BUSAN_CLOUD_SNAPSHOT</code>，避免 <code>file://</code> 下 fetch 被拒。</p></div></div>
+        <div class="step"><div class="n">4</div><div><h5>与联网同构回答</h5><p><code>useSnapshot()</code> 把快照塞进同一 <code>db</code>，<code>compose()</code> 产出同结构回答，只把徽章换成「离线 · 包内数据」。</p></div></div>
+        <div class="step"><div class="n">5</div><div><h5>附近与地图仍可用</h5><p>快照带 8 条坐标：直线距离、NAVER 深链、Google 兜底都能算，断网不影响找路。</p></div></div>
+      </div>
+    </div>
   </div>
 
-  <div class="flow">
-
-    <!-- 1 -->
-    <div class="cell client">
-      <div class="k">STEP 1 · 确认目的与位置</div>
-      <h4>先问「已有目的地」还是「想让你推荐」</h4>
-      <p>8 条三语 chip 覆盖两类入口。点「附近景点」才申请定位；页面先挂 <code>__busanLocReady</code> 再走系统授权。</p>
+  <div class="merge">
+    <div class="k">SHARED PIPELINE · 两条分支共用</div>
+    <h4>手机端渲染层：问答 → 卡片 → 官网 → 追问</h4>
+    <div class="mrow">
+      <div class="mitem"><b>顶部状态</b><span>三语按钮 + 状态点（绿=联网 / 橙=离线）+「重试」；状态点 pulse 表示正在取数。</span></div>
+      <div class="mitem"><b>两排 chip</b><span>玩法 / 出行，首项「自动」；选中即成为唯一主数据源，换语言即时重译。</span></div>
+      <div class="mitem"><b>回答气泡</b><span>标题 + 3–5 条要点 + 来源行；轻量 markdown（粗体 / 分隔线 / 列表）。</span></div>
+      <div class="mitem"><b>候选卡</b><span>前 2 个带「推荐」徽章与公里数，四个按钮：导航 / 地点 / 网页地图 / Google；其余折叠进「其余 N 个（点开看）」。</span></div>
+      <div class="mitem"><b>定位兜底</b><span>拒绝或超时 → 列 3 个已收录景点当起点，点一下即算距离，流程不中断。</span></div>
     </div>
-    <div class="arrow"><span>POST<br>/api/nearby</span></div>
-    <div class="cell server">
-      <div class="k">API · 起点归一</div>
-      <h4>收 lat/lng 或手选出发点</h4>
-      <p>有坐标按距离排序；<code>origin_name</code> 回显。无坐标不进 nearby，改走问答。</p>
-    </div>
-    <div class="arrow ret"><span>meta<br>spots</span></div>
-    <div class="cell data">
-      <div class="k">DATA · 坐标表</div>
-      <h4>8 个收录景点 + 官网 mId</h4>
-      <p><code>SPOTS_GEO</code> 给坐标；<code>official_sites</code> 给沙下区官网入口，用于后续核对。</p>
-    </div>
-
-    <!-- 2 fail branch -->
-    <div class="cell client fail">
-      <div class="k">STEP 1-F · 拿不到位置</div>
-      <h4>橙色卡：重试定位 / 选出发点</h4>
-      <p>拒绝、超时、无 GPS 都落到这张卡；下拉直接列 <code>/api/meta.spots</code>，选了就用该景点坐标继续，流程不中断。</p>
-    </div>
-    <div class="arrow"><span>同<br>/api/nearby</span></div>
-    <div class="cell server">
-      <div class="k">API · 同构返回</div>
-      <h4>手选起点复用同一排序</h4>
-      <p>返回结构与 GPS 完全一致（距离、理由键、推荐位），前端不用分支两套渲染。</p>
-    </div>
-    <div class="arrow ret"><span>距离<br>km</span></div>
-    <div class="cell data">
-      <div class="k">DATA · 直线距离</div>
-      <h4>Haversine，不做路网时间</h4>
-      <p>只给「直线多远」；通勤分钟数留给地图 App，避免模型凭感觉写 12 分钟。</p>
-    </div>
-
-    <!-- 3 -->
-    <div class="cell client">
-      <div class="k">STEP 2 · 补必要条件</div>
-      <h4>已说过的不再问</h4>
-      <p>「已有目的地」直接问交通/路线；「请推荐」才补时间、兴趣、交通、步行。流程条第 2 格点亮。</p>
-    </div>
-    <div class="arrow"><span>POST<br>/api/chat</span></div>
-    <div class="cell server">
-      <div class="k">API · 意图与条件</div>
-      <h4>同句多条条件一起收</h4>
-      <p><code>intent_parser</code> 抽景点/意图/条件；会话内已填的条件不重复追问。</p>
-    </div>
-    <div class="arrow ret"><span>answer<br>+ trace</span></div>
-    <div class="cell data">
-      <div class="k">DATA · 本地资料</div>
-      <h4>rules.txt + 分类库</h4>
-      <p>按玩法作用域取唯一主数据源，其它玩法只在末尾做限量补充推荐（2 条）。</p>
-    </div>
-
-    <!-- 4 -->
-    <div class="cell client">
-      <div class="k">STEP 3–4 · 核对与推荐</div>
-      <h4>只出 1–2 张候选卡</h4>
-      <p>前 2 条做成 <code>rec</code> 卡：推荐徽章 + 当前条件下的理由 + 距离；其余收进「其余 N 个（点开看）」。</p>
-    </div>
-    <div class="arrow"><span>reason_key<br>recommended</span></div>
-    <div class="cell server">
-      <div class="k">API · 候选与理由</div>
-      <h4>理由跟条件走</h4>
-      <p><code>CAT_REASON_KEY</code> 把类别映射到三语理由（艺术村落/日落/湿地/渔港），随语言按钮切换。</p>
-    </div>
-    <div class="arrow ret"><span>naver<br>url</span></div>
-    <div class="cell data">
-      <div class="k">DATA · 官网核对</div>
-      <h4>登录后补官网正文</h4>
-      <p>沙下区 <code>contents.do?mId=…</code> 抓正文（固定韩文 Accept-Language），与本地库一起进上下文。</p>
-    </div>
-
-    <!-- 5 -->
-    <div class="cell client">
-      <div class="k">STEP 5 · 路线指引</div>
-      <h4>四条按钮：NAVER 导航 / 地点 / 网页 / Google</h4>
-      <p>深链带起终点与交通方式；WebView 拦到 <code>nmap://</code> 就交系统，没装 App 只 Toast 一次。</p>
-    </div>
-    <div class="arrow"><span>nmap://<br>route/public</span></div>
-    <div class="cell server">
-      <div class="k">API · 深链拼装</div>
-      <h4>sname=현위치，dname=韩文名</h4>
-      <p>路线 / 地点 / 检索三种模板；兜底网页地图与 Google，保证没 App 也能走。</p>
-    </div>
-    <div class="arrow ret"><span>App<br>确认</span></div>
-    <div class="cell data">
-      <div class="k">MAP · 真实路线</div>
-      <h4>距离/换乘以地图为准</h4>
-      <p>页面只写「直线 1.31 km」，实际步行与公交时间由 NAVER 地图给出，回到页面再复述。</p>
-    </div>
-
-    <!-- 6 -->
-    <div class="cell client">
-      <div class="k">STEP 6 · 更新条件</div>
-      <h4>「换个地方 / 只有一小时」</h4>
-      <p>沿用前文重新排序，不从前一句从零开始；少走路/时间缩水会重核候选与路线。</p>
-    </div>
-    <div class="arrow"><span>POST<br>/api/chat</span></div>
-    <div class="cell server">
-      <div class="k">API · 上下文重排</div>
-      <h4>保留已确认条件</h4>
-      <p>会话里记住起点、玩法、人数；改条件只覆盖被改的那一项。</p>
-    </div>
-    <div class="arrow ret"><span>新候选<br>+ 新路线</span></div>
-    <div class="cell data">
-      <div class="k">DATA · 同源重算</div>
-      <h4>不引入新玩法数据</h4>
-      <p>仍在当前玩法主源内换点，跨玩法只做补充推荐，避免答案自相矛盾。</p>
-    </div>
-
-    <!-- 7 -->
-    <div class="cell client">
-      <div class="k">STEP 7 · 结束</div>
-      <h4>整理：地点 + 理由 + 路线 + 待核对</h4>
-      <p>末尾给「你可能还想问」与来源折叠；答完不催下一步，等用户自己决定。</p>
-    </div>
-    <div class="arrow"><span>GET<br>/api/me</span></div>
-    <div class="cell server">
-      <div class="k">API · 会话与日志</div>
-      <h4>登录态 + query_logs</h4>
-      <p>与桌面/网页共用 <code>busan_travel.db</code>；每问写一条日志，便于复盘现场问题。</p>
-    </div>
-    <div class="arrow ret"><span>sources<br>+ 时间</span></div>
-    <div class="cell data">
-      <div class="k">TRACE · 轨迹条</div>
-      <h4>输入 › 检索 › 回答 › 来源</h4>
-      <p>每条回答上方的轨迹条写明本地/联网、官网条数、来源类型，方便当场核对。</p>
-    </div>
-
   </div>
 
-  <div class="bottom">
+  <div class="uirow">
+    <div class="panel">
+      <div class="k">APP SHELL · 壳与权限</div>
+      <h4>MainActivity：三个 JS 接口，不填任何地址</h4>
+      <ul>
+        <li>启动直接 <code>loadUrl("file:///android_asset/index.html")</code>；已删除 setup.html，不再要求「同 Wi-Fi + 电脑跑服务」。</li>
+        <li><code>netAllowed()</code> 走 ConnectivityManager（SDK&lt;23 退回 <code>getActiveNetworkInfo()</code>）。</li>
+        <li><code>fetchText(url,cbId)</code> 线程池异步 GET，12 s / 15 s 超时，伪装 Android Chrome UA，回调 <code>window.__busanHttpDone</code>。</li>
+        <li><code>requestLocation()</code> 运行时申请精/粗定位；授予后回调 <code>__busanLocReady()</code>；WebView 地理权限直接放行。</li>
+        <li><code>nmap://</code> 等 scheme 交系统 App，没装只提示一次，不阻断网页地图兜底。</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="k">DATA CONTRACT · 一份数据三处落地</div>
+      <h4>cloud_build.py 生成，内容完全一致</h4>
+      <ul>
+        <li><code>mobile/cloud/spots.json</code> — 随 GitHub 发布，App 联网直读（55.7 KB）。</li>
+        <li><code>android/assets/cloud_snapshot.json</code> — 打进 APK，作为离线数据源。</li>
+        <li><code>android/assets/cloud_snapshot.js</code> — 同一份 JSON 包成 <code>window.BUSAN_CLOUD_SNAPSHOT</code>，供 <code>file://</code> 同步加载。</li>
+        <li>结构：<code>schema 2</code> + <code>updated_at</code> + 三语 strings + 8 个景点（中/韩/英字段、别名、坐标、官网 url/mId/host）。</li>
+        <li>改数据只改 <code>data.json</code> 后重跑 <code>python cloud_build.py</code>，三份产物一起更新。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="notes">
     <div class="note">
-      <h4>安装包（APK）这一层怎么接</h4>
-      <p>启动先落在 <code>setup.html</code>：填电脑地址进联网页，或选「离线使用」跑包内 data.js。<code>MainActivity</code> 存地址到 SharedPreferences；<code>requestLocation()</code> 走 Android 运行时授权再回网页；<code>nmap://</code> 等 scheme 交系统 App，主框架加载失败回设置页。</p>
+      <h4>这一版刻意不做的事</h4>
+      <p>不要求填电脑 IP、不依赖局域网服务、不在手机上跑 Python；不做登录（删 setup 页时一并移除）；不把「定位」当成营业/拥挤数据；距离只给直线，通勤时间交给地图 App。</p>
     </div>
     <div class="note warn">
       <h4>如实标注的边界</h4>
-      <p>① 移动定位在规范里仍是「待开发功能」，本版只在手机浏览器/WebView 内用系统定位；② 定位不等于实时营业或拥挤数据；③ 距离是直线，通勤时间以地图 App 为准；④ <em>两名真人手机对比测试本轮未做</em>，只用模拟器 + 接口自测替代。</p>
+      <p>① APK 内没有大模型成稿链路，联网回答是「云端库字段 + 官网上文摘要」的规则组装，官网正文用锚点启发式抽取；② 官网只覆盖已录入 mId 的景点，抓取失败会明说；③ 本轮验证在雷电模拟器完成，<em>两名真人手机对比测试仍未做</em>；④ 模拟器只能验「有网 / 云端库取不到」两种状态，飞行模式会切断 adb，纯「无网络权限」分支未截图。</p>
     </div>
   </div>
 
   <div class="foot">
-    <span>Busan AI 旅行助手 · 手机版现场流程 · 2026-11-07</span>
+    <span>Busan AI 旅行助手 · 手机版逻辑 · v1.4 · 2026-11-08</span>
     <span class="line"></span>
-    <span>定位 → 条件 → 候选 → 路线　|　失败也能继续</span>
+    <span>手机网络状态 → 云端库 / 包内快照 → 同一套回答　|　断网也能找路</span>
   </div>
 
 </div>

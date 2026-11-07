@@ -172,13 +172,18 @@
     return s.name;
   }
 
-  function sourcesFor(s, officialNote) {
+  function sourcesFor(s) {
     var out = [];
-    out.push((st.mode === "online" ? "云端数据库 spots.json（" + (st.db.updated_at || "") + "）"
-      : "包内数据 cloud_snapshot.json（离线）"));
-    if (officialNote && officialNote.ok) out.push("官网 " + officialNote.url);
-    else if (officialNote) out.push("官网 " + officialNote.url + "（未取到正文）");
-    else if (s.official && s.official.url) out.push("官网 " + s.official.url);
+    if (st.mode === "online") {
+      var open = st.lang === "zh" ? "（" : " (", close = st.lang === "zh" ? "）" : ")";
+      out.push((st.lang === "zh" ? "云端数据库 " : st.lang === "ko" ? "클라우드 DB " : "Cloud DB ")
+        + "spots.json" + open + (st.db.updated_at || "") + close);
+      out.push((st.lang === "zh" ? "官网 " : st.lang === "ko" ? "공식 사이트 " : "Official site ")
+        + ((s.official && s.official.host) || ""));
+    } else {
+      out.push((st.lang === "zh" ? "包内数据 " : st.lang === "ko" ? "내장 데이터 " : "Bundled data ")
+        + "cloud_snapshot.json" + (st.lang === "zh" ? "（离线）" : st.lang === "ko" ? " (오프라인)" : " (offline)"));
+    }
     return out;
   }
 
@@ -209,7 +214,7 @@
     lines.push("**" + title + "**" + (catLabel(s.category) ? " · " + catLabel(s.category) : ""));
     if (!body && intent !== "overview") body = pickField(s, "overview");
     if (body) {
-      var max = concise ? 2 : (intent === "transport" || intent === "hours" ? 5 : 4);
+      var max = concise ? 2 : (intent === "overview" ? 3 : (intent === "transport" || intent === "hours" ? 5 : 4));
       var rows = firstLines(body, max);
       rows.forEach(function (r) { lines.push("- " + r); });
     } else {
@@ -222,7 +227,13 @@
         if (h.length) lines.push("", "**" + (st.lang === "zh" ? "看点" : st.lang === "ko" ? "볼거리" : "Highlights") + "**");
         h.forEach(function (x) { lines.push("- " + x); });
       }
-      var sup = supplements(s, 2);
+    }
+    if (intent === "overview") {
+      lines.push("", st.lang === "zh" ? "想看交通、门票或开放时间，点下面的追问。" :
+        st.lang === "ko" ? "교통·입장료·운영시간이 궁금하면 아래 질문을 눌러 주세요." :
+        "Tap a follow-up below for transport, tickets or hours.");
+    } else {
+      var sup = concise ? [] : supplements(s, 2);
       if (sup.length) {
         lines.push("", "**" + (st.lang === "zh" ? "其它玩法补充推荐" : st.lang === "ko" ? "다른 테마 추천" : "Other themes") + "**");
         sup.forEach(function (x) {
@@ -365,7 +376,10 @@
   function textOfHtml(html) {
     var h = String(html || "");
     var idx = h.indexOf('id="conts"');
-    if (idx > 0) h = h.slice(idx, idx + 6000);
+    if (idx > 0) {
+      var gt = h.indexOf(">", idx);
+      h = h.slice(gt >= 0 ? gt + 1 : idx, (gt >= 0 ? gt + 1 : idx) + 6000);
+    }
     h = h.replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<[^>]+>/g, "\n");

@@ -22,8 +22,8 @@
     padding:10px 14px 9px; flex:0 0 auto;
   }
   .brand{display:flex; align-items:center; justify-content:space-between; gap:8px}
-  .brand .tt{min-width:0}
-  .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brand .tt{min-width:0; flex:1 1 auto}
+  .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; line-height:1.2; white-space:normal; overflow-wrap:anywhere}
   .brand .sub{font-size:11px; opacity:.82; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .langs{display:flex; gap:6px; flex:0 0 auto}
   .langs button{
@@ -38,7 +38,7 @@
   #netText{flex:1 1 auto; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   #retry{
     border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.14); color:#fff;
-    border-radius:12px; padding:3px 9px; font-size:11px;
+    border-radius:12px; padding:3px 9px; font-size:11px; flex:0 0 auto; white-space:nowrap;
   }
   .selectors{flex:0 0 auto; background:#fff; border-bottom:1px solid var(--line); padding:8px 12px 6px}
   .row{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none}
@@ -63,7 +63,8 @@
   .bubble .sep{border:0; border-top:1px dashed var(--line); margin:7px 0}
   .bubble .foot{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.5}
   .badge{display:inline-block; font-size:10.5px; padding:2px 7px; border-radius:9px;
-         background:#eef6f9; color:var(--sea-dark); margin-left:6px; vertical-align:2px; font-weight:500}
+         background:#eef6f9; color:var(--sea-dark); vertical-align:2px; font-weight:500}
+  .tagrow{margin:0 0 5px}
   .badge.off{background:#fbeee3; color:#a85a26}
   .official{border-left:3px solid var(--sea); background:#f7fbfc; border-radius:0 10px 10px 0;
             padding:8px 10px; margin-top:8px; font-size:12.5px; color:#33414f; line-height:1.55}
@@ -285,8 +286,10 @@
     var m = document.createElement("div");
     m.className = "msg bot";
     var html = '<div class="bubble' + (result.loading ? " loading" : "") + '">';
+    if (!result.loading && result.tag){
+      html += '<div class="tagrow"><span class="badge' + (online() ? "" : " off") + '">' + esc(result.tag) + "</span></div>";
+    }
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
-    if (!result.loading && result.tag) html += '<span class="badge' + (online() ? "" : " off") + '">' + esc(result.tag) + "</span>";
     if (result.cards && result.cards.length){
       result.cards.forEach(function(c){ html += cardHtml(c); });
     }
@@ -385,10 +388,6 @@
         fillOfficial(msg, null, true);
         C.fetchOfficial(s, function(note){
           fillOfficial(msg, note);
-          if (note && note.ok) {
-            var foot = msg.querySelector(".foot");
-            if (foot && foot.textContent.indexOf(note.url) < 0) foot.textContent += " · " + T("officialLabel") + " " + note.url;
-          }
         });
       }
     }

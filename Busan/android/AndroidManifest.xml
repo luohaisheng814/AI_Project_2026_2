@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="4"
-    android:versionName="1.3">
+    android:versionCode="5"
+    android:versionName="1.4">
 
-    <!-- v1.3 云端直连版：联网 / 离线只看手机是否允许本 App 访问当前网络，
-         网上的回答来自云端数据库（GitHub raw）与景点官网，不再依赖任何一台电脑。 -->
+    <!-- v1.4：联网 / 离线只看手机是否允许本 App 访问当前网络，网上的回答来自
+         云端数据库（GitHub raw）与景点官网，不再依赖任何一台电脑。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
