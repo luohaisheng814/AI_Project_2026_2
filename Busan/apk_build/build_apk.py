@@ -102,9 +102,9 @@ def build():
     ensure_keystore()
 
     assets = os.path.join(ANDROID_DIR, "assets")
-    for f in ("index.html", "app.js", "data.js"):
+    for f in ("index.html", "app.js", "data.js", "cloud.js", "cloud_snapshot.json", "cloud_snapshot.js"):
         if not os.path.exists(os.path.join(assets, f)):
-            raise SystemExit(f"assets 缺少 {f}，先运行 export_assets.py")
+            raise SystemExit(f"assets 缺少 {f}，先运行 cloud_build.py / export_assets.py")
 
     # ① 编译资源
     run([os.path.join(BUILD_TOOLS, "aapt2.exe"), "compile", "--dir",
@@ -165,7 +165,8 @@ def build():
 
     with zipfile.ZipFile(OUT_APK) as z:
         names = z.namelist()
-        for must in ("classes.dex", "assets/index.html", "assets/app.js", "assets/data.js"):
+        for must in ("classes.dex", "assets/index.html", "assets/app.js", "assets/data.js",
+                     "assets/cloud.js", "assets/cloud_snapshot.json", "assets/cloud_snapshot.js"):
             if must not in names:
                 raise SystemExit(f"APK 缺少 {must}")
 

@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>釜山旅行助手</title>
+<title>釜山 AI 旅行助手</title>
 <style>
   :root{
     --sea:#0f6e8c; --sea-dark:#0a4e63; --sand:#f6f1e7; --ink:#1c2530;
     --muted:#6b7785; --line:#e2e6ea; --bubble:#ffffff; --user:#0f6e8c;
+    --ok:#1f9d6b; --off:#c2703c;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0}
@@ -18,16 +19,27 @@
   }
   header{
     background:linear-gradient(135deg,var(--sea),var(--sea-dark)); color:#fff;
-    padding:10px 14px 8px; flex:0 0 auto;
+    padding:10px 14px 9px; flex:0 0 auto;
   }
-  .brand{display:flex; align-items:center; justify-content:space-between}
-  .brand h1{margin:0; font-size:17px; font-weight:600; letter-spacing:.2px}
-  .langs{display:flex; gap:6px}
+  .brand{display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .brand .tt{min-width:0}
+  .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brand .sub{font-size:11px; opacity:.82; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .langs{display:flex; gap:6px; flex:0 0 auto}
   .langs button{
     border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff;
     border-radius:14px; padding:5px 9px; font-size:12px; line-height:1;
   }
   .langs button.on{background:#fff; color:var(--sea-dark); border-color:#fff; font-weight:600}
+  .netbar{display:flex; align-items:center; gap:7px; margin-top:8px; font-size:11.5px; min-height:18px}
+  .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.75);flex:0 0 auto}
+  .dot.on{background:#5be0a8; box-shadow:0 0 0 2px rgba(91,224,168,.25)}
+  .dot.off{background:#ffc38a}
+  #netText{flex:1 1 auto; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #retry{
+    border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.14); color:#fff;
+    border-radius:12px; padding:3px 9px; font-size:11px;
+  }
   .selectors{flex:0 0 auto; background:#fff; border-bottom:1px solid var(--line); padding:8px 12px 6px}
   .row{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none}
   .row::-webkit-scrollbar{display:none}
@@ -37,20 +49,27 @@
     border-radius:14px; padding:6px 11px; font-size:12.5px; white-space:nowrap;
   }
   .chip.on{background:var(--sea); color:#fff; border-color:var(--sea); font-weight:600}
-  .status{font-size:11.5px; color:var(--muted); padding:0 2px 2px}
   #chat{flex:1 1 auto; overflow-y:auto; padding:12px 12px 6px; -webkit-overflow-scrolling:touch}
   .msg{margin-bottom:12px; display:flex}
   .msg.user{justify-content:flex-end}
   .bubble{
-    max-width:86%; background:var(--bubble); border-radius:14px; padding:10px 12px;
+    max-width:88%; background:var(--bubble); border-radius:14px; padding:10px 12px;
     font-size:14px; line-height:1.62; box-shadow:0 1px 3px rgba(28,37,48,.08);
     word-break:break-word;
   }
-  .msg.user .bubble{background:var(--user); color:#fff; box-shadow:none}
+  .msg.user .bubble{background:var(--user); color:#fff; box-shadow:none; font-size:14px}
   .bubble h3{margin:0 0 6px; font-size:15.5px; color:var(--sea-dark)}
   .bubble strong{color:var(--sea-dark)}
   .bubble .sep{border:0; border-top:1px dashed var(--line); margin:7px 0}
-  .bubble .foot{font-size:11.5px; color:var(--muted); margin-top:8px}
+  .bubble .foot{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.5}
+  .badge{display:inline-block; font-size:10.5px; padding:2px 7px; border-radius:9px;
+         background:#eef6f9; color:var(--sea-dark); margin-left:6px; vertical-align:2px; font-weight:500}
+  .badge.off{background:#fbeee3; color:#a85a26}
+  .official{border-left:3px solid var(--sea); background:#f7fbfc; border-radius:0 10px 10px 0;
+            padding:8px 10px; margin-top:8px; font-size:12.5px; color:#33414f; line-height:1.55}
+  .official .ot{font-size:11px; color:var(--sea-dark); font-weight:600; margin-bottom:4px}
+  .official .ol{color:var(--muted)}
+  .official .empty{color:#a85a26}
   .pick{display:inline-block; margin:6px 6px 0 0; border:1px solid var(--line); background:#fbfcfd;
         border-radius:12px; padding:5px 9px; font-size:11.5px; color:var(--sea-dark)}
   #followups{padding:8px 12px 10px; background:#fff; border-top:1px solid var(--line);
@@ -60,32 +79,62 @@
   footer{flex:0 0 auto; background:#fff; border-top:1px solid var(--line);
          padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
   .inputbar{display:flex; gap:8px; align-items:center}
-  #q{flex:1 1 auto; border:1px solid var(--line); border-radius:20px; padding:10px 14px;
+  #q{flex:1 1 auto; min-width:0; border:1px solid var(--line); border-radius:20px; padding:10px 14px;
       font-size:14px; outline:none; background:#fbfcfd}
   #q:focus{border-color:var(--sea)}
   .icon-btn, .send{
-    border:0; border-radius:20px; padding:10px 14px; font-size:13px; color:#fff; background:var(--sea); font-weight:600;
+    flex:0 0 auto; white-space:nowrap;
+    border:0; border-radius:20px; padding:10px 15px; font-size:13px; color:#fff; background:var(--sea); font-weight:600;
   }
   .icon-btn{background:#eef6f9; color:var(--sea-dark); font-weight:500}
   .hint{font-size:11px; color:var(--muted); padding:6px 2px 0; text-align:center}
+  .card{border:1px solid var(--line); border-radius:12px; padding:9px 10px; margin-top:8px; background:#fff}
+  .card .ct{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+  .card .cn{font-weight:600; font-size:13.5px; color:var(--sea-dark)}
+  .card .ck{font-size:12px; color:var(--muted); flex:0 0 auto}
+  .card .cr{font-size:11.5px; color:var(--muted); margin-top:2px}
+  .card .cb{display:flex; gap:6px; flex-wrap:wrap; margin-top:7px}
+  .card .cb a{font-size:11.5px; text-decoration:none; color:var(--sea-dark); border:1px solid var(--line);
+              border-radius:10px; padding:4px 8px; background:#fbfcfd}
+  .card .rec{font-size:10.5px; background:#fff3d6; color:#8a5b00; border-radius:8px; padding:2px 6px; margin-left:6px}
+  .quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  #followups[hidden]{display:none}
+  .dot.pulse{animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  .bubble.loading{color:var(--muted); font-size:13.5px}
+  .bubble.loading .ell{display:inline-block; width:1.4em; animation:pulse 1.1s ease-in-out infinite}
+  .more{
+    display:block; width:100%; margin-top:8px; border:1px dashed var(--line); background:#fbfcfd;
+    color:var(--sea-dark); border-radius:10px; padding:7px 10px; font-size:12px;
+  }
+  .origins{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .official .pending{color:var(--muted)}
+  .official.busy{opacity:.75}
 </style>
 </head>
 <body>
 <header>
   <div class="brand">
-    <h1 id="title">釜山旅行助手 · 离线版</h1>
+    <div class="tt">
+      <h1 id="title">釜山 AI 旅行助手</h1>
+      <div class="sub" id="subline"></div>
+    </div>
     <div class="langs">
       <button data-lang="zh" class="on">中文</button>
       <button data-lang="ko">한국어</button>
       <button data-lang="en">English</button>
     </div>
   </div>
+  <div class="netbar">
+    <span class="dot" id="netDot"></span>
+    <span id="netText"></span>
+    <button id="retry">重试</button>
+  </div>
 </header>
 
 <div class="selectors">
   <div class="row" id="catRow"><span class="lbl" id="catLbl">玩法</span></div>
   <div class="row" id="grpRow"><span class="lbl" id="grpLbl">出行</span></div>
-  <div class="status" id="status"></div>
 </div>
 
 <div id="chat"></div>
@@ -101,35 +150,26 @@
 </footer>
 
 <script src="data.js"></script>
+<script src="cloud_snapshot.js"></script>
+<script src="cloud.js"></script>
 <script src="app.js"></script>
 <script>
 (function(){
-  var E = window.BusanEngine, D = window.BUSAN_DATA;
+  var E = window.BusanEngine, D = window.BUSAN_DATA, C = window.BusanCloud;
   var lang = "zh";
   var autoCat = true, autoGrp = true;
-  var history = [];   // [{role:'user'|'bot', text, questions?}]
+  var history = [];        // [{role:'user'|'bot', text, res?, q?}]
   var chat = document.getElementById("chat");
   var followups = document.getElementById("followups");
-
-  var UI = {
-    zh:{ title:"釜山旅行助手 · 离线版", cat:"玩法", grp:"出行", auto:"自动", ph:"输入景点名或问题…",
-         send:"发送", gps:"附近", hint:"全部资料已内置，不联网也能问", status:"当前玩法：{c} · 出行：{g}" },
-    ko:{ title:"부산 여행 도우미 · 오프라인", cat:"테마", grp:"동행", auto:"자동", ph:"명소 이름이나 질문을 입력…",
-         send:"전송", gps:"주변", hint:"모든 자료가 내장되어 인터넷 없이도 사용 가능", status:"현재 테마: {c} · 동행: {g}" },
-    en:{ title:"Busan Travel Assistant · Offline", cat:"Theme", grp:"Party", auto:"Auto", ph:"Type a spot or a question…",
-         send:"Send", gps:"Nearby", hint:"All data is bundled — works offline", status:"Theme: {c} · Party: {g}" }
-  };
+  var cloudReady = false;
 
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
   function md(text){
     var out = esc(text)
       .replace(/^###\s(.+)$/gm, "<h3>$1</h3>")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/^---$/gm, '<hr class="sep">')
       .replace(/^- (.+)$/gm, "• $1");
-    // 正文里的连续空行在手机上会撑出大片留白，统一压成一档；
-    // 标题与分隔线本身就是块级元素，去掉它们前后的多余换行
     return out.replace(/\n{2,}/g, "<br>").replace(/\n/g, "<br>")
       .replace(/<\/h3><br>/g, "</h3>")
       .replace(/<br><hr class="sep"><br>/g, '<hr class="sep">')
@@ -137,7 +177,34 @@
       .replace(/<br><hr class="sep">/g, '<hr class="sep">');
   }
 
-  function currentState(){ return E.getState(); }
+  function T(key){ return C.strings()[key] || ""; }
+  function online(){ return cloudReady && C.getMode() === "online"; }
+
+  /* ---------------- 顶部状态 ---------------- */
+  function paintStatus(){
+    var dot = document.getElementById("netDot");
+    var txt = document.getElementById("netText");
+    dot.className = "dot" + (online() ? " on" : " off");
+    if (online()){
+      var db = C.getDb() || {};
+      txt.textContent = T("online") + " · " + (db.updated_at || "") + " · " + T("officialLive");
+    } else {
+      var reason = C.getReason() === "blocked" ? "blocked" : (C.getReason() === "cloudFail" ? "cloudFail" : "offline");
+      txt.textContent = T(reason);
+    }
+    document.getElementById("retry").textContent = T("retry");
+  }
+
+  /* ---------------- 选择栏 ---------------- */
+  function state(){ return online() ? {category: curCat(), group: curGrp()} : E.getState(); }
+  function curCat(){ return window.__cat || firstCat(); }
+  function curGrp(){ return window.__grp || ""; }
+  function firstCat(){
+    var d = online() ? C.getDb().strings.categories : D.strings.categories;
+    var k = Object.keys(d); return k[0] || "";
+  }
+  function catDict(){ return (online() ? C.getDb().strings.categories : D.strings.categories); }
+  function grpDict(){ return (online() ? C.getDb().strings.groups : D.strings.groups); }
 
   function renderChips(){
     var catRow = document.getElementById("catRow");
@@ -145,53 +212,56 @@
     catRow.querySelectorAll(".chip").forEach(function(n){ n.remove(); });
     grpRow.querySelectorAll(".chip").forEach(function(n){ n.remove(); });
 
-    var st = currentState();
     var autoChip = document.createElement("button");
     autoChip.className = "chip" + (autoCat ? " on" : "");
-    autoChip.textContent = UI[lang].auto;
-    autoChip.onclick = function(){ autoCat = true; E.setState({autoCategory:true}); rerenderAll(); };
+    autoChip.textContent = T("auto") || (lang === "zh" ? "自动" : lang === "ko" ? "자동" : "Auto");
+    autoChip.onclick = function(){ autoCat = true; rerenderAll(); };
     catRow.appendChild(autoChip);
 
-    Object.keys(D.strings.categories).forEach(function(c){
+    var cats = catDict();
+    Object.keys(cats).forEach(function(c){
       var b = document.createElement("button");
-      b.className = "chip" + (!autoCat && st.category === c ? " on" : "");
-      b.textContent = D.strings.categories[c][lang];
-      b.onclick = function(){ autoCat = false; E.setState({autoCategory:false, category:c}); rerenderAll(); };
+      b.className = "chip" + (!autoCat && curCat() === c ? " on" : "");
+      b.textContent = String(cats[c][lang] || "").replace(/^\d+[_\s.、-]*/, "");
+      b.onclick = function(){ autoCat = false; window.__cat = c; rerenderAll(); };
       catRow.appendChild(b);
     });
 
     var autoG = document.createElement("button");
     autoG.className = "chip" + (autoGrp ? " on" : "");
-    autoG.textContent = UI[lang].auto;
-    autoG.onclick = function(){ autoGrp = true; E.setState({autoGroup:true}); rerenderAll(); };
+    autoG.textContent = T("auto") || (lang === "zh" ? "自动" : lang === "ko" ? "자동" : "Auto");
+    autoG.onclick = function(){ autoGrp = true; window.__grp = ""; rerenderAll(); };
     grpRow.appendChild(autoG);
 
-    D.strings.groups && Object.keys(D.strings.groups).forEach(function(g){
+    var grps = grpDict();
+    Object.keys(grps).forEach(function(g){
       var b = document.createElement("button");
-      b.className = "chip" + (!autoGrp && st.group === g ? " on" : "");
-      b.textContent = D.strings.groups[g][lang];
-      b.onclick = function(){ autoGrp = false; E.setState({autoGroup:false, group:g}); rerenderAll(); };
+      b.className = "chip" + (!autoGrp && curGrp() === g ? " on" : "");
+      b.textContent = grps[g][lang];
+      b.onclick = function(){ autoGrp = false; window.__grp = g; rerenderAll(); };
       grpRow.appendChild(b);
     });
-
-    document.getElementById("status").textContent = UI[lang].status
-      .replace("{c}", D.strings.categories[st.category] ? D.strings.categories[st.category][lang] : "—")
-      .replace("{g}", st.group ? D.strings.groups[st.group][lang] : UI[lang].auto);
   }
 
   function applyUI(){
-    document.getElementById("title").textContent = UI[lang].title;
-    document.getElementById("catLbl").textContent = UI[lang].cat;
-    document.getElementById("grpLbl").textContent = UI[lang].grp;
-    document.getElementById("q").placeholder = UI[lang].ph;
-    document.getElementById("send").textContent = UI[lang].send;
-    document.getElementById("gps").textContent = UI[lang].gps;
-    document.getElementById("hint").textContent = UI[lang].hint;
+    document.getElementById("title").textContent = (lang === "zh" ? "釜山 AI 旅行助手" : lang === "ko" ? "부산 AI 여행 도우미" : "Busan AI Travel Assistant");
+    document.getElementById("subline").textContent = T("welcomeTitle");
+    document.getElementById("catLbl").textContent = lang === "zh" ? "玩法" : lang === "ko" ? "테마" : "Theme";
+    document.getElementById("grpLbl").textContent = lang === "zh" ? "出行" : lang === "ko" ? "동행" : "Party";
+    document.getElementById("q").placeholder = lang === "zh" ? "输入景点名或问题…" : lang === "ko" ? "명소 이름이나 질문을 입력…" : "Type a spot or a question…";
+    document.getElementById("send").textContent = lang === "zh" ? "发送" : lang === "ko" ? "전송" : "Send";
+    document.getElementById("gps").textContent = lang === "zh" ? "附近" : lang === "ko" ? "주변" : "Nearby";
+    document.getElementById("hint").textContent = lang === "zh"
+      ? "联网查云端库与景点官网；断网自动用包内数据"
+      : lang === "ko" ? "온라인에서는 클라우드·공식 사이트, 끊기면 내장 데이터"
+      : "Online reads the cloud DB + official sites; offline falls back to bundled data";
     document.querySelectorAll(".langs button").forEach(function(b){
       b.classList.toggle("on", b.getAttribute("data-lang") === lang);
     });
+    paintStatus();
   }
 
+  /* ---------------- 消息渲染 ---------------- */
   function addUser(text){
     var m = document.createElement("div");
     m.className = "msg user";
@@ -200,58 +270,100 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  function addBot(result){
+  function cardHtml(c){
+    return '<div class="card"><div class="ct"><span class="cn">' + esc(c.name) +
+      (c.rec ? '<span class="rec">' + esc(T("rec")) + "</span>" : "") +
+      '</span><span class="ck">' + c.km.toFixed(1) + " " + esc(T("km")) + "</span></div>" +
+      '<div class="cr">' + esc(c.reason) + "</div>" +
+      '<div class="cb"><a href="' + esc(c.map.nav) + '">' + esc(T("jump")) + "</a>" +
+      '<a href="' + esc(c.map.place) + '">' + esc(T("place")) + "</a>" +
+      '<a href="' + esc(c.map.web) + '">' + esc(T("webmap")) + "</a>" +
+      '<a href="' + esc(c.map.google) + '">' + esc(T("google")) + "</a></div></div>";
+  }
+
+  function bubbleFor(result){
     var m = document.createElement("div");
     m.className = "msg bot";
-    var html = '<div class="bubble">' + md(result.text);
-    if (result.sources && result.sources.length){
-      html += '<div class="foot">' + esc(result.sources.join(" · ")) + "</div>";
+    var html = '<div class="bubble' + (result.loading ? " loading" : "") + '">';
+    html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
+    if (!result.loading && result.tag) html += '<span class="badge' + (online() ? "" : " off") + '">' + esc(result.tag) + "</span>";
+    if (result.cards && result.cards.length){
+      result.cards.forEach(function(c){ html += cardHtml(c); });
     }
+    if (result.more){
+      html += '<button class="more act-more">' + esc(result.more.label) + "</button>";
+    }
+    if (result.sources && result.sources.length){
+      html += '<div class="foot">' + esc(T("sourcesLabel")) + "：" + esc(result.sources.join(" · ")) + "</div>";
+    }
+    if (result.retry) html += '<button class="more act-retry">' + esc(T("retry")) + "</button>";
+    if (!result.loading) html += '<div class="official" hidden></div>';
     html += "</div>";
     m.innerHTML = html;
     chat.appendChild(m);
     chat.scrollTop = chat.scrollHeight;
-    renderFollowups(result);
+
+    var retryBtn = m.querySelector(".act-retry");
+    if (retryBtn) retryBtn.onclick = function(){ reloadCloud(true); };
+    if (result.more && result.more.onClick){
+      m.querySelector(".act-more").onclick = function(){ result.more.onClick(m); };
+    }
+    return m;
+  }
+
+  function fillOfficial(msgEl, note, busy){
+    if (!msgEl) return;
+    var box = msgEl.querySelector(".official");
+    if (!box) return;
+    var url = note ? note.url : "";
+    if (busy){
+      box.className = "official busy";
+      box.innerHTML = '<div class="ot">' + esc(T("officialLabel")) + '</div><div class="pending">' + esc(T("loadingOfficial")) + "</div>";
+      box.hidden = false;
+      return;
+    }
+    box.className = "official";
+    if (note && note.ok && note.lines.length){
+      var lines = note.lines.slice(0, 4).map(function(x){ return "· " + esc(x); }).join("<br>");
+      box.innerHTML = '<div class="ot">' + esc(T("officialLabel")) + " · " + esc(T("officialFrom")) +
+             " · " + esc(T("fetchedAt")) + " " + esc(note.at) + '</div><div class="ol">' + lines + "</div>" +
+             (url ? '<div class="ol" style="margin-top:5px"><a href="' + esc(url) + '" style="color:#0a4e63">' + esc(url) + "</a></div>" : "");
+    } else {
+      box.innerHTML = '<div class="ot">' + esc(T("officialLabel")) + '</div><div class="empty">' + esc(T("officialFail")) + "</div>" +
+             (url ? '<div class="ol" style="margin-top:5px"><a href="' + esc(url) + '" style="color:#0a4e63">' + esc(url) + "</a></div>" : "");
+    }
+    box.hidden = false;
   }
 
   function renderFollowups(result){
     followups.innerHTML = "";
-    var st = currentState();
-    if (result.switchTo){
-      var sw = document.createElement("button");
-      sw.className = "pick";
-      sw.textContent = "→ " + D.strings.categories[result.switchTo][lang];
-      sw.onclick = function(){
-        autoCat = false; E.setState({autoCategory:false, category:result.switchTo});
-        rerenderAll();
-      };
-      followups.appendChild(sw);
-   }
-    (result.followups || []).forEach(function(q){
+    var list = (result.followups || []).slice(0, 5);
+    followups.hidden = !list.length;
+    list.forEach(function(q){
       var b = document.createElement("button");
       b.className = "pick";
       b.textContent = q;
       b.onclick = function(){ ask(q); };
       followups.appendChild(b);
     });
-    (result.supplements || []).forEach(function(s){
-      var b = document.createElement("button");
-      b.className = "pick";
-      b.textContent = "+ " + s.name;
-      b.onclick = function(){
-        autoCat = false; E.setState({autoCategory:false, category:s.cat});
-        rerenderAll();
-        setTimeout(function(){ ask(s.name); }, 30);
-      };
-      followups.appendChild(b);
-    });
   }
 
-  function answerNow(text){
+  /* ---------------- 回答 ---------------- */
+  function offlineAnswer(text){
+    // 有包内快照时走与联网同一套「资料组装」，保证断网前后回答结构一致；没有快照才退回旧离线引擎。
+    if (C.getDb() && C.getDb().spots && C.getDb().spots.length){
+      var r = C.answer(text, {lang: lang});
+      r.tag = C.strings().offline;
+      return r;
+    }
     var res = E.answer(text, {lang: lang, autoCategory: autoCat, autoGroup: autoGrp});
-    if (res.category) { /* 自动推断后同步选择栏 */ }
-    renderChips();
-    addBot(res);
+    res.tag = C.strings().offline;
+    return res;
+  }
+
+  function cloudAnswer(text){
+    var res = C.answer(text, {lang: lang});
+    res.tag = C.strings().online;
     return res;
   }
 
@@ -260,92 +372,178 @@
     if (!text) return;
     history.push({role:"user", text:text});
     addUser(text);
-    var res = answerNow(text);
-    history.push({role:"bot", text:res.text, result:res});
+    var res = online() ? cloudAnswer(text) : offlineAnswer(text);
+    var msg = bubbleFor(res);
+    history.push({role:"bot", q:text, res:res});
+    renderFollowups(res);
     document.getElementById("q").value = "";
+
+    // 联网：先占位「官网核对中」，再抓官网正文补进同一张气泡（不阻塞主回答）
+    if (online() && res.spotId){
+      var s = C.findSpot(text);
+      if (s){
+        fillOfficial(msg, null, true);
+        C.fetchOfficial(s, function(note){
+          fillOfficial(msg, note);
+          if (note && note.ok) {
+            var foot = msg.querySelector(".foot");
+            if (foot && foot.textContent.indexOf(note.url) < 0) foot.textContent += " · " + T("officialLabel") + " " + note.url;
+          }
+        });
+      }
+    }
   }
 
   function rerenderAll(){
-    // 语言 / 玩法 / 出行人数变化：清空对话，按历史提问用新设定重新生成全部回答
     chat.innerHTML = "";
     followups.innerHTML = "";
+    C.setLang(lang);
+    E.setLang(lang);
     applyUI();
     renderChips();
     var asks = history.filter(function(h){ return h.role === "user"; }).map(function(h){ return h.text; });
     history = [];
     if (!asks.length){
-      var w = E.answer("", {lang: lang});
-      addBot({text: E.strings[lang].welcome, sources: [], followups: []});
+      greet();
       return;
     }
     asks.forEach(function(t){
       history.push({role:"user", text:t});
       addUser(t);
-      var res = E.answer(t, {lang: lang, autoCategory: autoCat, autoGroup: autoGrp});
-      history.push({role:"bot", text:res.text, result:res});
-      addBot(res);
+      var res = online() ? cloudAnswer(t) : offlineAnswer(t);
+      bubbleFor(res);
+      history.push({role:"bot", q:t, res:res});
+      if (online() && res.spotId){
+        var elNow = chat.lastElementChild;
+        var sp = C.findSpot(t);
+        if (sp) C.fetchOfficial(sp, function(note){ fillOfficial(elNow, note); });
+      }
+    });
+    var last = history.filter(function(h){ return h.role === "bot"; }).pop();
+    if (last) renderFollowups(last.res);
+  }
+
+  function greet(){
+    var box = document.createElement("div");
+    box.className = "msg bot";
+    var quick = [
+      lang === "zh" ? "甘川文化村 交通" : lang === "ko" ? "감천문화마을 교통" : "Gamcheon Culture Village transport",
+      lang === "zh" ? "多大浦海水浴场 门票" : lang === "ko" ? "다대포해수욕장 입장료" : "Dadaepo Beach tickets",
+      lang === "zh" ? "没云台 开放时间" : lang === "ko" ? "몰운대 운영시간" : "Molundae opening hours",
+      lang === "zh" ? "长林浦口 拍照" : lang === "ko" ? "장림포구 사진" : "Jangnim Port photo spots"
+    ];
+    box.innerHTML = '<div class="bubble">' + md(T("welcome")) +
+      '<div class="quick">' + quick.map(function(q){ return '<button class="pick" data-q="' + esc(q) + '">' + esc(q) + "</button>"; }).join("") +
+      "</div></div>";
+    chat.appendChild(box);
+    box.querySelectorAll(".pick").forEach(function(b){
+      b.onclick = function(){ ask(b.getAttribute("data-q")); };
+    });
+    var res = {text: "", followups: []};
+    renderFollowups(res);
+  }
+
+  /* ---------------- 附近 ---------------- */
+  var locBusy = false, locWaiting = false;
+
+  function reasonFor(s){
+    return C.reasonOf(s);
+  }
+
+  function rowsNear(lat, lng, n){
+    var d = C.getDb();
+    if (d && d.spots && d.spots.length){
+      return C.nearby(lat, lng, n).map(function(r){
+        return {name: C.spotTitle(r.spot), km: r.km, reason: C.reasonOf(r.spot), map: C.mapLinks(r.spot), spot: r.spot};
+      });
+    }
+    return E.nearby(lat, lng, n).map(function(x){
+      var s = C.findSpot(x.spot.id) || x.spot;
+      return {name: E.displayName(x.spot, lang), km: x.km, reason: E.catLabel(x.spot.category, lang), map: C.mapLinks(s), spot: s};
     });
   }
 
-  document.querySelectorAll(".langs button").forEach(function(b){
-    b.onclick = function(){
-      lang = b.getAttribute("data-lang");
-      E.setLang(lang);
-      rerenderAll();
+  function renderNearby(rows){
+    if (!rows.length){ addBot({text: T("nearbyNone"), sources: [], followups: []}); return; }
+    var head = rows.slice(0, 2).map(function(r, i){
+      return {name: r.name, km: r.km, reason: r.reason, rec: i === 0, map: r.map};
+    });
+    var rest = rows.slice(2).map(function(r){
+      return {name: r.name, km: r.km, reason: r.reason, rec: false, map: r.map};
+    });
+    var text = "**" + T("nearbyTitle") + "**";
+    if (rows[0].km <= 6) text += "\n" + rows[0].name + " · " + rows[0].km.toFixed(1) + " " + T("km");
+    var res = {
+      text: text,
+      cards: head,
+      sources: [(online() ? "云端数据库" : "包内快照") + " + 定位坐标"],
+      followups: rows.slice(0, 3).map(function(r){ return r.name; })
     };
-  });
+    if (rest.length){
+      res.more = {
+        label: T("rest") + " " + rest.length + " " + T("more"),
+        onClick: function(msg){
+          var box = msg.querySelector(".bubble");
+          var btn = msg.querySelector(".act-more");
+          rest.forEach(function(c){
+            var tmp = document.createElement("div");
+            tmp.innerHTML = cardHtml(c);
+            box.insertBefore(tmp.firstChild, btn);
+          });
+          btn.remove();
+        }
+      };
+    }
+    addBot(res);
+  }
 
-  document.getElementById("send").onclick = function(){ ask(document.getElementById("q").value); };
-  document.getElementById("q").addEventListener("keydown", function(e){
-    if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
-  });
+  /** 定位失败不停摆：列三个已收录地点当起点，用户点一下就能继续算距离。 */
+  function renderLocFail(err){
+    var why = (err && err.code === 1) ? T("nearbyDenied") : T("nearbyTimeout");
+    var msg = addBot({text: why + "\n" + T("originTitle"), sources: [], followups: []});
+    var d = C.getDb();
+    var pool = (d && d.spots) ? d.spots.filter(function(s){ return s.lat != null; }) : [];
+    if (!pool.length) return;
+    var box = document.createElement("div");
+    box.className = "origins";
+    pool.slice(0, 3).forEach(function(s){
+      var b = document.createElement("button");
+      b.className = "pick";
+      b.textContent = C.spotTitle(s);
+      b.onclick = function(){ renderNearby(rowsNear(s.lat, s.lng, 4)); };
+      box.appendChild(b);
+    });
+    msg.querySelector(".bubble").appendChild(box);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-  var locBusy = false;     // 正在取坐标
-  var locWaiting = false;  // 正在等系统授权回调
+  function addBot(result){
+    var msg = bubbleFor(result);
+    renderFollowups(result);
+    return msg;
+  }
 
   function locateOnce(){
     if (locBusy) return;
     if (!navigator.geolocation){
-      addBot({text: E.strings[lang].nearbyNone, sources:[], followups:[]});
+      renderLocFail({code: 2});
       return;
     }
     locBusy = true;
+    var waitMsg = addBot({text: T("locating"), loading: true, sources: [], followups: []});
     navigator.geolocation.getCurrentPosition(function(pos){
       locBusy = false;
-      renderNearby(pos.coords.latitude, pos.coords.longitude);
+      if (waitMsg) waitMsg.remove();
+      renderNearby(rowsNear(pos.coords.latitude, pos.coords.longitude, 4));
     }, function(err){
       locBusy = false;
-      // 1 = 权限被拒，2 = 不可用，3 = 超时；给出各自的下一步
-      addBot({text: err && err.code === 1 ? E.strings[lang].nearbyDenied : E.strings[lang].nearbyTimeout,
-              sources:[], followups:[]});
+      if (waitMsg) waitMsg.remove();
+      renderLocFail(err);
     }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000});
   }
 
-  function renderNearby(lat, lng){
-    var list = E.nearby(lat, lng, 5);
-    var lines;
-    if (!list.length){
-      // 不在釜山市区（刚落地在机场、或人还在外地）时，给最近的几个而不是一句「没有」
-      list = E.nearestAny(lat, lng, 3);
-      if (!list.length){
-        addBot({text: E.strings[lang].nearbyEmpty, sources:[], followups:[]});
-        return;
-      }
-      lines = [E.strings[lang].nearbyFar.replace("{n}", String(list.length))];
-    } else {
-      lines = ["**" + E.strings[lang].nearbyTitle + "**"];
-    }
-    list.forEach(function(x){
-      lines.push("- **" + E.displayName(x.spot, lang) + "** · " +
-                 x.km.toFixed(1) + " " + E.strings[lang].km + " · " + E.catLabel(x.spot.category, lang));
-    });
-    addBot({text: lines.join("\n"), sources: [],
-            followups: list.map(function(x){ return E.displayName(x.spot, lang); })});
-  }
-
-  // 壳里授权完成后回调这里（浏览器直接打开时该函数不会被调用）
   window.__busanLocReady = function(){
-    if (!locWaiting) return;   // 授权回调只处理一次，避免和兜底定时器重复取坐标
+    if (!locWaiting) return;
     locWaiting = false;
     locateOnce();
   };
@@ -353,11 +551,9 @@
   document.getElementById("gps").onclick = function(){
     if (locWaiting || locBusy) return;
     if (window.BusanHost && typeof window.BusanHost.requestLocation === "function"){
-      // 先走系统运行时授权；已授权时壳会立刻回调 __busanLocReady
       locWaiting = true;
       window.BusanHost.requestLocation();
       setTimeout(function(){
-        // 2 秒没等到授权回调（例如授权框还开着）就直接取一次，别让按钮看起来没反应
         if (locWaiting) { locWaiting = false; locateOnce(); }
       }, 2000);
     } else {
@@ -365,12 +561,65 @@
     }
   };
 
-  // 启动
+  document.getElementById("send").onclick = function(){ ask(document.getElementById("q").value); };
+  document.getElementById("q").addEventListener("keydown", function(e){
+    if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
+  });
+
+  document.querySelectorAll(".langs button").forEach(function(b){
+    b.onclick = function(){
+      lang = b.getAttribute("data-lang");
+      try { localStorage.setItem("busan_lang", lang); } catch(e){}
+      rerenderAll();
+    };
+  });
+
+  /** 重新读云端库：断网时退回包内快照；调用方决定失败时是否在对话里提示。 */
+  function reloadCloud(showBubble){
+    var txt = document.getElementById("netText");
+    var dot = document.getElementById("netDot");
+    txt.textContent = T("loading");
+    dot.className = "dot pulse";
+    C.load(function(){
+      cloudReady = true;
+      if (!window.__cat) window.__cat = firstCat();
+      paintStatus();
+      renderChips();
+      rerenderAll();
+      if (!online() && showBubble){
+        addBot({
+          text: C.getReason() === "blocked" ? T("noNet") : T("cloudFail"),
+          sources: [], followups: [], retry: true
+        });
+      }
+      applyUI();
+    });
+  }
+
+  document.getElementById("retry").onclick = function(){ reloadCloud(true); };
+
+  /* ---------------- 启动 ---------------- */
+  try {
+    var saved = localStorage.getItem("busan_lang");
+    if (saved && /^(zh|ko|en)$/.test(saved)) lang = saved;
+    var savedCat = localStorage.getItem("busan_cat");
+    if (savedCat) window.__cat = savedCat;
+  } catch(e){}
+  document.querySelectorAll(".langs button").forEach(function(b){
+    b.classList.toggle("on", b.getAttribute("data-lang") === lang);
+  });
+
+  C.init(lang);
   E.init(D);
   E.setLang(lang);
+  window.__cat = window.__cat || firstCat();
   applyUI();
   renderChips();
-  addBot({text: E.strings[lang].welcome, sources: [], followups: []});
+
+  // 启动即判定「手机是否允许联网」：能连就读云端库，不能就连包内快照。
+  document.getElementById("netDot").className = "dot pulse";
+  document.getElementById("netText").textContent = T("loading");
+  reloadCloud(false);
 })();
 </script>
 </body>
