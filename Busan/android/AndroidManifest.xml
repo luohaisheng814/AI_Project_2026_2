@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="3"
+    android:versionName="1.2">
 
-    <!-- 离线运行：不申请网络权限，问答与推荐全部来自安装包内置数据库 -->
+    <!-- 联网版：安装包既可直接加载局域网/公网上的手机版服务（登录 / 官网检索 / NAVER 深链），
+         也可在没配服务器时退回安装包内置的离线数据库。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -15,6 +18,7 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.NoTitleBar">
 
         <activity

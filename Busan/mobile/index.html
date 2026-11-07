@@ -52,6 +52,29 @@
   .dot{width:6px;height:6px;border-radius:50%;background:#f59e0b}
   .dot.on{background:#34d399}
 
+  .gear{
+    border:0;background:transparent;color:#9fb3c8;font-size:15px;padding:2px 4px;line-height:1
+  }
+
+  /* 四步流程条：位置 → 条件 → 候选 → 路线 */
+  .flowbar{
+    display:flex;align-items:center;gap:4px;padding:8px 12px;background:#fff;
+    border-bottom:1px solid var(--line);overflow-x:auto
+  }
+  .fstep{
+    flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#8ba1ad;
+    padding:4px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap
+  }
+  .fstep i{
+    width:15px;height:15px;border-radius:50%;background:#e8eef2;color:#7b93a0;
+    font-style:normal;font-size:9.5px;display:flex;align-items:center;justify-content:center;font-weight:700
+  }
+  .fstep.on{background:#e6f7fb;border-color:#bfe6ef;color:#0b5c73}
+  .fstep.on i{background:#0891b2;color:#fff}
+  .fstep.done i{background:#0f9d76;color:#fff}
+  .fstep.done{color:#3f6a5c}
+  .farrow{color:#c3d3da;font-size:11px;flex:0 0 auto}
+
   .controls{
     display:flex;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:10
@@ -106,13 +129,16 @@
   .thinking{color:var(--muted);font-size:12px}
 
   .nearby{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
-  .nearby h3{margin:0 0 4px;font-size:13px}
+  .nearby h3{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:6px}
   .nearby .hint{margin:0 0 9px;font-size:11px;color:var(--muted)}
   .spot{border-top:1px solid var(--line);padding:9px 0}
+  .spot.rec{border:1px solid #cbe9f2;border-radius:12px;padding:10px 11px;margin:8px 0;background:#f7fcfd}
+  .rec-badge{font-size:10px;font-weight:700;color:#fff;background:#0891b2;padding:2px 7px;border-radius:999px}
   .spot-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
   .spot-name{font-size:12.5px;font-weight:700}
   .dist{font-size:11.5px;color:var(--ocean);font-weight:700;flex:0 0 auto}
   .spot-ko{font-size:11px;color:var(--muted);margin-top:1px}
+  .reason{font-size:11.5px;color:#41627a;margin-top:4px;line-height:1.5}
   .map-row{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
   .map-btn{
     font-size:11.5px;text-decoration:none;padding:6px 10px;border-radius:9px;font-weight:700;
@@ -120,6 +146,29 @@
   }
   .map-btn.naver{background:#03c75a;border-color:#03c75a;color:#fff}
   .map-btn.g{background:#fff;border-color:#d8dee6;color:#334155}
+  .more-btn{
+    display:block;width:100%;margin-top:8px;border:1px dashed #cfe3ec;background:#fafdfe;
+    color:#0b5266;font-size:11.5px;font-weight:600;padding:8px;border-radius:10px
+  }
+
+  .locfail{margin-top:14px;background:#fff8ec;border:1px solid #efd6a8;border-radius:16px;padding:13px 14px}
+  .locfail h3{margin:0 0 4px;font-size:13px;color:#8a5a12}
+  .locfail p{margin:0 0 9px;font-size:11.5px;line-height:1.55;color:#7a5a24}
+  .locfail .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .locfail button{
+    border:1px solid #e3c78f;background:#fff;color:#8a5a12;font-size:11.5px;font-weight:700;
+    padding:7px 11px;border-radius:9px
+  }
+  .locfail select{
+    flex:1;min-width:140px;font-size:11.5px;padding:7px 9px;border-radius:9px;border:1px solid #e3c78f;background:#fff
+  }
+
+  .trace{
+    display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:9px 0 2px;
+    font-size:10.5px;color:#7b93a0
+  }
+  .trace b{color:#41627a;font-weight:600}
+  .trace .sep{color:#c3d3da}
 
   .composer{
     position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,255,255,.97);
@@ -196,9 +245,20 @@
     <div class="spacer"></div>
     <span class="status"><i class="dot" id="statusDot"></i><span id="statusText">本地模式</span></span>
     <button class="auth-btn" id="authBtn">登录</button>
+    <button class="gear" id="srvBtn" style="display:none" title="服务器">⚙</button>
   </div>
   <div class="who" id="whoLine"></div>
 </header>
+
+<div class="flowbar" id="flowbar">
+  <div class="fstep" data-step="1"><i>1</i><b id="fLoc">位置</b></div>
+  <span class="farrow">›</span>
+  <div class="fstep" data-step="2"><i>2</i><b id="fCond">条件</b></div>
+  <span class="farrow">›</span>
+  <div class="fstep" data-step="3"><i>3</i><b id="fCand">候选</b></div>
+  <span class="farrow">›</span>
+  <div class="fstep" data-step="4"><i>4</i><b id="fRoute">路线</b></div>
+</div>
 
 <div class="controls">
   <label><span id="lblCat">玩法</span><select id="catSel"></select></label>
@@ -267,7 +327,16 @@ const UI_STR = {
     thinking:"AI 正在检索景点官网与本地资料…",
     more:"想细看哪一项？直接继续问交通 / 门票 / 开放时间 / 周边。",
     tagOnline:"已联网", tagLocal:"本地库", tagConcise:"精简", tagWeb:"官网 %n 条",
-    emptyQ:"请输入问题"
+    emptyQ:"请输入问题",
+    fLoc:"位置", fCond:"条件", fCand:"候选", fRoute:"路线",
+    locFailTitle:"没拿到当前位置", locFailBody:"可以重试定位，或选一个已收录景点当作出发点继续推荐。",
+    retryLoc:"重试定位", pickOrigin:"以已收录景点为出发点", originPh:"选择出发点",
+    nearTop:"先按直线距离给你 2 个候选", nearRest:"其余 %n 个（点开看）", rec:"推荐",
+    rArt:"艺术村落 · 适合慢慢逛、拍照", rSunset:"海岸日落线 · 傍晚来最合适",
+    rWetland:"湿地生态 · 看候鸟与开阔水面", rHarbor:"小众渔港 · 出片率高",
+    trIn:"输入", trRet:"检索", trAns:"回答", trSrc:"来源", trRoute:"路线",
+    srv:"服务器", srvNow:"当前服务地址", srvChange:"更换", srvCancel:"返回",
+    chipExisting:"我要去甘川文化村", chipRecommend:"推荐附近一个地方", chipModify:"时间不够，少走路"
   },
   ko: {
     title:"부산 AI 여행 도우미", sub:"사하구 · 명소 공식 홈페이지 + 로컬 DB",
@@ -290,7 +359,16 @@ const UI_STR = {
     thinking:"명소 공식 홈페이지와 로컬 자료를 조회 중…",
     more:"더 자세히 보고 싶으면 교통 / 요금 / 개방 시간 / 주변을 이어서 물어보세요.",
     tagOnline:"온라인", tagLocal:"로컬", tagConcise:"간단히", tagWeb:"공식 %n건",
-    emptyQ:"질문을 입력하세요"
+    emptyQ:"질문을 입력하세요",
+    fLoc:"위치", fCond:"조건", fCand:"후보", fRoute:"경로",
+    locFailTitle:"현재 위치를 받지 못했습니다", locFailBody:"위치를 다시 확인하거나, 등록된 명소를 출발지로 선택해 추천을 이어가세요.",
+    retryLoc:"위치 다시 확인", pickOrigin:"등록된 명소를 출발지로", originPh:"출발지 선택",
+    nearTop:"직선 거리 기준 후보 2곳", nearRest:"나머지 %n곳 (펼치기)", rec:"추천",
+    rArt:"예술 마을 · 천천히 걷고 사진 찍기 좋음", rSunset:"해안 노을 코스 · 해질 무렵 추천",
+    rWetland:"습지 생태 · 철새와 탁 트인 물길", rHarbor:"작은 항구 · 사진 잘 나옴",
+    trIn:"입력", trRet:"검색", trAns:"답변", trSrc:"출처", trRoute:"경로",
+    srv:"서버", srvNow:"현재 서버 주소", srvChange:"변경", srvCancel:"돌아가기",
+    chipExisting:"감천문화마을에 갈 거예요", chipRecommend:"주변 한 곳 추천해 줘", chipModify:"시간이 없어요, 덜 걷고 싶어요"
   },
   en: {
     title:"Busan AI Travel Assistant", sub:"Saha-gu · Official sites + local database",
@@ -313,7 +391,16 @@ const UI_STR = {
     thinking:"Checking official sites and local data…",
     more:"Want more detail? Keep asking about transport / tickets / opening hours / nearby.",
     tagOnline:"Online", tagLocal:"Local", tagConcise:"Brief", tagWeb:"%n official",
-    emptyQ:"Please type a question"
+    emptyQ:"Please type a question",
+    fLoc:"Location", fCond:"Conditions", fCand:"Candidates", fRoute:"Route",
+    locFailTitle:"No current location", locFailBody:"Retry locating, or pick a listed attraction as your starting point and continue.",
+    retryLoc:"Retry location", pickOrigin:"Use a listed spot as start", originPh:"Choose start point",
+    nearTop:"Two candidates by crow-fly distance", nearRest:"%n more (expand)", rec:"Pick",
+    rArt:"Art village · good for a slow walk and photos", rSunset:"Coast & sunset line · best near dusk",
+    rWetland:"Wetland · birds and open water", rHarbor:"Small harbor · very photogenic",
+    trIn:"Input", trRet:"Retrieve", trAns:"Answer", trSrc:"Sources", trRoute:"Route",
+    srv:"Server", srvNow:"Current server", srvChange:"Change", srvCancel:"Back",
+    chipExisting:"I'm going to Gamcheon", chipRecommend:"Recommend a nearby place", chipModify:"Short on time, less walking"
   }
 };
 
@@ -327,9 +414,16 @@ const META_LABELS = {
 };
 
 const CHIPS = {
-  zh: ["甘川文化村","没云台 交通","多大浦海水浴场 开放时间","乙淑岛候鸟公园 门票","长林浦口 拍照"],
-  ko: ["감천문화마을","몰운대 교통","다대포해수욕장 개방시간","을숙도 철새도래지 입장료","장림포구 사진"],
-  en: ["Gamcheon Culture Village","Molundae transport","Dadaepo Beach opening hours","Eulsukdo tickets","Jangnim Port photo spots"]
+  zh: ["推荐附近一个地方","我要去甘川文化村","甘川文化村","没云台 交通","多大浦海水浴场 开放时间","乙淑岛候鸟公园 门票","长林浦口 拍照","时间不够，少走路"],
+  ko: ["주변 한 곳 추천해 줘","감천문화마을에 갈 거예요","감천문화마을","몰운대 교통","다대포해수욕장 개방시간","을숙도 철새도래지 입장료","장림포구 사진","시간이 없어요, 덜 걷고 싶어요"],
+  en: ["Recommend a nearby place","I'm going to Gamcheon","Gamcheon Culture Village","Molundae transport","Dadaepo Beach opening hours","Eulsukdo tickets","Jangnim Port photo spots","Short on time, less walking"]
+};
+
+const REASON_KEY = {
+  "01_艺术村落_文化街区": "rArt",
+  "02_海岸休闲_日落夜景": "rSunset",
+  "03_湿地生态_自然观景": "rWetland",
+  "04_小众渔港_文艺拍照": "rHarbor"
 };
 
 const S = {
@@ -337,7 +431,8 @@ const S = {
   cat: localStorage.getItem("busan-cat") || "",
   grp: localStorage.getItem("busan-grp") || "",
   logged: false, username: "", role: "",
-  lastQ: "", spots: [], meta: { categories: [], groups: [] }
+  lastQ: "", spots: [], meta: { categories: [], groups: [], spots: [] },
+  nearLat: null, nearLng: null, nearName: "", moreOpen: false, step: 0
 };
 
 const T = k => (UI_STR[S.lang] && UI_STR[S.lang][k]) || UI_STR.zh[k] || k;
@@ -368,6 +463,10 @@ function applyLangUI(){
   $("pkgBtn").textContent = T("pkg");
   $("installBtn").textContent = T("install");
   $("clearBtn").textContent = T("clear");
+  $("fLoc").textContent = T("fLoc");
+  $("fCond").textContent = T("fCond");
+  $("fCand").textContent = T("fCand");
+  $("fRoute").textContent = T("fRoute");
   $("loginTitle").textContent = T("loginTitle");
   $("loginDesc").textContent = T("loginDesc");
   $("lblUser").textContent = T("lblUser");
@@ -394,8 +493,22 @@ function renderChips(){
   (CHIPS[S.lang] || CHIPS.zh).forEach(q => {
     const b = document.createElement("button");
     b.className = "chip"; b.textContent = q;
-    b.onclick = () => ask(q);
+    b.onclick = () => {
+      // 「推荐附近一个地方」直接走定位→候选→路线，不进问答链路
+      if (/推荐|추천|recommend/i.test(q) && /附近|주변|nearby/i.test(q)) locateAndNearby();
+      else ask(q);
+    };
     box.appendChild(b);
+  });
+}
+
+/* 四步流程条：1 位置 → 2 条件 → 3 候选 → 4 路线 */
+function setFlow(step){
+  S.step = Math.max(S.step, step || 0);
+  document.querySelectorAll(".fstep").forEach(el => {
+    const n = parseInt(el.dataset.step, 10);
+    el.classList.toggle("on", n === step);
+    el.classList.toggle("done", n < step || (n < S.step && n !== step));
   });
 }
 
@@ -497,12 +610,15 @@ async function doLogout(){
 /* ---------------- 轻量 Markdown ---------------- */
 function esc(s){ return (s || "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 function stripTail(t, data){
-  // LLM 草稿末尾自带「资料来源 / 其它玩法补充推荐」清单，前端已用结构化块单独渲染，这里去掉避免重复
-  let s = (t || "").replace(/\n+[#*>\-\s]*((资料来源|数据来源|Sources|출처)[^\n]*)\n[\s\S]*$/i, "");
+  // LLM 草稿末尾自带「补充推荐 / 资料来源」清单，前端已用结构化块单独渲染，这里去掉避免重复。
+  // 标题可能带 ### / ** / 空格 / 冒号，统一放宽匹配。
+  let s = t || "";
   if ((data.supplements || []).length){
-    s = s.replace(/\n+[#*\-]*(其它玩法补充推荐|其他玩法补充推荐|Other[ -]theme[^\n]*|다른 테마[^\n]*)\n[\s\S]*$/i, "");
+    s = s.replace(/\n+[-–—\s#*>]*\**\s*(其它玩法补充推荐|其他玩法补充推荐|其他推荐|Other[ -]theme[^\n]*|다른 테마[^\n]*)[\s\S]*$/i, "");
   }
-  return s.trim();
+  s = s.replace(/\n+[-–—\s#*>]*\**\s*(资料来源|数据来源|信息来源|Sources|출처)[\s\S]*$/i, "");
+  s = s.replace(/\n+[-–—\s]*\**\s*(登录后开启联网检索|Log in to enable[^\n]*|로그인하면[^\n]*)[\s\S]*$/i, "");
+  return s.replace(/\n+[-–—\s]*$/g, "").trim();
 }
 
 function mdLite(text){
@@ -537,8 +653,7 @@ function renderTurn(q, data){
 
   let body = `<div class="answer">${mdLite(stripTail(data.answer || "", data))}</div>`;
 
-  const srcs = (data.sources || []).filter(s => s.detail);
-  let srcHtml = "";
+  const srcs = (data.sources || []).filter(s => s.detail);  let srcHtml = "";
   if (srcs.length){
     srcHtml = `<div class="src-block"><b>${T("src")}</b>` + srcs.map(s => {
       const v = /^https?:/.test(s.detail)
@@ -549,8 +664,7 @@ function renderTurn(q, data){
   }
 
   const sups = data.supplements || [];
-  let supHtml = "";
-  if (sups.length){
+  let supHtml = "";  if (sups.length){
     supHtml = `<div class="sup"><b>${T("sup")}</b>` + sups.map(s =>
       `<div class="sup-item">${esc(s.name)} <i>· ${esc(s.cat_label || s.category || "")} · ${esc(s.reason || "")}</i></div>`
     ).join("") + `</div>`;
@@ -562,10 +676,18 @@ function renderTurn(q, data){
       data.followups.map(f => `<button data-q="${esc(f)}">${esc(f)}</button>`).join("") + `</div>`;
   }
 
-  ab.innerHTML = meta + body + srcHtml + supHtml + fuHtml;
+  // 一轮问答的可核对轨迹：输入 → 检索（本地/联网） → 回答 → 来源
+  const webN = data.web_count ? ` + ${T("tagWeb").replace("%n", data.web_count)}` : "";
+  const trace = `<div class="trace"><b>${T("trIn")}</b><span class="sep">›</span>` +
+    `<b>${T("trRet")}</b> ${data.online ? T("tagOnline") : T("tagLocal")}${webN}` +
+    `<span class="sep">›</span><b>${T("trAns")}</b><span class="sep">›</span>` +
+    `<b>${T("trSrc")}</b> ${srcs.length}</div>`;
+
+  ab.innerHTML = meta + trace + body + srcHtml + supHtml + fuHtml;
   ab.querySelectorAll(".fu button").forEach(b => b.onclick = () => ask(b.dataset.q));
   wrap.appendChild(ab);
   $("turns").appendChild(wrap);
+  if (data.spot) setFlow(3);
 }
 
 async function ask(q){
@@ -606,47 +728,118 @@ function regenerateAll(){
 }
 
 /* ---------------- 附近景点 + NAVER 深链 ---------------- */
-function renderNearby(spots, lat, lng, keep){
+function reasonText(s){
+  return T(REASON_KEY[s.cat] || "rArt") + " · " + s.distance_km + " km";
+}
+
+function spotCard(s, isRec){
+  const row = document.createElement("div");
+  row.className = "spot" + (isRec ? " rec" : "");
+  row.innerHTML = `
+    <div class="spot-top">
+      <div><div class="spot-name">${isRec ? '<span class="rec-badge">' + T("rec") + '</span> ' : ""}${esc(s.name)}</div>
+        <div class="spot-ko">${esc(s.ko)}</div></div>
+      <div class="dist">${s.distance_km} km</div>
+    </div>
+    <div class="reason">${esc(reasonText(s))}</div>
+    <div class="map-row">
+      <a class="map-btn naver" data-route="1" href="${esc(s.naver_route_url || s.naver_url)}">${T("nav")}</a>
+      <a class="map-btn" href="${esc(s.naver_place_url || s.naver_url)}">${T("place")}</a>
+      <a class="map-btn" href="${esc(s.naver_web_url || '')}" target="_blank" rel="noopener">${T("web")}</a>
+      <a class="map-btn g" href="${esc(s.google_url)}" target="_blank" rel="noopener">${T("g")}</a>
+    </div>`;
+  const route = row.querySelector('[data-route="1"]');
+  if (route) route.addEventListener("click", () => setFlow(4));
+  return row;
+}
+
+function renderNearby(spots, lat, lng, keep, originName){
   S.spots = spots; S.nearLat = lat; S.nearLng = lng;
+  S.nearName = originName || (S.lang === "ko" ? "현위치(GPS)" : (S.lang === "en" ? "Current location (GPS)" : "当前位置（GPS）"));
   if (!keep) clearTurns();
+  else {
+    const old = document.querySelectorAll(".nearby, .locfail");
+    old.forEach(el => el.remove());
+  }
+
   const sec = document.createElement("section"); sec.className = "nearby";
-  sec.innerHTML = `<h3>${T("near")}</h3><p class="hint">${T("nearHint")}</p>`;
-  spots.forEach(s => {
-    const row = document.createElement("div"); row.className = "spot";
-    row.innerHTML = `
-      <div class="spot-top">
-        <div><div class="spot-name">${esc(s.name)}</div><div class="spot-ko">${esc(s.ko)}</div></div>
-        <div class="dist">${s.distance_km} km</div>
-      </div>
-      <div class="map-row">
-        <a class="map-btn naver" href="${esc(s.naver_route_url || s.naver_url)}">${T("nav")}</a>
-        <a class="map-btn" href="${esc(s.naver_place_url || s.naver_url)}">${T("place")}</a>
-        <a class="map-btn" href="${esc(s.naver_web_url || '')}" target="_blank" rel="noopener">${T("web")}</a>
-        <a class="map-btn g" href="${esc(s.google_url)}" target="_blank" rel="noopener">${T("g")}</a>
-      </div>`;
-    sec.appendChild(row);
-  });
+  const head = `<h3>${T("near")}<span class="dist" style="font-weight:500;color:#64748b">${esc(S.nearName)}</span></h3>
+                <p class="hint">${T("nearTop")} · ${T("nearHint")}</p>`;
+  sec.innerHTML = head;
+
+  spots.slice(0, 2).forEach(s => sec.appendChild(spotCard(s, true)));
+  if (spots.length > 2){
+    const btn = document.createElement("button");
+    btn.className = "more-btn";
+    btn.textContent = T("nearRest").replace("%n", spots.length - 2);
+    btn.onclick = () => {
+      btn.remove();
+      spots.slice(2).forEach(s => sec.appendChild(spotCard(s, false)));
+      setFlow(3);
+    };
+    sec.appendChild(btn);
+  }
   $("turns").appendChild(sec);
+  setFlow(3);
   sec.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
-async function nearbyAt(lat, lng, keep){
+/* 定位失败：仍把流程显示出来，允许重试或手动选出发点 */
+function renderLocFail(){
+  const old = document.querySelectorAll(".nearby, .locfail");
+  old.forEach(el => el.remove());
+  const sec = document.createElement("section"); sec.className = "locfail";
+  sec.innerHTML = `<h3>${T("locFailTitle")}</h3><p>${T("locFailBody")}</p>
+    <div class="row">
+      <button id="retryLoc">${T("retryLoc")}</button>
+      <select id="originSel"><option value="">${T("originPh")}</option></select>
+    </div>`;
+  const sel = sec.querySelector("#originSel");
+  (S.meta.spots || []).forEach((sp, i) => {
+    const o = document.createElement("option");
+    o.value = String(i); o.textContent = sp.name + " · " + sp.ko;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => {
+    const sp = (S.meta.spots || [])[Number(sel.value)];
+    if (!sp) return;
+    toast(sp.name);
+    nearbyAt(sp.lat, sp.lng, false, sp.name);
+  };
+  sec.querySelector("#retryLoc").onclick = locateAndNearby;
+  $("turns").appendChild(sec);
+  setFlow(1);
+  sec.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+async function nearbyAt(lat, lng, keep, originName){
+  setFlow(2);
   try{
     const r = await fetch("/api/nearby", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({lat, lng})
+      body: JSON.stringify({lat, lng, origin_name: originName || ""})
     });
     const m = await r.json();
-    renderNearby(m.spots || [], lat, lng, !!keep);
+    renderNearby(m.spots || [], lat, lng, !!keep, originName || m.origin_name || "");
   }catch(e){ toast(T("locateFail")); }
 }
 
 function locateAndNearby(){
-  if (!navigator.geolocation){ toast(T("locateFail")); return; }
+  setFlow(1);
+  if (!navigator.geolocation){ renderLocFail(); return; }
   toast(T("locate"));
-  navigator.geolocation.getCurrentPosition(pos => {
-    nearbyAt(pos.coords.latitude, pos.coords.longitude);
-  }, () => toast(T("locateFail")), {enableHighAccuracy:true, timeout:8000, maximumAge:60000});
+  const run = () => navigator.geolocation.getCurrentPosition(
+    pos => nearbyAt(pos.coords.latitude, pos.coords.longitude),
+    () => renderLocFail(),
+    {enableHighAccuracy:true, timeout:8000, maximumAge:60000}
+  );
+  // 安装包里先走 Android 运行时授权，授权结果由壳回调 __busanLocReady
+  if (window.BusanHost && window.BusanHost.requestLocation){
+    window.__busanLocReady = function(){ delete window.__busanLocReady; run(); };
+    try { window.BusanHost.requestLocation(); } catch(e){ run(); }
+    return;
+  }
+  run();
 }
 
 /* ---------------- 事件绑定 ---------------- */
@@ -684,9 +877,16 @@ window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); window
   document.querySelectorAll(".lang-btn").forEach(b => {
     if (b.dataset.lang === S.lang) b.classList.add("on");
   });
+  // APK 里才会注入 BusanHost：给出「更换服务器地址」入口
+  if (window.BusanHost && window.BusanHost.resetServer){
+    $("srvBtn").style.display = "inline-block";
+    $("srvBtn").title = T("srv");
+    $("srvBtn").onclick = () => window.BusanHost.resetServer();
+  }
   await checkMe();
   await loadMeta();
   applyLangUI();
+  setFlow(0);
   if ("serviceWorker" in navigator){ navigator.serviceWorker.register("/sw.js").catch(() => {}); }
   // 调试/分享入口：?lat=35.09&lng=128.97 可直接按坐标展示附近景点（无需浏览器定位权限）
   const qp = new URLSearchParams(location.search);

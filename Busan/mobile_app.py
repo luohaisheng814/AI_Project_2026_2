@@ -74,6 +74,14 @@ CAT_LABEL = {
     "04_小众渔港_文艺拍照": "小众渔港",
 }
 
+# 候选理由的多语言键：前端按当前界面语言取文案，避免把中文理由硬塞进韩/英界面
+CAT_REASON_KEY = {
+    "01_艺术村落_文化街区": "rArt",
+    "02_海岸休闲_日落夜景": "rSunset",
+    "03_湿地生态_自然观景": "rWetland",
+    "04_小众渔港_文艺拍照": "rHarbor",
+}
+
 GROUP_LABEL = {
     "solo_male": "一人（男）",
     "solo_female": "一人（女）",
@@ -145,6 +153,7 @@ def nearby(lat, lng, limit=8):
         items.append({
             **s,
             "cat_label": CAT_LABEL.get(s["cat"], s["cat"]),
+            "reason_key": CAT_REASON_KEY.get(s["cat"], "rArt"),
             "distance_km": round(d, 2),
             # ① 精确定位（坐标直给，NAVER 不需要再猜地点）
             "naver_place_url": (f"nmap://place?lat={s['lat']}&lng={s['lng']}&name={ko}&{app_tag}"),
@@ -158,6 +167,9 @@ def nearby(lat, lng, limit=8):
             "google_url": f"https://www.google.com/maps/dir/?api=1&destination={s['lat']},{s['lng']}",
         })
     items.sort(key=lambda x: x["distance_km"])
+    # 前 2 个作为「推荐候选」，其余留作展开项
+    for i, it in enumerate(items):
+        it["recommended"] = i < 2
     return items[:limit]
 
 
@@ -312,6 +324,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "categories": [{"key": c, "label": CAT_LABEL.get(c, c)} for c in config.CATEGORIES],
                 "groups": [{"key": g, "label": GROUP_LABEL.get(g, g)} for g in config.GROUP_TYPES],
+                # 定位失败时允许手选出发点：只给已收录、坐标已确认的景点，不编造地址
+                "spots": [{"name": s["name"], "ko": s["ko"], "lat": s["lat"], "lng": s["lng"]}
+                          for s in SPOTS_GEO],
             }, ensure_ascii=False))
 
         elif path == "/api/me":
@@ -434,8 +449,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, json.dumps({"error": "需提供 lat/lng"}, ensure_ascii=False))
                 return
             items = nearby(lat, lng)
-            self._send(200, json.dumps({"user_lat": lat, "user_lng": lng, "spots": items,
-                                        "map_app": "naver"}, ensure_ascii=False))
+            self._send(200, json.dumps({
+                "user_lat": lat, "user_lng": lng, "spots": items,
+                # 出发点名（GPS 为空；手选景点时为该景点名），前端据此在标题里标注
+                "origin_name": (body.get("origin_name") or "").strip(),
+                "map_app": "naver",
+            }, ensure_ascii=False))
             return
 
         self._send(404, "not found", "text/plain; charset=utf-8")
