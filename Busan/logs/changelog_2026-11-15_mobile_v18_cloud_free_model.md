@@ -174,8 +174,7 @@ v1.7 的方向是"APK 内置 llama.cpp 运行时 + 应用内下载 Qwen2.5-0.5B 
 - 仓库：`https://github.com/luohaisheng814/AI_Project_2026_2.git`
 - 分支：`main`
 - v1.8 代码提交：`5ba36e62ba46fd0cffd236cee0c44e13dc2f04d8`
-- 日志补充提交：`51d57f6`
 - 提交信息：`feat(mobile): v1.8 取消端侧模型，内置免费云端 Nemotron`
-- 推送结果：`2ce8965..5ba36e6 main -> main`，随后 `5ba36e6..51d57f6 main -> main`；当前远端 `refs/heads/main` 指向 `51d57f6`。
+- 推送结果：`2ce8965..5ba36e6 main -> main`，随后日志补充提交也已推送；v1.8 代码、APK/zip 与日志均已进入 `main`。
 - 未提交：`Busan/busan_travel.db`（本轮未改数据库结构，保持本地未暂存状态）；旧截图、`_chk*`、`AI团队作业/*` 等未跟踪文件未批量加入。
 
