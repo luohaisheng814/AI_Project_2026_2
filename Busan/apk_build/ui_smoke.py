@@ -12,7 +12,7 @@ import websocket
 
 CHROME = r"C:\Users\43763\AppData\Local\Google\Chrome\Application\chrome.exe"
 PAGE = "file:///D:/AI_Project_2026_2/Busan/android/assets/index.html"
-OUT = r"D:\AI_Project_2026_2\Busan\apk_build\v17_probe_choices.png"
+OUT = r"D:\AI_Project_2026_2\Busan\apk_build\v18_probe_choices.png"
 PORT = 9223
 
 
@@ -53,14 +53,15 @@ def main():
 
         cmd("Page.enable")
         cmd("Emulation.setDeviceMetricsOverride", {"width": 500, "height": 1400, "deviceScaleFactor": 1, "mobile": True})
-        cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
-            window.BusanHost = {
-              localModelState: function(){ return JSON.stringify({supported:true,installed:false,expected:397808192,name:'Qwen2.5-0.5B-Instruct Q4_K_M',license:'Apache-2.0'}); },
-              installLocalModel: function(id){}
-            };
-        """})
         cmd("Page.navigate", {"url": PAGE})
         time.sleep(2.5)
+        home = cmd("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})
+        home_path = os.path.join(os.path.dirname(__file__), "v18_probe_home.png")
+        with open(home_path, "wb") as f:
+            f.write(base64.b64decode(home["data"]))
+        cfg = cmd("Runtime.evaluate", {"expression": "JSON.stringify({modelStrip: !!document.getElementById('modelStrip'), llm: window.BusanLLM && BusanLLM.config(), provider: document.getElementById('llmProvider') ? document.getElementById('llmProvider').textContent : ''})", "returnByValue": True})
+        print("CONFIG:" + cfg.get("result", {}).get("value", ""))
+        print("screenshot:", home_path)
         cmd("Runtime.evaluate", {"expression": """
             document.getElementById('q').value='甘川文化村 轮椅 怎么去';
             document.getElementById('send').click();
@@ -83,6 +84,24 @@ def main():
         with open(plan_out, "wb") as f:
             f.write(base64.b64decode(shot2["data"]))
         print("screenshot:", plan_out)
+
+        # 账户面板：注入一个本机演示账户，重载后打开面板，核对云端卡片
+        cmd("Runtime.evaluate", {"expression": """
+            localStorage.setItem('busan_demo_auth', JSON.stringify({u1:{username:'u1',displayName:'测试用户',hash:'demo',createdAt:Date.now(),lastActive:Date.now()}}));
+            localStorage.setItem('busan_demo_session', JSON.stringify({key:'u1',token:'demo',at:Date.now()}));
+            location.reload();
+        """})
+        time.sleep(2.2)
+        cmd("Runtime.evaluate", {"expression": "document.getElementById('acctBtn').click();"})
+        time.sleep(0.8)
+        acct_html = cmd("Runtime.evaluate", {"expression": "document.getElementById('acctPanel') ? document.getElementById('acctPanel').outerHTML : 'none'", "returnByValue": True})
+        acct_text = acct_html.get("result", {}).get("value", "")
+        print("ACCT:" + acct_text[:3000])
+        shot3 = cmd("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})
+        acct_out = os.path.join(os.path.dirname(__file__), "v18_probe_account.png")
+        with open(acct_out, "wb") as f:
+            f.write(base64.b64decode(shot3["data"]))
+        print("screenshot:", acct_out)
         ws.close()
     finally:
         proc.terminate()

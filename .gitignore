@@ -23,9 +23,11 @@ req.json
 Busan/apk_build/build/
 Busan/apk_build/cache/
 Busan/apk_build/keystore/
+Busan/apk_build/models/
 *.idsig
 
-# 端侧推理：llama.cpp 源码与 CMake 构建目录不入库
+# 本地工具链缓存不入库（CMake wheel 等）
 third_party/
-Busan/android/native/build-*/
+
+# 无头 Chrome 探针临时目录
 Busan/apk_build/_chrome_probe/

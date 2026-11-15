@@ -14,7 +14,9 @@
   var saveTimer = null;
   var toastTimer = null;
   var authBusy = false;
-  var llmCfg = { endpoint: "", model: "", hasKey: false, keyTail: "" };
+  var DEFAULT_LLM_ENDPOINT = "https://ai-gateway.kilo.ai/api/v1";
+  var DEFAULT_LLM_MODEL = "nvidia/nemotron-3.5-super-vl:free";
+  var llmCfg = { endpoint: DEFAULT_LLM_ENDPOINT, model: DEFAULT_LLM_MODEL, hasKey: false, keyTail: "", builtin: true };
 
   function lang() { return (window.BusanUI && BusanUI.getLang()) || "zh"; }
   function L(zh, ko, en) { return lang() === "zh" ? zh : lang() === "ko" ? ko : en; }
@@ -189,6 +191,8 @@
     setText("prefSave", L("保存偏好", "취향 저장", "Save preferences"));
     setText("llmSave", L("保存设置", "설정 저장", "Save settings"));
     setText("llmTest", L("测试连接", "연결 테스트", "Test connection"));
+    setText("llmReset", L("恢复默认", "기본값 복원", "Reset to default"));
+    setText("llmTitle", L("云端大模型", "클라우드 모델", "Cloud model"));
     setText("logoutBtn", L("退出登录", "로그아웃", "Sign out"));
   }
 
@@ -425,30 +429,77 @@
 
   /* ---------------- 大模型 ---------------- */
   function loadLlmConfig() {
+    var rawCfg = {};
     if (hasHost("getLlmConfig")) {
       try {
         var raw = HOST.getLlmConfig();
-        llmCfg = typeof raw === "string" ? JSON.parse(raw) : raw;
-      } catch (e) { llmCfg = { endpoint: "", model: "", hasKey: false }; }
+        rawCfg = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
+      } catch (e) { rawCfg = {}; }
     } else {
-      try { llmCfg = JSON.parse(localStorage.getItem("busan_llm_demo") || "{}"); } catch (e) { llmCfg = {}; }
+      try { rawCfg = JSON.parse(localStorage.getItem("busan_llm_demo") || "{}"); } catch (e) { rawCfg = {}; }
     }
+    llmCfg = {
+      endpoint: rawCfg.endpoint || DEFAULT_LLM_ENDPOINT,
+      model: rawCfg.model || DEFAULT_LLM_MODEL,
+      hasKey: !!rawCfg.hasKey,
+      keyTail: rawCfg.keyTail || "",
+      apiKey: rawCfg.apiKey || "",
+      builtin: !rawCfg.endpoint && !rawCfg.model,
+      provider: rawCfg.provider || (rawCfg.endpoint || rawCfg.model ? "custom" : "Kilo Gateway · Free")
+    };
   }
 
   function loadLlmIntoForm() {
     loadLlmConfig();
-    document.getElementById("llmEndpoint").value = llmCfg.endpoint || "";
-    document.getElementById("llmModel").value = llmCfg.model || "";
-    document.getElementById("llmKey").value = "";
+    var epEl = document.getElementById("llmEndpoint");
+    var mdEl = document.getElementById("llmModel");
+    var keyEl = document.getElementById("llmKey");
+    if (epEl) epEl.value = llmCfg.builtin ? "" : llmCfg.endpoint;
+    if (mdEl) mdEl.value = llmCfg.builtin ? "" : llmCfg.model;
+    if (keyEl) keyEl.value = "";
+    var provider = document.getElementById("llmProvider");
+    if (provider) provider.textContent = llmCfg.builtin ? "NVIDIA Nemotron 3.5 Super VL" : llmCfg.model;
+    var note = document.getElementById("llmNote");
+    if (note) {
+      note.textContent = llmCfg.builtin
+        ? L("开放权重 · 免费云端 · 无需 API Key。联网后自动连接，断网自动回退包内规则与快照。",
+            "개방 가중치 · 무료 클라우드 · API Key 없음. 연결되면 자동 사용하고 오프라인이면 내장 규칙으로 돌아갑니다.",
+            "Open weights · free cloud · no API key. Connects automatically when online, falls back to bundled rules offline.")
+        : L("已切换到自定义接口。联网时自动调用；断网仍回退包内规则与快照。",
+            "사용자 지정 API로 전환했습니다. 연결 시 자동 호출하고 오프라인이면 내장 규칙을 사용합니다.",
+            "Custom endpoint is active. It is called automatically when online; bundled rules remain the offline fallback.");
+    }
     var status = document.getElementById("llmStatus");
-    if (llmCfg.hasKey) {
+    if (!status) return;
+    if (llmCfg.builtin) {
       status.className = "llmstatus ok";
-      status.textContent = L("已保存 Key（尾号 " + (llmCfg.keyTail || "") + "）；推演时会优先调用大模型。",
-        "Key 저장됨(끝 " + (llmCfg.keyTail || "") + "). 일정 생성 시 LLM을 우선 호출합니다.",
-        "Key saved (tail " + (llmCfg.keyTail || "") + "); plans will try the model first.");
+      status.textContent = L("已内置免费云端，联网自动连接；不需要填写 Key。",
+        "무료 클라우드가 내장되어 연결 시 자동 사용합니다. Key가 필요 없습니다.",
+        "Free cloud is built in and connects automatically. No key required.");
+    } else if (llmCfg.hasKey) {
+      status.className = "llmstatus ok";
+      status.textContent = L("自定义接口已保存 Key（尾号 " + (llmCfg.keyTail || "") + "）。",
+        "사용자 API Key 저장됨(끝 " + (llmCfg.keyTail || "") + ").",
+        "Custom endpoint key saved (tail " + (llmCfg.keyTail || "") + ").");
     } else {
       status.className = "llmstatus";
-      status.textContent = L("未配置大模型：当前使用本地核心词与规则推演。", "LLM 미설정: 로컬 핵심어·규칙으로 생성합니다.", "No model configured — using local core-word rules.");
+      status.textContent = L("自定义接口已保存；未填 Key 时按匿名接口调用。",
+        "사용자 API가 저장되었습니다. Key가 없으면 익명 호출을 시도합니다.",
+        "Custom endpoint saved; anonymous call is used without a key.");
+    }
+  }
+
+  function resetLlm() {
+    if (hasHost("clearLlmConfig")) {
+      try { HOST.clearLlmConfig(); } catch (e) {}
+    } else {
+      localStorage.removeItem("busan_llm_demo");
+    }
+    loadLlmIntoForm();
+    var status = document.getElementById("llmStatus");
+    if (status) {
+      status.className = "llmstatus ok";
+      status.textContent = L("已恢复内置免费云端。", "내장 무료 클라우드로 복원했습니다.", "Built-in free cloud restored.");
     }
   }
 
@@ -484,59 +535,6 @@
   }
 
   var pending = {};
-  var pendingLocal = {};
-  var localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
-  var localLoading = false;
-
-  function refreshLocalModelState() {
-    if (!hasHost("localModelState")) {
-      localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
-      return localState;
-    }
-    try {
-      var raw = HOST.localModelState();
-      localState = typeof raw === "string" ? JSON.parse(raw) : raw;
-    } catch (e) {
-      localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
-    }
-    return localState;
-  }
-
-  function localReady() {
-    refreshLocalModelState();
-    return !!localState.installed;
-  }
-
-  var installCb = null;
-  window.__busanModelProgress = function (id, pct, done, total) {
-    if (window.BusanUI && BusanUI.modelProgress) BusanUI.modelProgress(pct, done, total);
-  };
-
-  window.__busanModelDone = function (id, ok, message, state) {
-    localLoading = false;
-    try { if (state) localState = typeof state === "string" ? JSON.parse(state) : state; } catch (e) {}
-    if (window.BusanUI && BusanUI.modelDone) BusanUI.modelDone(!!ok, message || "", localState);
-    if (installCb) { var cb = installCb; installCb = null; cb(!!ok, message || "", localState); }
-  };
-
-  function installLocalModel(cb) {
-    if (!hasHost("installLocalModel")) { if (cb) cb(false, "no_bridge"); return; }
-    if (localLoading) { if (cb) cb(false, "busy"); return; }
-    localLoading = true;
-    installCb = cb || null;
-    var id = "model" + Math.random().toString(36).slice(2);
-    try { HOST.installLocalModel(id); }
-    catch (e) { localLoading = false; if (cb) cb(false, "bridge_error"); }
-  }
-
-  window.__busanLocalDone = function (id, status, text) {
-    var cb = pendingLocal[id];
-    if (!cb) return;
-    delete pendingLocal[id];
-    if (status === 0) cb(0, text || "", "");
-    else cb(status, text || "", "");
-  };
-
   window.__busanLlmDone = function (id, status, body) {
     var cb = pending[id];
     if (!cb) return;
@@ -553,19 +551,7 @@
   };
 
   function llmChat(messages, cb) {
-    // 端侧模型优先：完全离线、无需 API Key；未安装才走可选的远程兼容接口。
-    if (localReady() && hasHost("localChat")) {
-      var lid = "loc" + Math.random().toString(36).slice(2);
-      pendingLocal[lid] = cb;
-      try {
-        HOST.localChat(JSON.stringify(messages), lid);
-      } catch (e) {
-        delete pendingLocal[lid];
-        cb(-1, "bridge_error", "");
-      }
-      return;
-    }
-    if (!llmConfigured()) { cb(-2, "not_configured", ""); return; }
+    loadLlmConfig();
     if (hasHost("llmChat")) {
       var id = "llm" + Math.random().toString(36).slice(2);
       pending[id] = cb;
@@ -577,13 +563,22 @@
       }
       return;
     }
-    loadLlmConfig();
-    var endpoint = (llmCfg.endpoint || "").replace(/\/+$/, "");
+    var endpoint = (llmCfg.endpoint || DEFAULT_LLM_ENDPOINT).replace(/\/+$/, "");
     if (!/\/chat\/completions$/.test(endpoint)) endpoint += "/chat/completions";
+    var model = llmCfg.model || DEFAULT_LLM_MODEL;
+    var payload = {
+      model: model,
+      messages: messages,
+      temperature: 0.2,
+      max_tokens: 900
+    };
+    if (model === DEFAULT_LLM_MODEL) payload.reasoning_effort = "none";
+    var headers = { "Content-Type": "application/json" };
+    if (llmCfg.apiKey) headers["Authorization"] = "Bearer " + llmCfg.apiKey;
     fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (llmCfg.apiKey || "") },
-      body: JSON.stringify({ model: llmCfg.model || "gpt-4o-mini", messages: messages, temperature: 0.25, max_tokens: 900 })
+      headers: headers,
+      body: JSON.stringify(payload)
     }).then(function (r) { return r.text().then(function (t) { return { s: r.status, t: t }; }); })
       .then(function (x) {
         if (x.s < 200 || x.s >= 300) { cb(x.s, extractContent(x.t).error || "http_" + x.s, x.t); return; }
@@ -594,7 +589,7 @@
 
   function llmConfigured() {
     loadLlmConfig();
-    return !!(llmCfg && llmCfg.endpoint && llmCfg.hasKey);
+    return !!(llmCfg && (llmCfg.endpoint || DEFAULT_LLM_ENDPOINT) && (llmCfg.model || DEFAULT_LLM_MODEL));
   }
 
   function testLlm() {
@@ -602,11 +597,11 @@
     saveLlm();
     if (!llmConfigured()) {
       status.className = "llmstatus err";
-      status.textContent = L("请先填写接口地址和 API Key。", "API 주소와 Key를 먼저 입력하세요.", "Fill in the endpoint and API key first.");
+      status.textContent = L("云端地址无效，请检查接口设置。", "클라우드 주소가 올바르지 않습니다.", "Cloud endpoint is invalid.");
       return;
     }
     status.className = "llmstatus";
-    status.textContent = L("正在测试…", "테스트 중…", "Testing…");
+    status.textContent = L("正在测试云端连接…", "클라우드 연결 테스트 중…", "Testing cloud connection…");
     llmChat([{ role: "user", content: "Reply with the single word OK." }], function (code, out) {
       if (code === 0) {
         status.className = "llmstatus ok";
@@ -692,6 +687,8 @@
     if (ls) ls.onclick = saveLlm;
     var lt = document.getElementById("llmTest");
     if (lt) lt.onclick = testLlm;
+    var lr = document.getElementById("llmReset");
+    if (lr) lr.onclick = resetLlm;
 
     setTimeout(startupNetToast, 900);
 
@@ -723,9 +720,8 @@
   window.BusanLLM = {
     configured: llmConfigured,
     chat: llmChat,
-    localReady: localReady,
-    localState: refreshLocalModelState,
-    installLocal: installLocalModel,
+    test: testLlm,
+    reset: resetLlm,
     config: function () { loadLlmConfig(); return llmCfg; }
   };
 })();

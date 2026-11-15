@@ -31,8 +31,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -49,15 +47,14 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v1.5
+ * 釜山 AI 旅行助手 v1.8
  *
- * v1.5 在 v1.4 的「云端直连 + 包内快照」之上补齐四件事：
- *   1. 本地账户：注册 / 登录 / 登出，PBKDF2 密码哈希，30 天不活跃自动过期；
- *   2. 账户状态：语言、玩法、出行、历史问题、偏好与上一次推演按用户保存；
- *   3. 网络与定位：网络能力变化实时回调页面；前台实时定位持续回传坐标；
- *   4. 大模型：可选 OpenAI 兼容接口，API Key 只存在应用私有目录，不进入网页。
+ * v1.8 取消端侧模型与 379 MB 模型下载，改为「联网即用」的免费云端模型：
+ *   - 内置 Kilo Gateway 匿名免费接入，默认 NVIDIA Nemotron 3.5 Super VL（开放权重）；
+ *   - 不需要 API Key，联网后问答/行程自动调用；离线自动回退包内规则与快照；
+ *   - 仍保留自定义 OpenAI 兼容接口的能力，方便换模型或自建网关。
  *
- * 联网 / 离线的分界仍然是「手机自己允不允许本 App 使用当前网络」。
+ * v1.5 起已有的本地账户、会话、偏好持久化、实时定位与网络回调保持不变。
  */
 public class MainActivity extends Activity {
 
@@ -66,12 +63,10 @@ public class MainActivity extends Activity {
     private static final long SESSION_TTL_MS = 30L * 24L * 60L * 60L * 1000L;
     private static final int PBKDF2_ROUNDS = 100000;
 
-    /** 端侧模型：Qwen2.5-0.5B-Instruct，Apache-2.0，GGUF Q4_K_M。 */
-    private static final String LOCAL_MODEL_NAME = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
-    private static final String LOCAL_MODEL_URL =
-            "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf";
-    private static final long LOCAL_MODEL_BYTES = 397808192L;
-    private boolean modelDownloading = false;
+    /** 默认云端：Kilo Gateway 匿名免费层，无需 API Key；模型为开放权重的 Nemotron 3.5 Super VL。 */
+    private static final String DEFAULT_LLM_ENDPOINT = "https://ai-gateway.kilo.ai/api/v1";
+    private static final String DEFAULT_LLM_MODEL = "nvidia/nemotron-3.5-super-vl:free";
+    private static final String DEFAULT_LLM_PROVIDER = "Kilo Gateway · Free";
 
     private WebView web;
     private final ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -159,7 +154,6 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         stopLocationInternal();
         unregisterNetworkCallback();
-        try { LocalLlm.release(); } catch (Exception ignored) {}
         super.onDestroy();
     }
 
@@ -554,7 +548,8 @@ public class MainActivity extends Activity {
     /* ================= 大模型（OpenAI 兼容） ================= */
 
     private String llmEndpoint() {
-        return llmPrefs.getString("endpoint", "").trim();
+        String e = llmPrefs.getString("endpoint", "").trim();
+        return e.isEmpty() ? DEFAULT_LLM_ENDPOINT : e;
     }
 
     private String llmKey() {
@@ -563,11 +558,16 @@ public class MainActivity extends Activity {
 
     private String llmModel() {
         String m = llmPrefs.getString("model", "").trim();
-        return m.isEmpty() ? "gpt-4o-mini" : m;
+        return m.isEmpty() ? DEFAULT_LLM_MODEL : m;
+    }
+
+    private boolean llmBuiltin() {
+        return llmPrefs.getString("endpoint", "").trim().isEmpty()
+                && llmPrefs.getString("model", "").trim().isEmpty();
     }
 
     private boolean llmReady() {
-        return !llmEndpoint().isEmpty() && !llmKey().isEmpty() && !llmModel().isEmpty();
+        return !llmEndpoint().isEmpty() && !llmModel().isEmpty();
     }
 
     private String llmConfigJson() {
@@ -575,6 +575,8 @@ public class MainActivity extends Activity {
             JSONObject out = new JSONObject();
             out.put("endpoint", llmEndpoint());
             out.put("model", llmModel());
+            out.put("provider", llmBuiltin() ? DEFAULT_LLM_PROVIDER : "custom");
+            out.put("builtin", llmBuiltin());
             out.put("hasKey", !llmKey().isEmpty());
             String key = llmKey();
             out.put("keyTail", key.length() > 4 ? key.substring(key.length() - 4) : "");
@@ -651,19 +653,26 @@ public class MainActivity extends Activity {
                     JSONObject payload = new JSONObject();
                     payload.put("model", llmModel());
                     payload.put("messages", messages);
-                    payload.put("temperature", 0.25);
+                    payload.put("temperature", 0.2);
                     payload.put("max_tokens", 900);
                     payload.put("stream", false);
+                    if (DEFAULT_LLM_MODEL.equals(llmModel())) {
+                        // 默认模型自带推理段；关闭后直接输出答案/JSON，避免 900 token 被推理耗尽。
+                        payload.put("reasoning_effort", "none");
+                    }
 
                     URL u = new URL(normalizeEndpoint(llmEndpoint()));
                     conn = (HttpURLConnection) u.openConnection();
                     conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(25000);
+                    conn.setReadTimeout(60000);
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
                     conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                    conn.setRequestProperty("Authorization", "Bearer " + llmKey());
+                    if (!llmKey().isEmpty()) {
+                        conn.setRequestProperty("Authorization", "Bearer " + llmKey());
+                    }
                     conn.setRequestProperty("Accept", "application/json");
+                    conn.setRequestProperty("User-Agent", "BusanTour/1.8 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
@@ -688,220 +697,6 @@ public class MainActivity extends Activity {
                     if (conn != null) conn.disconnect();
                 }
                 llmCallback(cbId, status, body);
-            }
-        });
-    }
-
-    /* ================= 端侧大模型 ================= */
-
-    private boolean supportsArm64() {
-        for (String abi : Build.SUPPORTED_ABIS) {
-            if ("arm64-v8a".equals(abi)) return true;
-        }
-        return false;
-    }
-
-    private File modelDir() {
-        File ext = getExternalFilesDir("models");
-        if (ext != null) return ext;
-        return new File(getFilesDir(), "models");
-    }
-
-    private File modelFile() {
-        return new File(modelDir(), LOCAL_MODEL_NAME);
-    }
-
-    private String localModelStateJson() {
-        File m = modelFile();
-        boolean installed = m.isFile() && m.length() == LOCAL_MODEL_BYTES;
-        try {
-            JSONObject out = new JSONObject();
-            out.put("supported", supportsArm64());
-            out.put("installed", installed);
-            out.put("bytes", m.isFile() ? m.length() : 0L);
-            out.put("expected", LOCAL_MODEL_BYTES);
-            out.put("name", "Qwen2.5-0.5B-Instruct Q4_K_M");
-            out.put("license", "Apache-2.0");
-            out.put("path", installed ? m.getAbsolutePath() : "");
-            return out.toString();
-        } catch (Exception e) {
-            return "{\"supported\":false,\"installed\":false}";
-        }
-    }
-
-    private void modelProgress(final String cbId, final int percent,
-                               final long done, final long total) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                js("window.__busanModelProgress&&window.__busanModelProgress(" +
-                        JSONObject.quote(cbId) + "," + percent + "," + done + "," + total + ");");
-            }
-        });
-    }
-
-    private void modelDone(final String cbId, final boolean ok, final String message) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                js("window.__busanModelDone&&window.__busanModelDone(" +
-                        JSONObject.quote(cbId) + "," + (ok ? "true" : "false") + "," +
-                        JSONObject.quote(message == null ? "" : message) + "," +
-                        JSONObject.quote(localModelStateJson()) + ");");
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public String localModelState() {
-        return localModelStateJson();
-    }
-
-    /** 一次性下载安装；装好后完全离线推理，不依赖电脑或云端。 */
-    @JavascriptInterface
-    public void installLocalModel(final String cbId) {
-        if (!supportsArm64()) {
-            modelDone(cbId, false, "unsupported_abi");
-            return;
-        }
-        if (modelDownloading) {
-            modelDone(cbId, false, "busy");
-            return;
-        }
-        modelDownloading = true;
-        pool.execute(new Runnable() {
-            @Override
-            public void run() {
-                File dir = modelDir();
-                if (!dir.exists() && !dir.mkdirs()) {
-                    modelDownloading = false;
-                    modelDone(cbId, false, "mkdir_failed");
-                    return;
-                }
-                File out = modelFile();
-                File part = new File(dir, LOCAL_MODEL_NAME + ".part");
-                boolean ok = false;
-                String err = "download_failed";
-                HttpURLConnection conn = null;
-                try {
-                    if (out.isFile() && out.length() == LOCAL_MODEL_BYTES) {
-                        modelProgress(cbId, 100, LOCAL_MODEL_BYTES, LOCAL_MODEL_BYTES);
-                        modelDownloading = false;
-                        modelDone(cbId, true, "installed");
-                        return;
-                    }
-                    long start = part.isFile() ? part.length() : 0L;
-                    URL u = new URL(LOCAL_MODEL_URL);
-                    conn = (HttpURLConnection) u.openConnection();
-                    conn.setConnectTimeout(20000);
-                    conn.setReadTimeout(45000);
-                    conn.setInstanceFollowRedirects(true);
-                    conn.setRequestProperty("User-Agent", "BusanTour/1.7 (Android)");
-                    conn.setRequestProperty("Accept-Encoding", "identity");
-                    if (start > 0) conn.setRequestProperty("Range", "bytes=" + start + "-");
-                    int code = conn.getResponseCode();
-                    if (code != 200 && code != 206) {
-                        err = "http_" + code;
-                    } else {
-                        long total = LOCAL_MODEL_BYTES;
-                        String cl = conn.getHeaderField("Content-Length");
-                        if (cl != null && code == 200) {
-                            try { total = Long.parseLong(cl.trim()); } catch (Exception ignored) {}
-                        }
-                        if (code == 200) start = 0L;
-                        InputStream in = conn.getInputStream();
-                        FileOutputStream fos = new FileOutputStream(part, start > 0);
-                        byte[] buf = new byte[65536];
-                        long done = start;
-                        int lastPct = -1;
-                        int n;
-                        while ((n = in.read(buf)) >= 0) {
-                            fos.write(buf, 0, n);
-                            done += n;
-                            int pct = total > 0 ? (int) Math.min(99, done * 100 / total) : 0;
-                            if (pct != lastPct) {
-                                lastPct = pct;
-                                modelProgress(cbId, pct, done, total);
-                            }
-                        }
-                        fos.flush();
-                        fos.close();
-                        in.close();
-                        if (done == LOCAL_MODEL_BYTES) {
-                            if (out.exists()) out.delete();
-                            ok = part.renameTo(out);
-                            if (!ok) err = "rename_failed";
-                        } else {
-                            err = "size_mismatch";
-                        }
-                    }
-                } catch (Exception e) {
-                    err = "network";
-                } finally {
-                    if (conn != null) conn.disconnect();
-                    modelDownloading = false;
-                }
-                if (ok) {
-                    modelProgress(cbId, 100, LOCAL_MODEL_BYTES, LOCAL_MODEL_BYTES);
-                    modelDone(cbId, true, "installed");
-                } else {
-                    modelDone(cbId, false, err);
-                }
-            }
-        });
-    }
-
-    private String localPathIfReady() {
-        File m = modelFile();
-        return (m.isFile() && m.length() == LOCAL_MODEL_BYTES) ? m.getAbsolutePath() : "";
-    }
-
-    @JavascriptInterface
-    public void localChat(final String messagesJson, final String cbId) {
-        final String path = localPathIfReady();
-        if (path.isEmpty()) {
-            localDone(cbId, -2, "model_not_installed");
-            return;
-        }
-        pool.execute(new Runnable() {
-            @Override
-            public void run() {
-                int status = -1;
-                String text = "";
-                try {
-                    JSONArray messages = new JSONArray(messagesJson);
-                    StringBuilder sys = new StringBuilder();
-                    StringBuilder user = new StringBuilder();
-                    for (int i = 0; i < messages.length(); i++) {
-                        JSONObject m = messages.getJSONObject(i);
-                        String role = m.optString("role", "");
-                        String content = m.optString("content", "");
-                        if ("system".equals(role)) sys.append(content).append("\n");
-                        else if ("user".equals(role)) user.append(content).append("\n");
-                    }
-                    if (user.length() == 0) {
-                        status = -3;
-                    } else if (!LocalLlm.ensureLoaded(getApplicationInfo().nativeLibraryDir, path)) {
-                        status = -4;
-                    } else {
-                        text = LocalLlm.generate(sys.toString(), user.toString(), 720);
-                        status = text.isEmpty() ? -5 : 0;
-                    }
-                } catch (Exception e) {
-                    status = -1;
-                }
-                localDone(cbId, status, text);
-            }
-        });
-    }
-
-    private void localDone(final String cbId, final int status, final String text) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                js("window.__busanLocalDone&&window.__busanLocalDone(" +
-                        JSONObject.quote(cbId) + "," + status + "," +
-                        JSONObject.quote(text == null ? "" : text) + ");");
             }
         });
     }
@@ -1019,18 +814,28 @@ public class MainActivity extends Activity {
     class HostBridge {
 
         @JavascriptInterface
-        public String localModelState() {
-            return MainActivity.this.localModelState();
+        public boolean llmConfigured() {
+            return MainActivity.this.llmConfigured();
         }
 
         @JavascriptInterface
-        public void installLocalModel(String cbId) {
-            MainActivity.this.installLocalModel(cbId);
+        public String getLlmConfig() {
+            return MainActivity.this.getLlmConfig();
         }
 
         @JavascriptInterface
-        public void localChat(String messagesJson, String cbId) {
-            MainActivity.this.localChat(messagesJson, cbId);
+        public String saveLlmConfig(String endpoint, String apiKey, String model) {
+            return MainActivity.this.saveLlmConfig(endpoint, apiKey, model);
+        }
+
+        @JavascriptInterface
+        public String clearLlmConfig() {
+            return MainActivity.this.clearLlmConfig();
+        }
+
+        @JavascriptInterface
+        public void llmChat(String messagesJson, String cbId) {
+            MainActivity.this.llmChat(messagesJson, cbId);
         }
 
         @JavascriptInterface

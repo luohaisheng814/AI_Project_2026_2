@@ -224,11 +224,17 @@
   .choice .ctag{display:inline-block; font-size:10.5px; color:var(--sea); background:#eaf4f8; border-radius:8px; padding:1px 5px; margin-left:4px; vertical-align:1px}
   .choice .creason{display:block; font-size:11.5px; color:var(--muted); line-height:1.45; margin-top:1px}
   .choice .cgo{flex:0 0 auto; font-size:11px; color:var(--sea); align-self:center}
-  .modelstrip{display:flex; align-items:center; gap:8px; background:#f2fafc; border-bottom:1px solid #d6e8ee; padding:6px 12px; font-size:11.5px; color:#36505c}
-  .modelstrip .mstext{flex:1 1 auto; min-width:0; line-height:1.4}
-  .modelstrip .msbar{height:3px; background:#d6e8ee; border-radius:2px; overflow:hidden; margin-top:3px}
-  .modelstrip .msbar i{display:block; height:100%; width:0; background:var(--sea); transition:width .2s}
-  .modelstrip button{border:1px solid var(--sea); background:#fff; color:var(--sea); border-radius:12px; padding:4px 9px; font-size:11px; flex:0 0 auto}
+  .ai-note{font-size:11.5px; color:#405562; border-left:2px solid #9ccfdd; padding:4px 0 4px 8px; margin-top:7px; line-height:1.55}
+  .ai-note b{color:var(--sea); font-weight:700}
+  .cloudllm{background:#f7fbfc; border-left:3px solid var(--sea); border-radius:0 10px 10px 0; padding:9px 10px}
+  .cloudllm .cl-top{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#23313c}
+  .cloudllm .cl-dot{width:6px; height:6px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 2px #e3f3ea}
+  .cloudllm .cl-note{font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:4px}
+  .cloudllm .cl-actions{display:flex; gap:8px; margin-top:8px}
+  .cloudllm .cl-actions button{flex:1 1 0; margin-top:0}
+  .llmadv{margin-top:10px; border-top:1px dashed #dfe9ee; padding-top:7px}
+  .llmadv summary{font-size:12px; color:var(--sea); cursor:pointer; padding:2px 0}
+  .llmadv[open] summary{margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -248,11 +254,6 @@
     </div>
   </div>
 </header>
-
-<div class="modelstrip" id="modelStrip" hidden>
-  <div class="mstext" id="modelText"></div>
-  <button id="modelBtn" type="button"></button>
-</div>
 
 <div class="selectors">
   <div class="row" id="catRow"><span class="lbl" id="catLbl">玩法</span></div>
@@ -402,25 +403,33 @@
       </div>
 
       <div class="sect">
-        <h3>大模型（可选）</h3>
-        <div class="llmnote">支持 OpenAI 兼容的 <code>/chat/completions</code> 接口。填了才会调用大模型；不填时完全走本地核心词与规则推演，所有资料仍来自景点库。Key 只存本机应用私有目录。</div>
-        <div class="field">
-          <label for="llmEndpoint">接口地址</label>
-          <input id="llmEndpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions">
+        <h3 id="llmTitle">云端大模型</h3>
+        <div class="cloudllm">
+          <div class="cl-top"><span class="cl-dot"></span><span id="llmProvider">NVIDIA Nemotron 3.5 Super VL</span></div>
+          <div class="cl-note" id="llmNote">开放权重 · 免费云端 · 无需 API Key。联网后自动连接，断网自动回退包内规则与快照。</div>
+          <div class="llmstatus" id="llmStatus"></div>
+          <div class="cl-actions">
+            <button class="primary" id="llmTest" type="button">测试云端连接</button>
+            <button class="ghost" id="llmReset" type="button">恢复默认</button>
+          </div>
         </div>
-        <div class="field">
-          <label for="llmModel">模型名</label>
-          <input id="llmModel" type="text" placeholder="gpt-4o-mini">
-        </div>
-        <div class="field">
-          <label for="llmKey">API Key</label>
-          <input id="llmKey" type="password" autocomplete="off" placeholder="sk-…（留空则保留已保存的 Key）">
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="primary" id="llmSave" type="button" style="flex:1">保存设置</button>
-          <button class="ghost" id="llmTest" type="button" style="flex:1;margin-top:4px">测试连接</button>
-        </div>
-        <div class="llmstatus" id="llmStatus"></div>
+        <details class="llmadv">
+          <summary>自定义接口（可选）</summary>
+          <div class="llmnote">支持任意 OpenAI 兼容的 <code>/chat/completions</code> 接口。留空就用内置免费云端；Key 只存本机应用私有目录。</div>
+          <div class="field">
+            <label for="llmEndpoint">接口地址</label>
+            <input id="llmEndpoint" type="url" placeholder="https://ai-gateway.kilo.ai/api/v1">
+          </div>
+          <div class="field">
+            <label for="llmModel">模型名</label>
+            <input id="llmModel" type="text" placeholder="nvidia/nemotron-3.5-super-vl:free">
+          </div>
+          <div class="field">
+            <label for="llmKey">API Key</label>
+            <input id="llmKey" type="password" autocomplete="off" placeholder="可留空；自定义服务需要时再填">
+          </div>
+          <button class="ghost" id="llmSave" type="button" style="width:100%">保存自定义设置</button>
+        </details>
       </div>
 
       <div class="sect">
@@ -491,55 +500,6 @@
     // 在线时没有任何常驻状态控件；离线提示由启动提示和网络变化回调负责，避免重复弹出。
   }
 
-  /* ---------------- 端侧模型安装条 ---------------- */
-  var modelBusy = false;
-  function paintModelStrip(){
-    var strip = document.getElementById("modelStrip");
-    var txt = document.getElementById("modelText");
-    var btn = document.getElementById("modelBtn");
-    if (!strip || !txt || !btn) return;
-    var st = (window.BusanLLM && BusanLLM.localState) ? BusanLLM.localState() : null;
-    if (!st || !st.supported || st.installed){
-      strip.hidden = true;
-      return;
-    }
-    strip.hidden = false;
-    if (modelBusy){
-      txt.innerHTML = (lang === "zh" ? "正在安装离线大模型" : lang === "ko" ? "오프라인 모델 설치 중" : "Installing offline model") +
-        ' <span id="modelPct">0%</span><div class="msbar"><i id="modelBar"></i></div>';
-      btn.hidden = true;
-    } else {
-      var mb = st.expected ? Math.round(st.expected / 1024 / 1024) : 397;
-      txt.textContent = lang === "zh"
-        ? "离线大模型 · Qwen2.5-0.5B（Apache-2.0）· " + mb + " MB，一次性安装后不用联网也能问答。"
-        : lang === "ko"
-        ? "오프라인 모델 · Qwen2.5-0.5B(Apache-2.0) · " + mb + "MB, 한 번 설치하면 네트워크 없이도 질문할 수 있습니다."
-        : "Offline model · Qwen2.5-0.5B (Apache-2.0) · " + mb + " MB. Install once, then ask without network.";
-      btn.hidden = false;
-      btn.textContent = lang === "zh" ? "安装" : lang === "ko" ? "설치" : "Install";
-    }
-  }
-
-  function modelProgress(pct, done, total){
-    modelBusy = true;
-    var bar = document.getElementById("modelBar");
-    var label = document.getElementById("modelPct");
-    if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
-    if (label) label.textContent = pct + "%";
-    var btn = document.getElementById("modelBtn");
-    if (btn) btn.hidden = true;
-  }
-
-  function modelDone(ok, msg, st){
-    modelBusy = false;
-    paintModelStrip();
-    if (window.BusanToast) BusanToast.show(
-      ok ? (lang === "zh" ? "离线大模型已安装" : lang === "ko" ? "오프라인 모델 설치 완료" : "Offline model installed")
-         : (lang === "zh" ? "模型安装未完成" : lang === "ko" ? "모델 설치 실패" : "Model install failed"),
-      ok ? (lang === "zh" ? "之后断网也能直接用本地模型问答。" : lang === "ko" ? "이제 네트워크 없이도 로컬 모델로 답변합니다." : "Local answers now work without network.")
-         : (lang === "zh" ? "可稍后重试；已下载的部分会保留。" : lang === "ko" ? "잠시 후 다시 시도하세요. 받은 부분은 유지됩니다." : "Retry later; downloaded bytes are kept."));
-  }
-
   /* ---------------- 选择栏 ---------------- */
   function state(){ return online() ? {category: curCat(), group: curGrp()} : E.getState(); }
   function curCat(){ return window.__cat || firstCat(); }
@@ -606,7 +566,6 @@
       b.classList.toggle("on", b.getAttribute("data-lang") === lang);
     });
     paintStatus();
-    paintModelStrip();
     if (window.BusanLive && BusanLive.paint) BusanLive.paint();
     if (window.BusanAuth && BusanAuth.refresh) BusanAuth.refresh();
   }
@@ -740,6 +699,21 @@
     return res;
   }
 
+  function addCloudNote(msg, text){
+    if (!msg || !text) return;
+    var bubble = msg.querySelector(".bubble");
+    if (!bubble || bubble.querySelector(".ai-note")) return;
+    var box = document.createElement("div");
+    box.className = "ai-note";
+    var label = document.createElement("b");
+    label.textContent = L("云端模型：", "클라우드 모델: ", "Cloud model: ");
+    box.appendChild(label);
+    box.appendChild(document.createTextNode(String(text).trim()));
+    var foot = bubble.querySelector(".foot");
+    if (foot) bubble.insertBefore(box, foot);
+    else bubble.appendChild(box);
+  }
+
   function ask(text){
     text = (text || "").trim();
     if (!text) return;
@@ -771,6 +745,17 @@
           fillOfficial(msg, note);
         });
       }
+    }
+
+    // 联网且已配置云端模型：给具体景点问答补一句克制的行动建议；只改写、不新增事实。
+    if (online() && res.spotId && window.BusanLLM && BusanLLM.configured()){
+      var langName = lang === "zh" ? "中文" : lang === "ko" ? "한국어" : "English";
+      BusanLLM.chat([
+        { role: "system", content: "You are the Busan travel assistant. Use ONLY the reference answer below. Never add facts, prices, opening hours, distances or new places. Reply in " + langName + " with one short actionable tip (max 2 sentences)." },
+        { role: "user", content: "Question: " + text + "\nReference answer: " + res.text }
+      ], function(code, out){
+        if (code === 0 && out && out.length <= 240) addCloudNote(msg, out);
+      });
     }
   }
 
@@ -993,14 +978,6 @@
   }
 
   /* ---------------- 启动 ---------------- */
-  document.getElementById("modelBtn").onclick = function(){
-    if (!window.BusanLLM || !BusanLLM.installLocal) return;
-    modelBusy = true;
-    paintModelStrip();
-    BusanLLM.installLocal(function(ok, msg, st){
-      if (!ok) { modelBusy = false; paintModelStrip(); }
-    });
-  };
   C.init(lang);
   E.init(D);
   E.setLang(lang);
@@ -1038,9 +1015,6 @@
     setLastPlan: function(p){ lastPlan = p; },
     setWelcome: function(name){ welcomeBack = name; },
     refresh: function(){ applyUI(); renderChips(); },
-    modelProgress: modelProgress,
-    modelDone: modelDone,
-    paintModelStrip: paintModelStrip,
     reloadCloud: reloadCloud,
     resetGuest: function(){
       lang = "zh";

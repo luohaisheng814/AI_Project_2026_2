@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="8"
-    android:versionName="1.7">
+    android:versionCode="9"
+    android:versionName="1.8">
 
-    <!-- v1.7：顶部不再常驻在线/离线控件，仅离线时提示；每条回答固定 3 个可选方案；
-         内置 llama.cpp + Qwen2.5-0.5B 端侧模型安装入口（Apache-2.0，装好后可完全离线问答）。
-         v1.6：三语账户入口、单链接来源、按同行/行动限制/时段做条件化推荐。 -->
+    <!-- v1.8：取消端侧 379 MB 模型与原生库，改为联网自动连接免费云端模型（Kilo Gateway 匿名层，
+         默认 NVIDIA Nemotron 3.5 Super VL 开放权重）；离线自动回退包内规则。 
+         v1.7：顶部不常驻在线/离线控件；每条回答固定 3 个可选方案。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -16,7 +16,6 @@
 
     <application
         android:label="@string/app_name"
-        android:extractNativeLibs="true"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:supportsRtl="true"

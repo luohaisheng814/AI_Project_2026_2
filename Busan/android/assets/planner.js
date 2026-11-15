@@ -622,11 +622,8 @@
 
   /* ---------------- 对外入口 ---------------- */
   function enrichWithLlm(local, msg) {
-    if (!window.BusanLLM || !BusanLLM.configured()) {
-      if (!window.BusanLLM || !BusanLLM.localReady || !BusanLLM.localReady()) return;
-    }
-    if (!window.BusanUI) return;
-    if (!BusanUI.online() && !(BusanLLM.localReady && BusanLLM.localReady())) return;
+    if (!window.BusanLLM || !BusanLLM.configured()) return;
+    if (!window.BusanUI || !BusanUI.online()) return;
     // 给模型一个受限候选池：按本地打分排序的前 8 个景点，它只能从中选
     var list = allSpots().slice().sort(function (a, b) {
       return scoreSpot(b, local.ctx) - scoreSpot(a, local.ctx);
