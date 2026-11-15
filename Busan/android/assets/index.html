@@ -214,6 +214,21 @@
   .llmstatus{font-size:11.5px; margin-top:6px; min-height:16px; color:var(--muted)}
   .llmstatus.ok{color:var(--ok)}
   .llmstatus.err{color:#b4452e}
+  .choices{margin-top:8px; border-top:1px solid var(--line); padding-top:7px}
+  .choices-h{font-size:11.5px; color:var(--sea); font-weight:700; letter-spacing:.02em; margin-bottom:5px}
+  .choice{display:flex; gap:8px; align-items:flex-start; width:100%; text-align:left; border:1px solid #dbe7ec; background:#fbfdfe; border-radius:10px; padding:7px 8px; margin-top:5px; color:var(--ink)}
+  .choice:active{background:#eef7fa}
+  .choice .cnum{flex:0 0 22px; height:22px; border-radius:50%; background:var(--sea); color:#fff; font:700 11px/22px Roboto Mono,monospace; text-align:center}
+  .choice .cbody{flex:1 1 auto; min-width:0}
+  .choice .cname{display:block; font-size:13px; font-weight:700; line-height:1.35}
+  .choice .ctag{display:inline-block; font-size:10.5px; color:var(--sea); background:#eaf4f8; border-radius:8px; padding:1px 5px; margin-left:4px; vertical-align:1px}
+  .choice .creason{display:block; font-size:11.5px; color:var(--muted); line-height:1.45; margin-top:1px}
+  .choice .cgo{flex:0 0 auto; font-size:11px; color:var(--sea); align-self:center}
+  .modelstrip{display:flex; align-items:center; gap:8px; background:#f2fafc; border-bottom:1px solid #d6e8ee; padding:6px 12px; font-size:11.5px; color:#36505c}
+  .modelstrip .mstext{flex:1 1 auto; min-width:0; line-height:1.4}
+  .modelstrip .msbar{height:3px; background:#d6e8ee; border-radius:2px; overflow:hidden; margin-top:3px}
+  .modelstrip .msbar i{display:block; height:100%; width:0; background:var(--sea); transition:width .2s}
+  .modelstrip button{border:1px solid var(--sea); background:#fff; color:var(--sea); border-radius:12px; padding:4px 9px; font-size:11px; flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -232,12 +247,12 @@
       <button id="acctBtn" class="acct guest" type="button">登录</button>
     </div>
   </div>
-  <div class="netbar">
-    <span class="dot" id="netDot"></span>
-    <span id="netText"></span>
-    <button id="retry">重试</button>
-  </div>
 </header>
+
+<div class="modelstrip" id="modelStrip" hidden>
+  <div class="mstext" id="modelText"></div>
+  <button id="modelBtn" type="button"></button>
+</div>
 
 <div class="selectors">
   <div class="row" id="catRow"><span class="lbl" id="catLbl">玩法</span></div>
@@ -456,19 +471,73 @@
   function T(key){ return C.strings()[key] || ""; }
   function online(){ return cloudReady && C.getMode() === "online"; }
 
-  /* ---------------- 顶部状态 ---------------- */
+  /* ---------------- 网络提示（仅离线时出现一次） ---------------- */
+  var offlineNotified = false;
+  function offlineTitle(){ return T("offline"); }
+  function offlineBody(){
+    return lang === "zh"
+      ? "当前离线，已改用包内数据；联网后会自动恢复，不需要手动切换。"
+      : lang === "ko"
+      ? "현재 오프라인입니다. 내장 데이터로 전환했습니다. 네트워크가 복구되면 자동으로 돌아갑니다."
+      : "You are offline now. Bundled data is in use and the app switches back automatically when the network returns.";
+  }
+  function showOfflineNotice(force){
+    if (online()) { offlineNotified = false; return; }
+    if (offlineNotified && !force) return;
+    offlineNotified = true;
+    if (window.BusanToast) BusanToast.show(offlineTitle(), offlineBody());
+  }
   function paintStatus(){
-    var dot = document.getElementById("netDot");
-    var txt = document.getElementById("netText");
-    dot.className = "dot" + (online() ? " on" : " off");
-    if (online()){
-      var db = C.getDb() || {};
-      txt.textContent = T("online") + " · " + (db.updated_at || "") + " · " + T("officialLive");
-    } else {
-      var reason = C.getReason() === "blocked" ? "blocked" : (C.getReason() === "cloudFail" ? "cloudFail" : "offline");
-      txt.textContent = T(reason);
+    // 在线时没有任何常驻状态控件；离线提示由启动提示和网络变化回调负责，避免重复弹出。
+  }
+
+  /* ---------------- 端侧模型安装条 ---------------- */
+  var modelBusy = false;
+  function paintModelStrip(){
+    var strip = document.getElementById("modelStrip");
+    var txt = document.getElementById("modelText");
+    var btn = document.getElementById("modelBtn");
+    if (!strip || !txt || !btn) return;
+    var st = (window.BusanLLM && BusanLLM.localState) ? BusanLLM.localState() : null;
+    if (!st || !st.supported || st.installed){
+      strip.hidden = true;
+      return;
     }
-    document.getElementById("retry").textContent = T("retry");
+    strip.hidden = false;
+    if (modelBusy){
+      txt.innerHTML = (lang === "zh" ? "正在安装离线大模型" : lang === "ko" ? "오프라인 모델 설치 중" : "Installing offline model") +
+        ' <span id="modelPct">0%</span><div class="msbar"><i id="modelBar"></i></div>';
+      btn.hidden = true;
+    } else {
+      var mb = st.expected ? Math.round(st.expected / 1024 / 1024) : 397;
+      txt.textContent = lang === "zh"
+        ? "离线大模型 · Qwen2.5-0.5B（Apache-2.0）· " + mb + " MB，一次性安装后不用联网也能问答。"
+        : lang === "ko"
+        ? "오프라인 모델 · Qwen2.5-0.5B(Apache-2.0) · " + mb + "MB, 한 번 설치하면 네트워크 없이도 질문할 수 있습니다."
+        : "Offline model · Qwen2.5-0.5B (Apache-2.0) · " + mb + " MB. Install once, then ask without network.";
+      btn.hidden = false;
+      btn.textContent = lang === "zh" ? "安装" : lang === "ko" ? "설치" : "Install";
+    }
+  }
+
+  function modelProgress(pct, done, total){
+    modelBusy = true;
+    var bar = document.getElementById("modelBar");
+    var label = document.getElementById("modelPct");
+    if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+    if (label) label.textContent = pct + "%";
+    var btn = document.getElementById("modelBtn");
+    if (btn) btn.hidden = true;
+  }
+
+  function modelDone(ok, msg, st){
+    modelBusy = false;
+    paintModelStrip();
+    if (window.BusanToast) BusanToast.show(
+      ok ? (lang === "zh" ? "离线大模型已安装" : lang === "ko" ? "오프라인 모델 설치 완료" : "Offline model installed")
+         : (lang === "zh" ? "模型安装未完成" : lang === "ko" ? "모델 설치 실패" : "Model install failed"),
+      ok ? (lang === "zh" ? "之后断网也能直接用本地模型问答。" : lang === "ko" ? "이제 네트워크 없이도 로컬 모델로 답변합니다." : "Local answers now work without network.")
+         : (lang === "zh" ? "可稍后重试；已下载的部分会保留。" : lang === "ko" ? "잠시 후 다시 시도하세요. 받은 부분은 유지됩니다." : "Retry later; downloaded bytes are kept."));
   }
 
   /* ---------------- 选择栏 ---------------- */
@@ -537,6 +606,7 @@
       b.classList.toggle("on", b.getAttribute("data-lang") === lang);
     });
     paintStatus();
+    paintModelStrip();
     if (window.BusanLive && BusanLive.paint) BusanLive.paint();
     if (window.BusanAuth && BusanAuth.refresh) BusanAuth.refresh();
   }
@@ -567,6 +637,18 @@
       html += '<div class="tagrow"><span class="badge' + (result.llm ? "" : (online() ? "" : " off")) + '">' + esc(result.tag) + "</span></div>";
     }
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
+    if (!result.loading && result.choices && result.choices.length){
+      html += '<div class="choices"><div class="choices-h">' + esc(T("choicesLabel")) + "</div>";
+      result.choices.forEach(function(c, i){
+        html += '<button class="choice" data-q="' + esc(c.query || c.name) + '" type="button">' +
+          '<span class="cnum">' + (i + 1) + "</span>" +
+          '<span class="cbody"><span class="cname">' + esc(c.name) +
+          (c.tag ? '<span class="ctag">' + esc(c.tag) + "</span>" : "") + "</span>" +
+          '<span class="creason">' + esc(c.reason || "") + "</span></span>" +
+          '<span class="cgo">' + esc(T("choiceOpen")) + " ›</span></button>";
+      });
+      html += "</div>";
+    }
     if (result.cards && result.cards.length){
       result.cards.forEach(function(c){ html += cardHtml(c); });
     }
@@ -579,12 +661,16 @@
     } else if (result.sources && result.sources.length){
       html += '<div class="foot">' + esc(T("sourcesLabel")) + "：" + esc(result.sources.join(" · ")) + "</div>";
     }
-    if (result.retry) html += '<button class="more act-retry">' + esc(T("retry")) + "</button>";
     if (!result.loading) html += '<div class="official" hidden></div>';
     html += "</div>";
     m.innerHTML = html;
     chat.scrollTop = chat.scrollHeight;
 
+    if (result.choices && result.choices.length){
+      m.querySelectorAll(".choice").forEach(function(b){
+        b.onclick = function(){ ask(b.getAttribute("data-q")); };
+      });
+    }
     var retryBtn = m.querySelector(".act-retry");
     if (retryBtn) retryBtn.onclick = function(){ reloadCloud(true); };
     if (result.more && result.more.onClick){
@@ -890,29 +976,31 @@
 
   /** 重新读云端库：断网时退回包内快照；调用方决定失败时是否在对话里提示。 */
   function reloadCloud(showBubble){
-    var txt = document.getElementById("netText");
-    var dot = document.getElementById("netDot");
-    txt.textContent = T("loading");
-    dot.className = "dot pulse";
     C.load(function(){
       cloudReady = true;
       if (!window.__cat) window.__cat = firstCat();
-      paintStatus();
-      renderChips();
-      rerenderAll();
       if (!online() && showBubble){
         addBot({
           text: C.getReason() === "blocked" ? T("noNet") : T("cloudFail"),
-          sources: [], followups: [], retry: true
+          sources: [], followups: []
         });
       }
+      paintStatus();
+      renderChips();
+      rerenderAll();
       applyUI();
     });
   }
 
-  document.getElementById("retry").onclick = function(){ reloadCloud(true); };
-
   /* ---------------- 启动 ---------------- */
+  document.getElementById("modelBtn").onclick = function(){
+    if (!window.BusanLLM || !BusanLLM.installLocal) return;
+    modelBusy = true;
+    paintModelStrip();
+    BusanLLM.installLocal(function(ok, msg, st){
+      if (!ok) { modelBusy = false; paintModelStrip(); }
+    });
+  };
   C.init(lang);
   E.init(D);
   E.setLang(lang);
@@ -950,6 +1038,9 @@
     setLastPlan: function(p){ lastPlan = p; },
     setWelcome: function(name){ welcomeBack = name; },
     refresh: function(){ applyUI(); renderChips(); },
+    modelProgress: modelProgress,
+    modelDone: modelDone,
+    paintModelStrip: paintModelStrip,
     reloadCloud: reloadCloud,
     resetGuest: function(){
       lang = "zh";
@@ -995,21 +1086,13 @@
     if (!cloudReady) return;
     var was = online();
     if (nowOnline === was) return;
-    if (nowOnline){
-      if (window.BusanToast) BusanToast.show(
-        lang === "zh" ? "网络已恢复" : lang === "ko" ? "네트워크가 복구되었습니다" : "Network restored",
-        lang === "zh" ? "正在切回云端库与官网核对。" : lang === "ko" ? "클라우드 데이터와 공식 사이트로 다시 전환합니다." : "Switching back to the cloud DB and official sites.");
-    } else {
-      if (window.BusanToast) BusanToast.show(
-        lang === "zh" ? "网络已断开" : lang === "ko" ? "네트워크가 끊겼습니다" : "Network lost",
-        lang === "zh" ? "已改用包内数据，已有回答仍可继续查看。" : lang === "ko" ? "내장 데이터로 전환했습니다. 기존 답변은 계속 볼 수 있습니다." : "Using bundled data now; existing answers stay available.");
-    }
+    if (!nowOnline) showOfflineNotice(false);
+    else offlineNotified = false;
     reloadCloud(false);
   };
 
   // 启动即判定「手机是否允许联网」：能连就读云端库，不能就连包内快照。
-  document.getElementById("netDot").className = "dot pulse";
-  document.getElementById("netText").textContent = T("loading");
+  // 在线不显示状态；只有离线时才弹一次提示。
   greet();
   if (window.BusanLive) BusanLive.init();
   reloadCloud(false);

@@ -31,6 +31,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -63,6 +65,13 @@ public class MainActivity extends Activity {
     private static final String LLM_PREFS = "busan_llm";
     private static final long SESSION_TTL_MS = 30L * 24L * 60L * 60L * 1000L;
     private static final int PBKDF2_ROUNDS = 100000;
+
+    /** 端侧模型：Qwen2.5-0.5B-Instruct，Apache-2.0，GGUF Q4_K_M。 */
+    private static final String LOCAL_MODEL_NAME = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
+    private static final String LOCAL_MODEL_URL =
+            "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf";
+    private static final long LOCAL_MODEL_BYTES = 397808192L;
+    private boolean modelDownloading = false;
 
     private WebView web;
     private final ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -150,6 +159,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         stopLocationInternal();
         unregisterNetworkCallback();
+        try { LocalLlm.release(); } catch (Exception ignored) {}
         super.onDestroy();
     }
 
@@ -682,6 +692,220 @@ public class MainActivity extends Activity {
         });
     }
 
+    /* ================= 端侧大模型 ================= */
+
+    private boolean supportsArm64() {
+        for (String abi : Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equals(abi)) return true;
+        }
+        return false;
+    }
+
+    private File modelDir() {
+        File ext = getExternalFilesDir("models");
+        if (ext != null) return ext;
+        return new File(getFilesDir(), "models");
+    }
+
+    private File modelFile() {
+        return new File(modelDir(), LOCAL_MODEL_NAME);
+    }
+
+    private String localModelStateJson() {
+        File m = modelFile();
+        boolean installed = m.isFile() && m.length() == LOCAL_MODEL_BYTES;
+        try {
+            JSONObject out = new JSONObject();
+            out.put("supported", supportsArm64());
+            out.put("installed", installed);
+            out.put("bytes", m.isFile() ? m.length() : 0L);
+            out.put("expected", LOCAL_MODEL_BYTES);
+            out.put("name", "Qwen2.5-0.5B-Instruct Q4_K_M");
+            out.put("license", "Apache-2.0");
+            out.put("path", installed ? m.getAbsolutePath() : "");
+            return out.toString();
+        } catch (Exception e) {
+            return "{\"supported\":false,\"installed\":false}";
+        }
+    }
+
+    private void modelProgress(final String cbId, final int percent,
+                               final long done, final long total) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                js("window.__busanModelProgress&&window.__busanModelProgress(" +
+                        JSONObject.quote(cbId) + "," + percent + "," + done + "," + total + ");");
+            }
+        });
+    }
+
+    private void modelDone(final String cbId, final boolean ok, final String message) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                js("window.__busanModelDone&&window.__busanModelDone(" +
+                        JSONObject.quote(cbId) + "," + (ok ? "true" : "false") + "," +
+                        JSONObject.quote(message == null ? "" : message) + "," +
+                        JSONObject.quote(localModelStateJson()) + ");");
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public String localModelState() {
+        return localModelStateJson();
+    }
+
+    /** 一次性下载安装；装好后完全离线推理，不依赖电脑或云端。 */
+    @JavascriptInterface
+    public void installLocalModel(final String cbId) {
+        if (!supportsArm64()) {
+            modelDone(cbId, false, "unsupported_abi");
+            return;
+        }
+        if (modelDownloading) {
+            modelDone(cbId, false, "busy");
+            return;
+        }
+        modelDownloading = true;
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                File dir = modelDir();
+                if (!dir.exists() && !dir.mkdirs()) {
+                    modelDownloading = false;
+                    modelDone(cbId, false, "mkdir_failed");
+                    return;
+                }
+                File out = modelFile();
+                File part = new File(dir, LOCAL_MODEL_NAME + ".part");
+                boolean ok = false;
+                String err = "download_failed";
+                HttpURLConnection conn = null;
+                try {
+                    if (out.isFile() && out.length() == LOCAL_MODEL_BYTES) {
+                        modelProgress(cbId, 100, LOCAL_MODEL_BYTES, LOCAL_MODEL_BYTES);
+                        modelDownloading = false;
+                        modelDone(cbId, true, "installed");
+                        return;
+                    }
+                    long start = part.isFile() ? part.length() : 0L;
+                    URL u = new URL(LOCAL_MODEL_URL);
+                    conn = (HttpURLConnection) u.openConnection();
+                    conn.setConnectTimeout(20000);
+                    conn.setReadTimeout(45000);
+                    conn.setInstanceFollowRedirects(true);
+                    conn.setRequestProperty("User-Agent", "BusanTour/1.7 (Android)");
+                    conn.setRequestProperty("Accept-Encoding", "identity");
+                    if (start > 0) conn.setRequestProperty("Range", "bytes=" + start + "-");
+                    int code = conn.getResponseCode();
+                    if (code != 200 && code != 206) {
+                        err = "http_" + code;
+                    } else {
+                        long total = LOCAL_MODEL_BYTES;
+                        String cl = conn.getHeaderField("Content-Length");
+                        if (cl != null && code == 200) {
+                            try { total = Long.parseLong(cl.trim()); } catch (Exception ignored) {}
+                        }
+                        if (code == 200) start = 0L;
+                        InputStream in = conn.getInputStream();
+                        FileOutputStream fos = new FileOutputStream(part, start > 0);
+                        byte[] buf = new byte[65536];
+                        long done = start;
+                        int lastPct = -1;
+                        int n;
+                        while ((n = in.read(buf)) >= 0) {
+                            fos.write(buf, 0, n);
+                            done += n;
+                            int pct = total > 0 ? (int) Math.min(99, done * 100 / total) : 0;
+                            if (pct != lastPct) {
+                                lastPct = pct;
+                                modelProgress(cbId, pct, done, total);
+                            }
+                        }
+                        fos.flush();
+                        fos.close();
+                        in.close();
+                        if (done == LOCAL_MODEL_BYTES) {
+                            if (out.exists()) out.delete();
+                            ok = part.renameTo(out);
+                            if (!ok) err = "rename_failed";
+                        } else {
+                            err = "size_mismatch";
+                        }
+                    }
+                } catch (Exception e) {
+                    err = "network";
+                } finally {
+                    if (conn != null) conn.disconnect();
+                    modelDownloading = false;
+                }
+                if (ok) {
+                    modelProgress(cbId, 100, LOCAL_MODEL_BYTES, LOCAL_MODEL_BYTES);
+                    modelDone(cbId, true, "installed");
+                } else {
+                    modelDone(cbId, false, err);
+                }
+            }
+        });
+    }
+
+    private String localPathIfReady() {
+        File m = modelFile();
+        return (m.isFile() && m.length() == LOCAL_MODEL_BYTES) ? m.getAbsolutePath() : "";
+    }
+
+    @JavascriptInterface
+    public void localChat(final String messagesJson, final String cbId) {
+        final String path = localPathIfReady();
+        if (path.isEmpty()) {
+            localDone(cbId, -2, "model_not_installed");
+            return;
+        }
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                int status = -1;
+                String text = "";
+                try {
+                    JSONArray messages = new JSONArray(messagesJson);
+                    StringBuilder sys = new StringBuilder();
+                    StringBuilder user = new StringBuilder();
+                    for (int i = 0; i < messages.length(); i++) {
+                        JSONObject m = messages.getJSONObject(i);
+                        String role = m.optString("role", "");
+                        String content = m.optString("content", "");
+                        if ("system".equals(role)) sys.append(content).append("\n");
+                        else if ("user".equals(role)) user.append(content).append("\n");
+                    }
+                    if (user.length() == 0) {
+                        status = -3;
+                    } else if (!LocalLlm.ensureLoaded(getApplicationInfo().nativeLibraryDir, path)) {
+                        status = -4;
+                    } else {
+                        text = LocalLlm.generate(sys.toString(), user.toString(), 720);
+                        status = text.isEmpty() ? -5 : 0;
+                    }
+                } catch (Exception e) {
+                    status = -1;
+                }
+                localDone(cbId, status, text);
+            }
+        });
+    }
+
+    private void localDone(final String cbId, final int status, final String text) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                js("window.__busanLocalDone&&window.__busanLocalDone(" +
+                        JSONObject.quote(cbId) + "," + status + "," +
+                        JSONObject.quote(text == null ? "" : text) + ");");
+            }
+        });
+    }
+
     /* ================= 定位 ================= */
 
     private boolean hasLocationPermission() {
@@ -793,6 +1017,21 @@ public class MainActivity extends Activity {
     /* ================= JS 桥 ================= */
 
     class HostBridge {
+
+        @JavascriptInterface
+        public String localModelState() {
+            return MainActivity.this.localModelState();
+        }
+
+        @JavascriptInterface
+        public void installLocalModel(String cbId) {
+            MainActivity.this.installLocalModel(cbId);
+        }
+
+        @JavascriptInterface
+        public void localChat(String messagesJson, String cbId) {
+            MainActivity.this.localChat(messagesJson, cbId);
+        }
 
         @JavascriptInterface
         public boolean netAllowed() {

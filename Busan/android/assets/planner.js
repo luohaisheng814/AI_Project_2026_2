@@ -353,8 +353,27 @@
     return ctx;
   }
 
-  function buildLocal(text, opts) {
-    var ctx = buildContext(text, opts);
+  /** 行程类回答也固定给 3 个可选点，点开即可继续追问。 */
+  function planChoices(list, ctx) {
+    var out = [], used = {}, pool = list.concat(allSpots());
+    var tags = [P("首选", "첫 번째", "Main"), P("更省力", "덜 걷기", "Easier"), P("换主题", "다른 테마", "Theme")];
+    for (var i = 0; i < pool.length && out.length < 3; i++) {
+      var s = pool[i];
+      if (!s || used[s.id]) continue;
+      used[s.id] = 1;
+      var m = meta(s);
+      out.push({
+        spotId: s.id,
+        name: label(s),
+        tag: tags[out.length],
+        reason: (themeLabel(s.category) || "") + " · " + (m.note || firstLine(field(s, "highlights")) || P("顺路可选", "경로상 선택", "On the way")),
+        query: label(s)
+      });
+    }
+    return out;
+  }
+
+  function buildLocal(text, opts) {    var ctx = buildContext(text, opts);
     var start = startMinutes(ctx);
     ctx.start = start;
     var picked = pickSpots(ctx);
@@ -463,6 +482,7 @@
       sources: sources,
       sourceUrl: (list.length && C.sourceUrl) ? C.sourceUrl(list[0]) : "",
       followups: followups,
+      choices: planChoices(list, ctx),
       tag: P("自主分析 · 本地推演", "자체 분석 · 로컬 추론", "Self-analysis · local reasoning"),
       plan: plan,
       ctx: ctx,
@@ -587,6 +607,7 @@
       sources: local.sources.concat([P("大模型重排（仅用候选点）", "LLM 재배치(후보 지점만)", "LLM reorder (candidates only)")]),
       sourceUrl: local.sourceUrl,
       followups: local.followups,
+      choices: planChoices(stops.map(function (x) { return x.spot; }), ctx),
       plan: {
         title: title,
         summary: stops.map(function (x) { return label(x.spot); }).join(" → "),
@@ -601,8 +622,11 @@
 
   /* ---------------- 对外入口 ---------------- */
   function enrichWithLlm(local, msg) {
-    if (!window.BusanLLM || !BusanLLM.configured()) return;
-    if (!window.BusanUI || !BusanUI.online()) return;
+    if (!window.BusanLLM || !BusanLLM.configured()) {
+      if (!window.BusanLLM || !BusanLLM.localReady || !BusanLLM.localReady()) return;
+    }
+    if (!window.BusanUI) return;
+    if (!BusanUI.online() && !(BusanLLM.localReady && BusanLLM.localReady())) return;
     // 给模型一个受限候选池：按本地打分排序的前 8 个景点，它只能从中选
     var list = allSpots().slice().sort(function (a, b) {
       return scoreSpot(b, local.ctx) - scoreSpot(a, local.ctx);

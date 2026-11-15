@@ -484,6 +484,58 @@
   }
 
   var pending = {};
+  var pendingLocal = {};
+  var localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
+  var localLoading = false;
+
+  function refreshLocalModelState() {
+    if (!hasHost("localModelState")) {
+      localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
+      return localState;
+    }
+    try {
+      var raw = HOST.localModelState();
+      localState = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch (e) {
+      localState = { supported: false, installed: false, bytes: 0, expected: 0, name: "" };
+    }
+    return localState;
+  }
+
+  function localReady() {
+    refreshLocalModelState();
+    return !!localState.installed;
+  }
+
+  var installCb = null;
+  window.__busanModelProgress = function (id, pct, done, total) {
+    if (window.BusanUI && BusanUI.modelProgress) BusanUI.modelProgress(pct, done, total);
+  };
+
+  window.__busanModelDone = function (id, ok, message, state) {
+    localLoading = false;
+    try { if (state) localState = typeof state === "string" ? JSON.parse(state) : state; } catch (e) {}
+    if (window.BusanUI && BusanUI.modelDone) BusanUI.modelDone(!!ok, message || "", localState);
+    if (installCb) { var cb = installCb; installCb = null; cb(!!ok, message || "", localState); }
+  };
+
+  function installLocalModel(cb) {
+    if (!hasHost("installLocalModel")) { if (cb) cb(false, "no_bridge"); return; }
+    if (localLoading) { if (cb) cb(false, "busy"); return; }
+    localLoading = true;
+    installCb = cb || null;
+    var id = "model" + Math.random().toString(36).slice(2);
+    try { HOST.installLocalModel(id); }
+    catch (e) { localLoading = false; if (cb) cb(false, "bridge_error"); }
+  }
+
+  window.__busanLocalDone = function (id, status, text) {
+    var cb = pendingLocal[id];
+    if (!cb) return;
+    delete pendingLocal[id];
+    if (status === 0) cb(0, text || "", "");
+    else cb(status, text || "", "");
+  };
 
   window.__busanLlmDone = function (id, status, body) {
     var cb = pending[id];
@@ -501,6 +553,18 @@
   };
 
   function llmChat(messages, cb) {
+    // 端侧模型优先：完全离线、无需 API Key；未安装才走可选的远程兼容接口。
+    if (localReady() && hasHost("localChat")) {
+      var lid = "loc" + Math.random().toString(36).slice(2);
+      pendingLocal[lid] = cb;
+      try {
+        HOST.localChat(JSON.stringify(messages), lid);
+      } catch (e) {
+        delete pendingLocal[lid];
+        cb(-1, "bridge_error", "");
+      }
+      return;
+    }
     if (!llmConfigured()) { cb(-2, "not_configured", ""); return; }
     if (hasHost("llmChat")) {
       var id = "llm" + Math.random().toString(36).slice(2);
@@ -568,13 +632,11 @@
   function startupNetToast() {
     if (!window.BusanUI) return;
     if (!BusanUI.cloudReady()) { setTimeout(startupNetToast, 700); return; }
-    if (BusanUI.online()) {
-      showToast(L("当前已联网", "온라인 상태입니다", "You are online"),
-        L("正在使用云端库与官网核对，手机可独立回答。", "클라우드 데이터와 공식 사이트를 사용합니다.", "Using the cloud DB and official sites — no PC needed."), 3800);
-    } else {
-      showToast(L("当前未联网", "오프라인 상태입니다", "You are offline"),
-        L("已使用包内数据；恢复网络后会自动切回云端库。", "내장 데이터를 사용 중입니다. 연결되면 자동 전환됩니다.", "Using bundled data; it will switch back when network returns."), 3800);
-    }
+    if (BusanUI.online()) return;
+    showToast(L("当前未联网", "오프라인 상태입니다", "You are offline"),
+      L("已自动改用包内数据；恢复网络后会自动切回云端库，不需要手动切换。",
+        "내장 데이터로 자동 전환했습니다. 연결되면 자동으로 클라우드 데이터를 사용합니다.",
+        "Bundled data is in use automatically; it switches back when the network returns."), 4200);
   }
 
   /* ---------------- 启动 ---------------- */
@@ -661,6 +723,9 @@
   window.BusanLLM = {
     configured: llmConfigured,
     chat: llmChat,
+    localReady: localReady,
+    localState: refreshLocalModelState,
+    installLocal: installLocalModel,
     config: function () { loadLlmConfig(); return llmCfg; }
   };
 })();

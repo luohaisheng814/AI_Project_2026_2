@@ -30,7 +30,12 @@
       nearbyDenied: "定位权限被拒绝，已改为按已收录景点推荐。",
       nearbyTimeout: "定位超时，已改为按已收录景点推荐。",
       officialLive: "官网实时",
-      localNote: "以上来自包内数据（离线）"
+      localNote: "以上来自包内数据（离线）",
+      choicesLabel: "3 个可选方案",
+      choiceOpen: "看这个",
+      choiceMain: "首选",
+      choiceEasy: "省力",
+      choiceTheme: "换口味"
     },
     ko: {
       online: "온라인 · 클라우드", offline: "오프라인 · 내장 데이터", blocked: "오프라인 · 네트워크 차단",
@@ -55,7 +60,12 @@
       nearbyDenied: "위치 권한이 거부되어 수록 지점 기준으로 추천합니다.",
       nearbyTimeout: "위치 확인 시간이 초과되어 수록 지점 기준으로 추천합니다.",
       officialLive: "공식 사이트 실시간",
-      localNote: "내장 데이터 기준입니다(오프라인)"
+      localNote: "내장 데이터 기준입니다(오프라인)",
+      choicesLabel: "3가지 선택안",
+      choiceOpen: "이 안 보기",
+      choiceMain: "첫 번째",
+      choiceEasy: "덜 걷기",
+      choiceTheme: "다른 테마"
     },
     en: {
       online: "Online · Cloud DB", offline: "Offline · Bundled data", blocked: "Offline · Network blocked",
@@ -80,7 +90,12 @@
       nearbyDenied: "Location permission denied — recommending from covered spots instead.",
       nearbyTimeout: "Location timed out — recommending from covered spots instead.",
       officialLive: "official site live",
-      localNote: "From bundled data (offline)"
+      localNote: "From bundled data (offline)",
+      choicesLabel: "3 options",
+      choiceOpen: "Open this",
+      choiceMain: "Main",
+      choiceEasy: "Easier",
+      choiceTheme: "Theme"
     }
   };
 
@@ -445,6 +460,59 @@
     return out;
   }
 
+  /** 每条具体回答固定给 3 个可选方案：主方案 + 更省力 + 换主题。 */
+  function choiceOf(x, tag, reason) {
+    return {
+      spotId: x.id,
+      name: spotTitle(x),
+      tag: tag,
+      reason: reason,
+      query: spotTitle(x)
+    };
+  }
+
+  function choicesFor(s, ctx) {
+    var out = [];
+    var used = {};
+    used[s.id] = 1;
+    out.push(choiceOf(s, t("choiceMain"),
+      P("经典走法 · 约 " + Math.round((s.plan || {}).duration_min || 120) / 60 + " 小时，" + reasonOf(s),
+        "기본 코스 · 약 " + Math.round((s.plan || {}).duration_min || 120) / 60 + "시간, " + reasonOf(s),
+        "Classic · about " + Math.round((s.plan || {}).duration_min || 120) / 60 + " h, " + reasonOf(s))));
+
+    var list = spots().filter(function (x) { return x.id !== s.id; });
+    var low = list.slice().sort(function (a, b) {
+      var wa = (a.plan || {}).walk_level || 2, wb = (b.plan || {}).walk_level || 2;
+      if (wa !== wb) return wa - wb;
+      return ((b.plan || {}).family_score || 3) - ((a.plan || {}).family_score || 3);
+    });
+    var easy = low.filter(function (x) { return !used[x.id]; })[0];
+    if (easy) {
+      used[easy.id] = 1;
+      var m = easy.plan || {};
+      out.push(choiceOf(easy, t("choiceEasy"),
+        P("步行强度 " + (m.walk_level || 2) + "/5 · 亲子 " + (m.family_score || 3) + "/5，" + reasonOf(easy),
+          "도보 " + (m.walk_level || 2) + "/5 · 가족 " + (m.family_score || 3) + "/5, " + reasonOf(easy),
+          "Walk " + (m.walk_level || 2) + "/5 · family " + (m.family_score || 3) + "/5, " + reasonOf(easy))));
+    }
+
+    var themes = supplements(s, 4).filter(function (x) { return !used[x.id]; });
+    if (!themes.length) themes = low.filter(function (x) { return !used[x.id]; });
+    var theme = themes[0];
+    if (theme) {
+      out.push(choiceOf(theme, t("choiceTheme"), (catLabel(theme.category) || "") + " · " + reasonOf(theme)));
+    }
+
+    // 数据异常时也保证三条
+    for (var i = 0; out.length < 3 && i < list.length; i++) {
+      if (!used[list[i].id]) {
+        used[list[i].id] = 1;
+        out.push(choiceOf(list[i], t("choiceTheme"), reasonOf(list[i])));
+      }
+    }
+    return out.slice(0, 3);
+  }
+
   function compose(s, intent, opts) {
     var concise = !!(opts && opts.concise);
     var lines = [];
@@ -511,17 +579,10 @@
       lines.push("", st.lang === "zh" ? "想看交通、门票或开放时间，点下面的追问。" :
         st.lang === "ko" ? "교통·입장료·운영시간이 궁금하면 아래 질문을 눌러 주세요." :
         "Tap a follow-up below for transport, tickets or hours.");
-    } else {
-      var sup = concise ? [] : supplements(s, 2).filter(function (x) { return !(alt && x.id === alt.id); });
-      if (sup.length) {
-        lines.push("", "**" + (st.lang === "zh" ? "其它玩法补充推荐" : st.lang === "ko" ? "다른 테마 추천" : "Other themes") + "**");
-        sup.forEach(function (x) {
-          lines.push("- **" + spotTitle(x) + "**（" + (catLabel(x.category) || "") + "）：" + reasonOf(x));
-        });
-      }
     }
 
     if (concise) lines.push("", t("conciseHint"));
+    var pickedChoices = choicesFor(s, ctx);
     return {
       text: lines.join("\n"),
       sources: [],
@@ -529,6 +590,7 @@
       followups: followupsFor(s),
       spotId: s.id,
       intent: intent,
+      choices: pickedChoices,
       concrete: true
     };
   }

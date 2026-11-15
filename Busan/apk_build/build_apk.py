@@ -102,6 +102,15 @@ def build():
     ensure_keystore()
 
     assets = os.path.join(ANDROID_DIR, "assets")
+    native_build = os.path.join(ANDROID_DIR, "native", "build-arm64")
+    native_libs = ["libbusanllm.so", "libllama.so", "libllama-common.so",
+                   "libggml.so", "libggml-base.so", "libggml-cpu.so"]
+    for f in native_libs:
+        p = os.path.join(native_build, f)
+        if not os.path.exists(p):
+            p2 = os.path.join(native_build, "bin", f)
+            if not os.path.exists(p2):
+                raise SystemExit(f"缺少原生库 {f}；先运行 apk_build/build_native.ps1")
     for f in ("index.html", "app.js", "data.js", "cloud.js", "cloud_snapshot.json",
               "cloud_snapshot.js", "live.js", "session.js", "planner.js"):
         if not os.path.exists(os.path.join(assets, f)):
@@ -125,7 +134,8 @@ def build():
 
     # ③ 编译 Java
     java_files = [os.path.join(BUILD_DIR, "gen", "com", "busan", "tour", "R.java"),
-                  os.path.join(ANDROID_DIR, "java", "com", "busan", "tour", "MainActivity.java")]
+                  os.path.join(ANDROID_DIR, "java", "com", "busan", "tour", "MainActivity.java"),
+                  os.path.join(ANDROID_DIR, "java", "com", "busan", "tour", "LocalLlm.java")]
     run([os.path.join(JDK, "bin", "javac.exe"), "-source", "8", "-target", "8",
          "-encoding", "UTF-8", "-classpath", PLATFORM_JAR,
          "-d", os.path.join(BUILD_DIR, "classes")] + java_files)
@@ -149,6 +159,11 @@ def build():
         raise SystemExit("d8 未产出 classes.dex")
     with zipfile.ZipFile(os.path.join(BUILD_DIR, "base.apk"), "a", zipfile.ZIP_DEFLATED) as z:
         z.write(dex_src, "classes.dex")
+        for name in native_libs:
+            src = os.path.join(native_build, name)
+            if not os.path.exists(src):
+                src = os.path.join(native_build, "bin", name)
+            z.write(src, "lib/arm64-v8a/" + name)
 
     # ⑤ 4 字节对齐 + 签名
     run([os.path.join(BUILD_TOOLS, "zipalign.exe"), "-f", "-p", "4",
@@ -168,7 +183,8 @@ def build():
         names = z.namelist()
         for must in ("classes.dex", "assets/index.html", "assets/app.js", "assets/data.js",
                      "assets/cloud.js", "assets/cloud_snapshot.json", "assets/cloud_snapshot.js",
-                     "assets/live.js", "assets/session.js", "assets/planner.js"):
+                     "assets/live.js", "assets/session.js", "assets/planner.js",
+                     "lib/arm64-v8a/libbusanllm.so", "lib/arm64-v8a/libllama.so"):
             if must not in names:
                 raise SystemExit(f"APK 缺少 {must}")
 

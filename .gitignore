@@ -24,3 +24,8 @@ Busan/apk_build/build/
 Busan/apk_build/cache/
 Busan/apk_build/keystore/
 *.idsig
+
+# 端侧推理：llama.cpp 源码与 CMake 构建目录不入库
+third_party/
+Busan/android/native/build-*/
+Busan/apk_build/_chrome_probe/
