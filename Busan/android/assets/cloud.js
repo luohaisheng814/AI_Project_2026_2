@@ -95,6 +95,7 @@
   };
 
   function t(key) { return (STR[st.lang] || STR.zh)[key]; }
+  function P(zh, ko, en) { return st.lang === "zh" ? zh : st.lang === "ko" ? ko : en; }
   function tidy(s) { return String(s == null ? "" : s).replace(/\r/g, "").trim(); }
   function key(s) {
     return tidy(s).toLowerCase()
@@ -228,6 +229,175 @@
     return arr.slice(0, n);
   }
 
+  function firstLine(text) { return firstLines(text, 1)[0] || ""; }
+
+  /** 从一句问题里抽“人”的条件：同行、行动限制、兴趣、预算与时段。 */
+  function contextOf(q) {
+    var t = String(q || "");
+    var c = {
+      kids: /孩子|亲子|小孩|儿童|宝宝|아이|어린이|유아|kid|child|toddler/i.test(t),
+      stroller: /婴儿车|推车|유모차|stroller|pushchair/i.test(t),
+      wheelchair: /轮椅|휠체어|wheelchair/i.test(t),
+      lesswalk: /少走|腿脚|老人|长辈|父母|不方便|걷기\s*(힘|싫)|어르신|노인|less\s*walk|mobility/i.test(t),
+      photo: /拍照|机位|打卡|摄影|사진|포토|photo|camera|instagram/i.test(t),
+      sunset: /日落|夕阳|傍晚|일몰|노을|저녁|sunset|dusk/i.test(t),
+      morning: /上午|早上|清晨|아침|morning/i.test(t),
+      free: /免费|不花钱|무료|free/i.test(t),
+      quiet: /安静|人少|不挤|한적|조용|quiet|less\s*crowd/i.test(t),
+      cafe: /咖啡|카페|coffee|cafe/i.test(t),
+      art: /艺术|文化|壁画|예술|문화|art|culture|mural/i.test(t),
+      wetland: /湿地|候鸟|观鸟|습지|철새|wetland|bird/i.test(t),
+      halfday: /半天|반나절|half\s*day/i.test(t)
+    };
+    c.any = c.kids || c.stroller || c.wheelchair || c.lesswalk || c.photo || c.sunset ||
+            c.morning || c.free || c.quiet || c.cafe || c.art || c.wetland || c.halfday;
+    return c;
+  }
+
+  function walkWord(n) {
+    return n >= 4 ? P("坡道/阶梯多", "경사·계단 많음", "steep or many stairs") :
+           n >= 3 ? P("有一定步行量", "보통 수준의 도보", "moderate walking") :
+           P("步行轻松", "걷기 편함", "easy walking");
+  }
+
+  /** 把景点的时长、体力、亲子、拍照、时段、票价和当前位置拼成“针对这个人”的判断。 */
+  function fitLines(s, c) {
+    var m = s.plan || {};
+    var lines = [];
+    var add = function (x) { if (x && lines.length < 3 && lines.indexOf(x) < 0) lines.push(x); };
+    var walk = m.walk_level || 2, fam = m.family_score || 3, photo = m.photo_score || 3;
+
+    if (c.wheelchair || c.stroller || c.lesswalk) {
+      var mode = c.wheelchair ? P("轮椅", "휠체어", "wheelchair") :
+                 c.stroller ? P("婴儿车", "유모차", "stroller") : P("少走路", "덜 걷기", "less walking");
+      if (walk >= 4) {
+        add(P("步行强度 " + walk + "/5，" + walkWord(walk) + "；" + mode + "不建议把这里当主行程。",
+          "도보 강도 " + walk + "/5, " + walkWord(walk) + "; " + mode + " 사용 시 대표 코스로는 비추천.",
+          "Walk level " + walk + "/5 (" + walkWord(walk) + "); not ideal as the main stop for " + mode + "."));
+      } else if (walk >= 3) {
+        add(P("步行强度 " + walk + "/5，有坡道；" + mode + "建议只走主路线并留休息。",
+          "도보 강도 " + walk + "/5, 경사가 있습니다. " + mode + " 이용 시 주 코스만 걷고 휴식을 두세요.",
+          "Walk level " + walk + "/5 with slopes; for " + mode + ", keep to the main route and rest."));
+      } else {
+        add(P("步行强度 " + walk + "/5，对" + mode + "相对友好。",
+          "도보 강도 " + walk + "/5, " + mode + " 이용에 비교적 편합니다.",
+          "Walk level " + walk + "/5 — relatively friendly for " + mode + "."));
+      }
+      var tip = firstLine(pickField(s, "tips"));
+      if (tip && /轮椅|婴儿车|阶梯|台阶|坡|계단|경사|유모차|휠체어|stairs|slope|stroller|wheelchair/i.test(tip)) {
+        add(P("现场提示：" + tip, "현장 안내: " + tip, "On-site note: " + tip));
+      }
+    }
+
+    if (c.kids) {
+      if (fam >= 4) add(P("家庭评分 " + fam + "/5，适合带孩子；仍要避开台阶多的支路。",
+        "가족 적합도 " + fam + "/5, 아이와 함께하기 좋습니다. 계단 많은 샛길은 피하세요.",
+        "Family score " + fam + "/5 — good with kids; still avoid stair-heavy side paths."));
+      else add(P("家庭评分 " + fam + "/5，带小孩建议缩短停留，优先走平坦主路。",
+        "가족 적합도 " + fam + "/5, 아이와 함께라면 체류를 줄이고 평탄한 주로를 이용하세요.",
+        "Family score " + fam + "/5 — with kids, shorten the stay and stick to flat main paths."));
+    }
+
+    if (c.photo) {
+      add(photo >= 4 ? P("拍照评分 " + photo + "/5，是这一片的主力机位。",
+        "사진 적합도 " + photo + "/5, 이 지역의 대표 촬영 포인트입니다.",
+        "Photo score " + photo + "/5 — a main photo spot in this area.")
+        : P("拍照评分 " + photo + "/5，拍照不是它的强项，别把行程全押在这里。",
+        "사진 적합도 " + photo + "/5, 촬영은 주력이 아니므로 일정을 여기에만 맞추지 마세요.",
+        "Photo score " + photo + "/5 — photography is not its strength; do not build the whole plan around it."));
+    }
+
+    if (c.sunset || c.morning) {
+      var best = m.best_time || "any";
+      if (c.sunset) {
+        if (best === "sunset" || best === "evening") {
+          add(P("最佳时段正是日落/傍晚，按日落前 1 小时到场。",
+            "최적 시간대가 일몰·저녁입니다. 일몰 1시간 전 도착을 권장합니다.",
+            "Best time is sunset/evening — arrive one hour before sunset."));
+        } else {
+          add(P("这里不是日落主场景；想看海边日落，改去多大浦海水浴场或峨嵋山观景台。",
+            "이곳은 일몰 주 무대가 아닙니다. 바다 일몰은 다대포해수욕장이나 아미산 전망대를 권장합니다.",
+            "This is not a sunset spot; for a sea sunset, go to Dadaepo Beach or Amisan Observatory."));
+        }
+      } else if (best === "morning") {
+        add(P("最佳时段是上午，建议 09:30 前后到，避开排队和顶光。",
+          "최적 시간대는 오전입니다. 09:30 전후 도착해 대기와 역광을 피하세요.",
+          "Best time is morning — arrive around 09:30 to avoid queues and harsh light."));
+      }
+    }
+
+    if (c.free) {
+      var ticket = firstLine(pickField(s, "ticket"));
+      if (/免费|무료|free/i.test(ticket)) add(P("门票：" + ticket + "，符合“尽量免费”。",
+        "입장료: " + ticket + " — '무료 우선' 조건에 맞습니다.",
+        "Ticket: " + ticket + " — fits the free-first constraint."));
+      else if (ticket) add(P("门票不是免费：" + ticket,
+        "입장료가 무료가 아닙니다: " + ticket,
+        "Not free: " + ticket));
+    }
+
+    if (c.quiet && /04_|湿地|生态|渔港/.test(s.category || "")) {
+      add(P("这类点位相对不挤，适合避开人群；周末仍建议早到。",
+        "이 유형은 비교적 한적합니다. 주말에도 일찍 도착하는 편이 좋습니다.",
+        "This type is relatively uncrowded; still arrive early on weekends."));
+    }
+
+    if (c.cafe && (s.vibes || []).indexOf("cafe") >= 0) {
+      add(P("点位内有咖啡/休息点，拍照和歇脚可以放在同一段。",
+        "카페·휴식 지점이 있어 촬영과 휴식을 한 구간에 묶을 수 있습니다.",
+        "Cafe/rest points on site — combine photos and a break in one block."));
+    }
+
+    if (c.wetland && ((s.vibes || []).indexOf("wetland") >= 0 || /湿地|候鸟|生态/.test(s.category || ""))) {
+      add(P("湿地/候鸟类点位，清晨或黄昏观鸟更稳；带望远镜。",
+        "습지·철새 유형은 새벽·황혼 관찰이 안정적입니다. 망원경을 챙기세요.",
+        "Wetland/bird spot — dawn or dusk is more reliable; bring binoculars."));
+    }
+
+    var pos = (window.BusanLive && BusanLive.position && BusanLive.position()) || null;
+    if (pos && s.lat != null && s.lng != null) {
+      var km = haversine(pos.lat, pos.lng, s.lat, s.lng);
+      add(P("从当前位置直线约 " + km.toFixed(1) + " km；这是直线距离，步行/公交以 NAVER 地图为准。",
+        "현재 위치에서 직선 약 " + km.toFixed(1) + " km; 직선 거리이며 도보·대중교통은 NAVER 지도 기준입니다.",
+        "About " + km.toFixed(1) + " km straight-line from you; walking/transit per NAVER Map."));
+    }
+
+    return lines;
+  }
+
+  /** 条件明显不匹配时，只补一个更贴合的点，并说明为什么。 */
+  function alternativeFor(s, c) {
+    var needMove = c.wheelchair || c.stroller || c.lesswalk;
+    var needKid = c.kids;
+    var needSun = c.sunset;
+    if (!needMove && !needKid && !needSun) return null;
+    var cur = s.plan || {};
+    if ((!needMove || (cur.walk_level || 2) < 4) &&
+        (!needKid || (cur.family_score || 3) >= 4) &&
+        (!needSun || cur.best_time === "sunset" || cur.best_time === "evening")) return null;
+
+    var best = null, bestScore = -1e9;
+    spots().forEach(function (x) {
+      if (x.id === s.id) return;
+      var m = x.plan || {};
+      var score = 0;
+      if (needMove) score += (5 - (m.walk_level || 2)) * 3 - ((m.walk_level || 2) >= 4 ? 12 : 0);
+      if (needKid) score += (m.family_score || 3) * 4;
+      if (needSun) score += (m.best_time === "sunset" || m.best_time === "evening") ? 14 : -8;
+      if (score > bestScore) { bestScore = score; best = x; }
+    });
+    return best;
+  }
+
+  function sourceUrlFor(s) {
+    var u = (s && s.official && s.official.url) || "";
+    if (!u) {
+      var m = String(pickField(s, "source") || "").match(/https?:\/\/[^\s"'<>]+/);
+      u = m ? m[0] : "https://www.saha.go.kr/tour/";
+    }
+    return u;
+  }
+
   function catLabel(cat) {
     var c = (st.db && st.db.strings && st.db.strings.categories && st.db.strings.categories[cat]) || null;
     var s = c ? (c[st.lang] || c.zh) : "";
@@ -298,12 +468,51 @@
         h.forEach(function (x) { lines.push("- " + x); });
       }
     }
+    if (intent === "overview" && !concise) {
+      var m = s.plan || {};
+      if (m.duration_min) {
+        var best = m.best_time === "morning" ? P("上午", "오전", "morning") :
+          (m.best_time === "sunset" || m.best_time === "evening") ? P("日落/傍晚", "일몰·저녁", "sunset/evening") : P("全天", "종일", "any time");
+        lines.push("", "**" + P("怎么安排", "일정 판단", "How to plan") + "**");
+        lines.push("- " + P("建议停留 " + Math.round(m.duration_min / 60 * 10) / 10 + "–" + Math.round((m.duration_max || m.duration_min) / 60 * 10) / 10 +
+          " 小时 · 步行强度 " + (m.walk_level || 2) + "/5 · 最佳时段：" + best,
+          "권장 체류 " + Math.round(m.duration_min / 60 * 10) / 10 + "~" + Math.round((m.duration_max || m.duration_min) / 60 * 10) / 10 +
+          "시간 · 도보 강도 " + (m.walk_level || 2) + "/5 · 최적 시간: " + best,
+          "Stay " + Math.round(m.duration_min / 60 * 10) / 10 + "–" + Math.round((m.duration_max || m.duration_min) / 60 * 10) / 10 +
+          " h · walk " + (m.walk_level || 2) + "/5 · best: " + best));
+        lines.push("- " + P("拍照 " + (m.photo_score || 3) + "/5 · 亲子 " + (m.family_score || 3) + "/5 · " + (m.indoor ? "室内为主" : "户外为主"),
+          "사진 " + (m.photo_score || 3) + "/5 · 가족 " + (m.family_score || 3) + "/5 · " + (m.indoor ? "실내 위주" : "야외 위주"),
+          "Photo " + (m.photo_score || 3) + "/5 · family " + (m.family_score || 3) + "/5 · " + (m.indoor ? "mostly indoor" : "mostly outdoor")));
+        if (m.note && st.lang === "zh") lines.push("- " + m.note);
+      }
+    }
+
+    var ctx = contextOf(opts && opts.text);
+    var fit = (!concise && ctx.any) ? fitLines(s, ctx) : [];
+    if (fit.length) {
+      lines.push("", "**" + P("针对你的情况", "요청에 맞춘 판단", "For your case") + "**");
+      fit.forEach(function (x) { lines.push("- " + x); });
+      var alt = alternativeFor(s, ctx);
+      if (alt) {
+        var why = [];
+        if (ctx.wheelchair || ctx.stroller || ctx.lesswalk) why.push(P("步行强度 " + ((alt.plan || {}).walk_level || 2) + "/5",
+          "도보 강도 " + ((alt.plan || {}).walk_level || 2) + "/5", "walk " + ((alt.plan || {}).walk_level || 2) + "/5"));
+        if (ctx.kids) why.push(P("家庭评分 " + ((alt.plan || {}).family_score || 3) + "/5",
+          "가족 적합도 " + ((alt.plan || {}).family_score || 3) + "/5", "family " + ((alt.plan || {}).family_score || 3) + "/5"));
+        if (ctx.sunset) why.push(P("最佳时段 " + (((alt.plan || {}).best_time === "evening" || (alt.plan || {}).best_time === "sunset") ? "日落/傍晚" : ((alt.plan || {}).best_time || "any")),
+          "최적 시간 " + (((alt.plan || {}).best_time === "evening" || (alt.plan || {}).best_time === "sunset") ? "일몰·저녁" : ((alt.plan || {}).best_time || "any")),
+          "best " + ((alt.plan || {}).best_time || "any")));
+        lines.push("- " + P("更贴合你的替代点：", "더 맞는 대안: ", "Better fit: ") + "**" + spotTitle(alt) + "**" +
+          (why.length ? (st.lang === "zh" ? "（" + why.join(" · ") + "）" : " (" + why.join(" · ") + ")") : ""));
+      }
+    }
+
     if (intent === "overview") {
       lines.push("", st.lang === "zh" ? "想看交通、门票或开放时间，点下面的追问。" :
         st.lang === "ko" ? "교통·입장료·운영시간이 궁금하면 아래 질문을 눌러 주세요." :
         "Tap a follow-up below for transport, tickets or hours.");
     } else {
-      var sup = concise ? [] : supplements(s, 2);
+      var sup = concise ? [] : supplements(s, 2).filter(function (x) { return !(alt && x.id === alt.id); });
       if (sup.length) {
         lines.push("", "**" + (st.lang === "zh" ? "其它玩法补充推荐" : st.lang === "ko" ? "다른 테마 추천" : "Other themes") + "**");
         sup.forEach(function (x) {
@@ -311,10 +520,12 @@
         });
       }
     }
+
     if (concise) lines.push("", t("conciseHint"));
     return {
       text: lines.join("\n"),
-      sources: sourcesFor(s),
+      sources: [],
+      sourceUrl: sourceUrlFor(s),
       followups: followupsFor(s),
       spotId: s.id,
       intent: intent,
@@ -336,7 +547,7 @@
       };
     }
     var onlyName = key(q) === key(s.name) || key(q) === key(s.name_ko || "") || key(q) === key(s.name_en || "");
-    return compose(s, onlyName ? "overview" : intent, { concise: onlyName || opts.concise });
+    return compose(s, onlyName ? "overview" : intent, { concise: onlyName || opts.concise, text: q });
   }
 
   function nearby(lat, lng, n) {
@@ -510,6 +721,7 @@
     field: pickField,
     nearby: nearby,
     mapLinks: mapLinks,
+    sourceUrl: sourceUrlFor,
     fetchOfficial: fetchOfficial,
     officialNote: function (id) { return st.official[id]; },
     spotTitle: spotTitle,

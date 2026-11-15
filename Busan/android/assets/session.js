@@ -139,9 +139,62 @@
     return map[code] || (res && res.message) || map.unknown;
   }
 
-  /* ---------------- 顶部账户按钮 ---------------- */
+  /* ---------------- 顶部账户按钮与弹层文案 ---------------- */
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  function setPh(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.setAttribute("placeholder", text);
+  }
+  function setLabel(forId, text) {
+    var el = document.querySelector('label[for="' + forId + '"]');
+    if (el) el.textContent = text;
+  }
+
+  function paintAuthText() {
+    if (!document.getElementById("authModal")) return;
+    setText("authTitle", L("登录 / 注册", "로그인 / 회원가입", "Sign in / Register"));
+    setText("authDesc", L("登录后保留玩法、偏好与上次推演；不登录则每次打开都是全新界面。",
+      "로그인하면 테마·취향·최근 일정이 저장됩니다. 비로그인 상태에서는 매번 새 화면으로 시작합니다.",
+      "Sign in to keep themes, preferences and your last plan; without it every launch starts fresh."));
+    setText("tabLogin", L("登录", "로그인", "Sign in"));
+    setText("tabRegister", L("注册", "회원가입", "Register"));
+    setLabel("loginUser", L("用户名", "사용자 이름", "Username"));
+    setPh("loginUser", L("2–24 个字符", "2~24자", "2–24 characters"));
+    setLabel("loginPass", L("密码", "비밀번호", "Password"));
+    setPh("loginPass", L("至少 6 位", "6자 이상", "At least 6 characters"));
+    setText("loginGo", L("登录", "로그인", "Sign in"));
+    setLabel("regName", L("用户名", "사용자 이름", "Username"));
+    setPh("regName", L("2–24 个字符", "2~24자", "2–24 characters"));
+    setLabel("regDisplay", L("显示名（可选）", "표시 이름(선택)", "Display name (optional)"));
+    setPh("regDisplay", L("例如：小李", "예: 민수", "e.g. Min-su"));
+    setLabel("regPass", L("密码", "비밀번호", "Password"));
+    setPh("regPass", L("至少 6 位", "6자 이상", "At least 6 characters"));
+    setLabel("regPass2", L("确认密码", "비밀번호 확인", "Confirm password"));
+    setPh("regPass2", L("再输一次", "다시 입력", "Type it again"));
+    setText("registerGo", L("注册并登录", "가입 후 로그인", "Register & sign in"));
+    setText("guestClose", L("先以游客身份使用", "비로그인으로 사용", "Continue as guest"));
+    setText("authFine", L("账户与密码只保存在这台手机的应用私有目录；卸载重装会清空账户。登录后 30 天不打开会自动退出。",
+      "계정과 비밀번호는 이 기기의 앱 전용 저장소에만 보관됩니다. 앱을 삭제하면 계정도 삭제됩니다. 로그인 후 30일간 열지 않으면 자동 로그아웃됩니다.",
+      "Account and password stay in this phone's private app storage. Uninstalling clears the account. Sign-in expires after 30 days unused."));
+
+    var panelTitle = document.querySelector("#acctPanel h2");
+    if (panelTitle) panelTitle.textContent = L("账户与偏好", "계정과 취향", "Account & preferences");
+    var panelDesc = document.querySelector("#acctPanel > .desc");
+    if (panelDesc) panelDesc.textContent = L("偏好会参与下一次行程推演；点“保存偏好”后写入本机账户。",
+      "취향은 다음 일정 추천에 반영됩니다. ‘취향 저장’을 누르면 이 기기 계정에 저장됩니다.",
+      "Preferences feed the next plan; tap “Save preferences” to store them on this device.");
+    setText("prefSave", L("保存偏好", "취향 저장", "Save preferences"));
+    setText("llmSave", L("保存设置", "설정 저장", "Save settings"));
+    setText("llmTest", L("测试连接", "연결 테스트", "Test connection"));
+    setText("logoutBtn", L("退出登录", "로그아웃", "Sign out"));
+  }
+
   function paintAccount() {
     var btn = document.getElementById("acctBtn");
+    paintAuthText();
     if (!btn) return;
     if (user) {
       btn.textContent = user.displayName || user.username;
@@ -600,6 +653,7 @@
     profile: function () { return profile; },
     saveNow: saveNow,
     saveSoon: saveSoon,
+    refresh: function () { paintAccount(); },
     openAccount: function () { openModal("login"); }
   };
   window.BusanAuth = window.BusanSession;

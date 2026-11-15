@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="6"
-    android:versionName="1.5">
+    android:versionCode="7"
+    android:versionName="1.6">
 
-    <!-- v1.5：加入本机账户、30 天会话、账户偏好持久化、实时定位、网络波动回调
+    <!-- v1.6：三语账户入口、单链接来源、按同行/行动限制/时段做条件化推荐。
+         v1.5 已加入本机账户、30 天会话、账户偏好持久化、实时定位、网络波动回调
          与可选的大模型通道。联网 / 离线仍只由手机网络能力判定。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

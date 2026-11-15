@@ -461,6 +461,7 @@
     return {
       text: lines.join("\n"),
       sources: sources,
+      sourceUrl: (list.length && C.sourceUrl) ? C.sourceUrl(list[0]) : "",
       followups: followups,
       tag: P("自主分析 · 本地推演", "자체 분석 · 로컬 추론", "Self-analysis · local reasoning"),
       plan: plan,
@@ -584,6 +585,7 @@
       text: lines.join("\n"),
       tag: P("自主分析 · 大模型", "자체 분석 · LLM", "Self-analysis · LLM"),
       sources: local.sources.concat([P("大模型重排（仅用候选点）", "LLM 재배치(후보 지점만)", "LLM reorder (candidates only)")]),
+      sourceUrl: local.sourceUrl,
       followups: local.followups,
       plan: {
         title: title,

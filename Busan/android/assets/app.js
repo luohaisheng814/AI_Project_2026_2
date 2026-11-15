@@ -357,6 +357,12 @@
     return v || "";
   }
 
+  function sourceUrlOf(spot) {
+    if (spot && spot.official && spot.official.url) return spot.official.url;
+    var m = String(fieldText(spot, "source", "zh") || "").match(/https?:\/\/[^\s"'<>]+/);
+    return m ? m[0] : "https://www.saha.go.kr/tour/";
+  }
+
   /* ---------------- 主入口 ---------------- */
   function answer(question, opts) {
     opts = opts || {};
@@ -468,7 +474,8 @@
       category: spot.category,
       group: state.group,
       supplements: supp,
-      sources: [T[lang].offline + "：" + catLabel(spot.category, lang)],
+      sourceUrl: sourceUrlOf(spot),
+      sources: [],
     };
   }
 
