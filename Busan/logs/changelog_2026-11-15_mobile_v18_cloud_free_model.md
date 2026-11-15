@@ -168,3 +168,13 @@ v1.7 的方向是"APK 内置 llama.cpp 运行时 + 应用内下载 Qwen2.5-0.5B 
 2. 如"到云端安装"指自建，部署一个 OpenAI 兼容服务（vLLM / Ollama / llama.cpp server），把 `DEFAULT_LLM_ENDPOINT` 指向自己的域名。
 3. 如公开分发，给 Kilo 匿名层加一个可选的用户自填 Key 入口（当前已保留"自定义接口"折叠区）。
 4. 处理论文蓝色评审意见，补一版与 v1.8 云端架构一致的论文/答辩材料。
+
+## 8. Git 提交与推送
+
+- 仓库：`https://github.com/luohaisheng814/AI_Project_2026_2.git`
+- 分支：`main`
+- v1.8 提交：`5ba36e62ba46fd0cffd236cee0c44e13dc2f04d8`
+- 提交信息：`feat(mobile): v1.8 取消端侧模型，内置免费云端 Nemotron`
+- 推送结果：`2ce8965..5ba36e6 main -> main`，已确认远端 `refs/heads/main` 指向 `5ba36e6`。
+- 未提交：`Busan/busan_travel.db`（本轮未改数据库结构，保持本地未暂存状态）；旧截图、`_chk*`、`AI团队作业/*` 等未跟踪文件未批量加入。
+
