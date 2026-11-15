@@ -16,6 +16,7 @@ import re
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(BASE, "android", "assets", "data.json")
+KEYWORDS_SRC = os.path.join(BASE, "mobile", "cloud", "core_keywords.json")
 CLOUD_DIR = os.path.join(BASE, "mobile", "cloud")
 CLOUD_JSON = os.path.join(CLOUD_DIR, "spots.json")
 SNAPSHOT = os.path.join(BASE, "android", "assets", "cloud_snapshot.json")
@@ -92,6 +93,8 @@ def official_for(spot_id, fields, fallback_sources):
 def main():
     with open(SRC, "r", encoding="utf-8") as f:
         src = json.load(f)
+    with open(KEYWORDS_SRC, "r", encoding="utf-8") as f:
+        lexicon = json.load(f)
 
     spots = []
     for s in src.get("spots", []):
@@ -104,6 +107,7 @@ def main():
         for lang in ("zh", "ko", "en"):
             block = fields.get(lang) or {}
             clean[lang] = {k: block[k] for k in KEEP_FIELDS if block.get(k)}
+        meta = lexicon.get("spots", {}).get(s["id"], {})
         spots.append({
             "id": s["id"],
             "name": s.get("name") or s["id"],
@@ -114,14 +118,31 @@ def main():
             "lat": lat,
             "lng": lng,
             "aliases": s.get("aliases", []),
+            "core": meta.get("core", []),
+            "vibes": meta.get("vibes", []),
+            "plan": {
+                "duration_min": meta.get("duration_min", 60),
+                "duration_max": meta.get("duration_max", 90),
+                "best_time": meta.get("best_time", "any"),
+                "walk_level": meta.get("walk_level", 2),
+                "photo_score": meta.get("photo_score", 3),
+                "family_score": meta.get("family_score", 3),
+                "indoor": meta.get("indoor", 0),
+                "note": meta.get("plan_note", ""),
+            },
             "official": official_for(s["id"], fields, [clean["zh"].get("source", "")]),
             "fields": clean,
         })
 
     payload = {
-        "schema": 2,
-        "updated_at": "2026-11-08",
-        "note": "云端数据库：景点档案 + 官网入口；APK 联网直连读取，不经过任何电脑服务",
+        "schema": 3,
+        "updated_at": lexicon.get("updated_at", "2026-11-15"),
+        "note": "云端数据库：景点档案 + 官网入口 + 核心词/规划元数据；APK 联网直连读取，不经过任何电脑服务",
+        "lexicon": {
+            "constraints": lexicon.get("constraints", {}),
+            "interest_map": lexicon.get("interest_map", {}),
+            "themes": lexicon.get("themes", {}),
+        },
         "strings": {
             "categories": src["strings"]["categories"],
             "groups": src["strings"]["groups"],

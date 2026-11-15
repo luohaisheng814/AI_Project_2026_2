@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "updated_at": "2026-11-15",
+  "note": "核心词与规划元数据：用于景点检索、意图识别、约束提取和行程排序；由 cloud_build.py 合并进 spots.json。",
+  "constraints": {
+    "time": [
+      "小时", "小时半", "半小时", "半天", "一天", "一日", "全天",
+      "上午", "早上", "清晨", "中午", "下午", "傍晚", "晚上", "夜景",
+      "2小时", "3小时", "4小时", "5小时", "6小时", "시간", "반나절", "하루", "아침", "저녁", "밤",
+      "hours", "half day", "full day", "morning", "afternoon", "evening", "night"
+    ],
+    "pace": [
+      "轻松", "慢慢", "慢逛", "不赶", "悠闲", "紧凑", "多逛", "赶时间",
+      "少走路", "少爬", "腿脚", "老人", "长辈", "孩子", "亲子", "婴儿车", "轮椅",
+      "편한", "천천히", "빠르게", "걷기", "어르신", "아이", "유모차",
+      "relaxed", "slow", "easy", "packed", "less walking", "kids", "elderly", "stroller", "wheelchair"
+    ],
+    "budget": [
+      "免费", "不花钱", "省钱", "便宜", "预算", "预算紧", "人均", "付费", "门票贵",
+      "무료", "저렴", "예산", "돈", "free", "cheap", "budget", "low cost"
+    ],
+    "interest": [
+      "拍照", "机位", "打卡", "摄影", "日落", "夕阳", "夜景", "海边", "海滩", "看海",
+      "湿地", "候鸟", "观鸟", "生态", "自然", "艺术", "文化", "壁画", "渔港", "小众",
+      "安静", "咖啡", "展览", "博物馆", "徒步", "散步", "亲子", "美食",
+      "사진", "일몰", "노을", "야경", "바다", "해변", "습지", "철새", "생태", "예술",
+      "문화", "벽화", "어항", "조용", "카페", "전시", "박물관", "산책", "가족",
+      "photo", "sunset", "night view", "sea", "beach", "wetland", "bird", "nature",
+      "art", "culture", "mural", "harbor", "quiet", "cafe", "museum", "walk", "family"
+    ]
+  },
+  "interest_map": {
+    "拍照": ["photo", "艺术", "文化", "渔港", "海边"],
+    "日落": ["sunset", "海边", "海岸"],
+    "夜景": ["night", "海边"],
+    "湿地": ["wetland", "自然"],
+    "候鸟": ["wetland", "自然"],
+    "艺术": ["art", "文化"],
+    "亲子": ["family", "自然"],
+    "安静": ["quiet", "自然"],
+    "咖啡": ["cafe", "艺术"],
+    "徒步": ["walk", "自然"],
+    "小众": ["quiet", "渔港"]
+  },
+  "themes": {
+    "01_艺术村落_文化街区": {
+      "label": {"zh": "艺术村落 · 文化街区", "ko": "예술마을 · 문화거리", "en": "Art Village · Cultural Streets"},
+      "keywords": ["艺术", "文化", "壁画", "村落", "拍照", "艺术", "예술", "문화", "벽화", "art", "culture", "mural", "village"]
+    },
+    "02_海岸休闲_日落夜景": {
+      "label": {"zh": "海岸休闲 · 日落夜景", "ko": "해안 휴식 · 일몰 야경", "en": "Coast · Sunset & Night"},
+      "keywords": ["海边", "海滩", "日落", "夕阳", "夜景", "喷泉", "바다", "해변", "일몰", "야경", "분수", "sea", "beach", "sunset", "night", "fountain"]
+    },
+    "03_湿地生态_自然观景": {
+      "label": {"zh": "湿地生态 · 自然观景", "ko": "습지 생태 · 자연 전망", "en": "Wetland · Nature Views"},
+      "keywords": ["湿地", "候鸟", "观鸟", "生态", "自然", "观景台", "습지", "철새", "생태", "자연", "전망대", "wetland", "bird", "nature", "observatory"]
+    },
+    "04_小众渔港_文艺拍照": {
+      "label": {"zh": "小众渔港 · 文艺拍照", "ko": "작은 어항 · 감성 사진", "en": "Small Harbor · Photo Spots"},
+      "keywords": ["渔港", "港口", "小众", "文艺", "拍照", "集装箱", "어항", "항구", "사진", "harbor", "port", "photo", "container"]
+    }
+  },
+  "spots": {
+    "甘川文化村": {
+      "core": ["甘川", "甘川文化村", "甘川洞", "艺术村", "艺术村落", "壁画", "彩色房子", "小王子", "狐狸", "天空之脊", "观景台", "阶梯", "巷子", "文创", "咖啡", "韩服", "文化街区", "网红村", "감천", "감천문화마을", "예술마을", "벽화", "어린왕자", "여우", "전망대", "계단", "골목", "카페", "한복", "gamcheon", "art village", "mural", "little prince", "fox", "observation deck", "alley", "stairs", "cafe", "hanbok"],
+      "vibes": ["art", "photo", "culture", "walk", "cafe"],
+      "duration_min": 120,
+      "duration_max": 180,
+      "best_time": "morning",
+      "walk_level": 4,
+      "photo_score": 5,
+      "family_score": 3,
+      "indoor": 0,
+      "plan_note": "阶梯多，建议轻装；上午人少，下午三点后光线柔和。"
+    },
+    "多大浦海水浴场": {
+      "core": ["多大浦", "多大浦海水浴场", "海滩", "沙滩", "海边", "看海", "踩水", "日落", "夕阳", "海岸", "亲子", "喷泉", "다대포", "다대포해수욕장", "바다", "해변", "해수욕장", "일몰", "노을", "해안", "분수", "dadaepo", "beach", "sea", "sunset", "shore", "family", "fountain"],
+      "vibes": ["sea", "sunset", "family", "photo"],
+      "duration_min": 60,
+      "duration_max": 150,
+      "best_time": "sunset",
+      "walk_level": 2,
+      "photo_score": 4,
+      "family_score": 5,
+      "indoor": 0,
+      "plan_note": "日落前 1 小时到场；夏季可踩水，冬季风大。"
+    },
+    "多大浦梦之夕阳喷泉": {
+      "core": ["梦之夕阳喷泉", "夕阳喷泉", "音乐喷泉", "喷泉", "夜景", "晚上", "表演", "免费", "多大浦喷泉", "꿈의낙조분수", "낙조분수", "분수", "야경", "공연", "무료", "sunset fountain", "fountain", "night", "show", "free"],
+      "vibes": ["night", "family", "free", "photo"],
+      "duration_min": 45,
+      "duration_max": 60,
+      "best_time": "evening",
+      "walk_level": 1,
+      "photo_score": 4,
+      "family_score": 5,
+      "indoor": 0,
+      "plan_note": "以晚间场次为主，出发前核对当日运营公告。"
+    },
+    "没云台": {
+      "core": ["没云台", "没云台海岸", "海岸悬崖", "悬崖", "岩石", "松林", "观景", "徒步", "安静", "神仙台", "海岸步道", "몰운대", "절벽", "해안", "소나무", "산책", "조용", "molundae", "cliff", "coast", "pine", "hike", "quiet"],
+      "vibes": ["sunset", "nature", "walk", "quiet", "photo"],
+      "duration_min": 60,
+      "duration_max": 90,
+      "best_time": "sunset",
+      "walk_level": 4,
+      "photo_score": 4,
+      "family_score": 2,
+      "indoor": 0,
+      "plan_note": "有坡度和台阶，腿脚不便时放在可选项；退潮岩礁更好看。"
+    },
+    "乙淑岛候鸟公园": {
+      "core": ["乙淑岛", "候鸟公园", "候鸟", "湿地", "芦苇", "观鸟", "生态", "自然", "鸟", "亲子", "을숙도", "철새", "철새도래지", "습지", "갈대", "조류", "생태", "자연", "eulsukdo", "migratory bird", "wetland", "reed", "birdwatching", "nature", "park"],
+      "vibes": ["wetland", "nature", "family", "photo", "quiet"],
+      "duration_min": 90,
+      "duration_max": 180,
+      "best_time": "morning",
+      "walk_level": 3,
+      "photo_score": 4,
+      "family_score": 5,
+      "indoor": 1,
+      "plan_note": "冬季候鸟季清晨或黄昏最好；风大，备外套。"
+    },
+    "峨嵋山观景台": {
+      "core": ["峨嵋山", "峨嵋山观景台", "观景台", "全景", "日落", "夜景", "摄影", "山头", "展望台", "아미산", "전망대", "일몰", "야경", "전경", "amisan", "observatory", "panorama", "sunset", "night view"],
+      "vibes": ["sunset", "night", "photo", "walk"],
+      "duration_min": 40,
+      "duration_max": 60,
+      "best_time": "sunset",
+      "walk_level": 3,
+      "photo_score": 5,
+      "family_score": 3,
+      "indoor": 0,
+      "plan_note": "日落前 1 小时到，风大；可与多大浦串成傍晚线。"
+    },
+    "洛东江河口生态中心": {
+      "core": ["洛东江", "洛东江河口", "生态中心", "湿地", "候鸟", "博物馆", "展览", "科普", "亲子", "芦苇", "观鸟", "낙동강", "하구", "에코센터", "습지", "철새", "박물관", "전시", "생태", "가족", "nakdong", "estuary", "eco center", "wetland", "bird", "museum", "exhibition", "family"],
+      "vibes": ["wetland", "family", "indoor", "quiet", "photo"],
+      "duration_min": 90,
+      "duration_max": 180,
+      "best_time": "morning",
+      "walk_level": 2,
+      "photo_score": 3,
+      "family_score": 5,
+      "indoor": 1,
+      "plan_note": "室内展馆可避雨；与乙淑岛相邻，可二选一或串联。"
+    },
+    "长林浦口": {
+      "core": ["长林浦口", "长林", "渔港", "港口", "小众", "文艺", "拍照", "彩色房子", "集装箱", "壁画", "海边", "장림포구", "장림", "어항", "항구", "사진", "벽화", "컨테이너", "jangnim", "port", "fishing harbor", "photo", "mural", "container"],
+      "vibes": ["photo", "harbor", "quiet", "art"],
+      "duration_min": 45,
+      "duration_max": 75,
+      "best_time": "afternoon",
+      "walk_level": 2,
+      "photo_score": 5,
+      "family_score": 3,
+      "indoor": 0,
+      "plan_note": "傍晚顺光拍彩色房子；规模小，适合作为补充点。"
+    }
+  }
+}

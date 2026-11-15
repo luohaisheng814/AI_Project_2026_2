@@ -11,11 +11,11 @@
     --ok:#1f9d6b; --off:#c2703c;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;margin:0}
+  html,body{height:100%;margin:0;max-width:100vw;overflow-x:hidden}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Microsoft YaHei",sans-serif;
     background:var(--sand); color:var(--ink); display:flex; flex-direction:column; height:100vh;
-    padding-top:env(safe-area-inset-top);
+    padding-top:env(safe-area-inset-top); width:100%;
   }
   header{
     background:linear-gradient(135deg,var(--sea),var(--sea-dark)); color:#fff;
@@ -25,17 +25,18 @@
   .brand .tt{min-width:0; flex:1 1 auto}
   .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; line-height:1.2; white-space:normal; overflow-wrap:anywhere}
   .brand .sub{font-size:11px; opacity:.82; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .langs{display:flex; gap:6px; flex:0 0 auto}
+  .toolrow{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:7px}
+  .langs{display:flex; gap:5px; flex:0 0 auto; min-width:0}
   .langs button{
     border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff;
-    border-radius:14px; padding:5px 9px; font-size:12px; line-height:1;
+    border-radius:14px; padding:5px 8px; font-size:11.5px; line-height:1; white-space:nowrap;
   }
   .langs button.on{background:#fff; color:var(--sea-dark); border-color:#fff; font-weight:600}
   .netbar{display:flex; align-items:center; gap:7px; margin-top:8px; font-size:11.5px; min-height:18px}
   .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.75);flex:0 0 auto}
   .dot.on{background:#5be0a8; box-shadow:0 0 0 2px rgba(91,224,168,.25)}
   .dot.off{background:#ffc38a}
-  #netText{flex:1 1 auto; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #netText{flex:1 1 auto; min-width:0; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   #retry{
     border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.14); color:#fff;
     border-radius:12px; padding:3px 9px; font-size:11px; flex:0 0 auto; white-space:nowrap;
@@ -49,13 +50,13 @@
     border-radius:14px; padding:6px 11px; font-size:12.5px; white-space:nowrap;
   }
   .chip.on{background:var(--sea); color:#fff; border-color:var(--sea); font-weight:600}
-  #chat{flex:1 1 auto; overflow-y:auto; padding:12px 12px 6px; -webkit-overflow-scrolling:touch}
-  .msg{margin-bottom:12px; display:flex}
+  #chat{flex:1 1 auto; width:100%; max-width:100vw; overflow-y:auto; overflow-x:hidden; padding:12px 12px 6px; -webkit-overflow-scrolling:touch}
+  .msg{margin-bottom:12px; display:flex; max-width:100%}
   .msg.user{justify-content:flex-end}
   .bubble{
-    max-width:88%; background:var(--bubble); border-radius:14px; padding:10px 12px;
+    max-width:88%; min-width:0; background:var(--bubble); border-radius:14px; padding:10px 12px;
     font-size:14px; line-height:1.62; box-shadow:0 1px 3px rgba(28,37,48,.08);
-    word-break:break-word;
+    word-break:break-word; overflow-wrap:anywhere;
   }
   .msg.user .bubble{background:var(--user); color:#fff; box-shadow:none; font-size:14px}
   .bubble h3{margin:0 0 6px; font-size:15.5px; color:var(--sea-dark)}
@@ -77,10 +78,10 @@
              display:flex; flex-wrap:wrap; flex:0 0 auto; max-height:27vh; overflow-y:auto;
              -webkit-overflow-scrolling:touch}
   #followups .pick:active{background:#eef6f9}
-  footer{flex:0 0 auto; background:#fff; border-top:1px solid var(--line);
+  footer{flex:0 0 auto; width:100%; max-width:100vw; background:#fff; border-top:1px solid var(--line);
          padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
-  .inputbar{display:flex; gap:8px; align-items:center}
-  #q{flex:1 1 auto; min-width:0; border:1px solid var(--line); border-radius:20px; padding:10px 14px;
+  .inputbar{display:flex; width:100%; min-width:0; gap:8px; align-items:center}
+  #q{flex:1 1 0; width:0; min-width:0; border:1px solid var(--line); border-radius:20px; padding:10px 14px;
       font-size:14px; outline:none; background:#fbfcfd}
   #q:focus{border-color:var(--sea)}
   .icon-btn, .send{
@@ -111,6 +112,107 @@
   .origins{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
   .official .pending{color:var(--muted)}
   .official.busy{opacity:.75}
+
+  /* v1.5 账户 / 实时 / 规划 */
+  .langs .acct{
+    max-width:76px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    background:#fff; color:var(--sea-dark); border-color:#fff; font-weight:600;
+  }
+  .langs .acct.guest{background:rgba(255,255,255,.18); color:#fff; border-color:rgba(255,255,255,.5); font-weight:500}
+  .planbar{display:flex; align-items:center; gap:8px; padding:2px 0 0}
+  #planBtn{
+    flex:0 0 auto; border:1px solid var(--sea); background:#eef6f9; color:var(--sea-dark);
+    border-radius:14px; padding:6px 11px; font-size:12px; font-weight:600;
+  }
+  #planBtn:active{background:#dceff5}
+  #planHint{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .livebar{
+    flex:0 0 auto; display:flex; align-items:center; gap:7px; background:#fff;
+    border-bottom:1px solid var(--line); padding:6px 12px; font-size:11.5px; color:#44515f;
+  }
+  .livebar[hidden]{display:none}
+  .ldot{width:7px;height:7px;border-radius:50%;background:#c9d2db;flex:0 0 auto}
+  .ldot.on{background:var(--sea); box-shadow:0 0 0 2px rgba(15,110,140,.14)}
+  #liveText{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #liveBtn{
+    flex:0 0 auto; border:1px solid var(--line); background:#fbfcfd; color:var(--sea-dark);
+    border-radius:12px; padding:4px 9px; font-size:11px; white-space:nowrap;
+  }
+  #liveBtn.on{background:var(--sea); border-color:var(--sea); color:#fff}
+  #netToast{
+    position:fixed; left:12px; right:12px; bottom:calc(78px + env(safe-area-inset-bottom));
+    z-index:45; background:rgba(20,34,44,.93); color:#fff; border-radius:13px;
+    padding:9px 13px; font-size:12.5px; line-height:1.45; box-shadow:0 6px 20px rgba(0,0,0,.22);
+    transform:translateY(8px); opacity:0; transition:opacity .22s ease, transform .22s ease; pointer-events:none;
+  }
+  #netToast.show{opacity:1; transform:translateY(0)}
+  #netToast .nt{font-weight:600; margin-bottom:2px}
+  #netToast .nd{opacity:.82; font-size:11.5px}
+
+  .modal{
+    position:fixed; inset:0; z-index:60; background:rgba(16,28,38,.42);
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .modal[hidden]{display:none}
+  .sheet{
+    width:100%; max-width:560px; max-height:92vh; overflow-y:auto; background:#fff;
+    border-radius:20px 20px 0 0; padding:16px 16px calc(18px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(0,0,0,.18); -webkit-overflow-scrolling:touch;
+  }
+  .sheet .grab{width:36px;height:4px;border-radius:3px;background:#dce3e9;margin:-6px auto 12px}
+  .sheet h2{margin:0 0 4px; font-size:19px; color:var(--sea-dark)}
+  .sheet .desc{font-size:12px; color:var(--muted); line-height:1.55; margin-bottom:12px}
+  .sheet .close{
+    float:right; border:0; background:#f1f5f8; color:#52606d; width:30px; height:30px;
+    border-radius:50%; font-size:17px; line-height:30px; padding:0;
+  }
+  .tabs{display:flex; gap:6px; margin:10px 0 12px; background:#f4f7f9; padding:4px; border-radius:12px}
+  .tabs button{
+    flex:1 1 0; border:0; background:transparent; padding:8px 6px; border-radius:9px;
+    font-size:13px; color:var(--muted);
+  }
+  .tabs button.on{background:#fff; color:var(--sea-dark); font-weight:600; box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .field{margin-bottom:10px}
+  .field label{display:block; font-size:12px; color:#52606d; margin-bottom:4px}
+  .field input, .field select{
+    width:100%; border:1px solid var(--line); border-radius:11px; padding:10px 12px;
+    font-size:14px; background:#fbfcfd; color:var(--ink); outline:none;
+  }
+  .field input:focus, .field select:focus{border-color:var(--sea)}
+  .primary{
+    width:100%; border:0; border-radius:12px; background:var(--sea); color:#fff;
+    padding:11px 14px; font-size:14px; font-weight:600; margin-top:4px;
+  }
+  .primary:disabled{opacity:.55}
+  .ghost{
+    width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; color:#52606d;
+    padding:10px 14px; font-size:13px; margin-top:8px;
+  }
+  .formerr{font-size:12px; color:#b4452e; min-height:17px; margin:4px 0 2px; line-height:1.4}
+  .fine{font-size:11px; color:var(--muted); line-height:1.5; margin-top:8px}
+  .accthead{display:flex; align-items:center; gap:10px; margin:4px 0 12px}
+  .avatar{
+    width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--sea),var(--sea-dark));
+    color:#fff; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex:0 0 auto;
+  }
+  .accthead .nm{font-size:15px; font-weight:600; color:var(--sea-dark)}
+  .accthead .meta{font-size:11px; color:var(--muted); margin-top:2px}
+  .sect{
+    border-top:1px solid var(--line); margin-top:14px; padding-top:12px;
+  }
+  .sect h3{margin:0 0 8px; font-size:13.5px; color:var(--sea-dark)}
+  .checks{display:flex; flex-wrap:wrap; gap:6px}
+  .checks label{
+    border:1px solid var(--line); border-radius:12px; padding:5px 9px; font-size:12px;
+    color:#44515f; background:#fbfcfd;
+  }
+  .checks label.on{background:var(--sea); color:#fff; border-color:var(--sea)}
+  .checks input{display:none}
+  .lastplan{background:#f7fbfc; border-left:3px solid var(--sea); border-radius:0 10px 10px 0; padding:8px 10px; font-size:12px; line-height:1.55; color:#33414f}
+  .llmnote{font-size:11.5px; color:var(--muted); line-height:1.55; margin:6px 0 8px}
+  .llmstatus{font-size:11.5px; margin-top:6px; min-height:16px; color:var(--muted)}
+  .llmstatus.ok{color:var(--ok)}
+  .llmstatus.err{color:#b4452e}
 </style>
 </head>
 <body>
@@ -120,10 +222,13 @@
       <h1 id="title">釜山 AI 旅行助手</h1>
       <div class="sub" id="subline"></div>
     </div>
+  </div>
+  <div class="toolrow">
     <div class="langs">
       <button data-lang="zh" class="on">中文</button>
       <button data-lang="ko">한국어</button>
       <button data-lang="en">English</button>
+      <button id="acctBtn" class="acct guest" type="button">登录</button>
     </div>
   </div>
   <div class="netbar">
@@ -136,10 +241,25 @@
 <div class="selectors">
   <div class="row" id="catRow"><span class="lbl" id="catLbl">玩法</span></div>
   <div class="row" id="grpRow"><span class="lbl" id="grpLbl">出行</span></div>
+  <div class="planbar">
+    <button id="planBtn" type="button">按当前选择规划</button>
+    <span id="planHint"></span>
+  </div>
+</div>
+
+<div class="livebar" id="liveStrip">
+  <span class="ldot" id="liveDot"></span>
+  <span id="liveText">实时定位未开启</span>
+  <button id="liveBtn" type="button">实时</button>
 </div>
 
 <div id="chat"></div>
 <div id="followups"></div>
+
+<div id="netToast" role="status" aria-live="polite">
+  <div class="nt" id="netToastTitle"></div>
+  <div class="nd" id="netToastDesc"></div>
+</div>
 
 <footer>
   <div class="inputbar">
@@ -150,16 +270,166 @@
   <div class="hint" id="hint"></div>
 </footer>
 
+<div class="modal" id="authModal" hidden>
+  <div class="sheet">
+    <div class="grab"></div>
+    <button class="close" id="authClose" type="button" aria-label="关闭">×</button>
+
+    <div id="authGuest">
+      <h2 id="authTitle">登录 / 注册</h2>
+      <div class="desc" id="authDesc">登录后保留玩法、偏好与上次推演；不登录则每次打开都是全新界面。</div>
+      <div class="tabs">
+        <button type="button" data-tab="login" class="on" id="tabLogin">登录</button>
+        <button type="button" data-tab="register" id="tabRegister">注册</button>
+      </div>
+
+      <form id="loginForm" autocomplete="on">
+        <div class="field">
+          <label for="loginUser">用户名</label>
+          <input id="loginUser" name="username" type="text" autocomplete="username" placeholder="2–24 个字符">
+        </div>
+        <div class="field">
+          <label for="loginPass">密码</label>
+          <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="至少 6 位">
+        </div>
+        <div class="formerr" id="loginErr"></div>
+        <button class="primary" type="submit" id="loginGo">登录</button>
+      </form>
+
+      <form id="registerForm" autocomplete="on" hidden>
+        <div class="field">
+          <label for="regName">用户名</label>
+          <input id="regName" name="username" type="text" autocomplete="username" placeholder="2–24 个字符">
+        </div>
+        <div class="field">
+          <label for="regDisplay">显示名（可选）</label>
+          <input id="regDisplay" name="nickname" type="text" autocomplete="nickname" placeholder="例如：小李">
+        </div>
+        <div class="field">
+          <label for="regPass">密码</label>
+          <input id="regPass" name="password" type="password" autocomplete="new-password" placeholder="至少 6 位">
+        </div>
+        <div class="field">
+          <label for="regPass2">确认密码</label>
+          <input id="regPass2" name="password2" type="password" autocomplete="new-password" placeholder="再输一次">
+        </div>
+        <div class="formerr" id="regErr"></div>
+        <button class="primary" type="submit" id="registerGo">注册并登录</button>
+      </form>
+
+      <button class="ghost" id="guestClose" type="button">先以游客身份使用</button>
+      <div class="fine">账户与密码只保存在这台手机的应用私有目录；卸载重装会清空账户。登录后 30 天不打开会自动退出。</div>
+    </div>
+
+    <div id="acctPanel" hidden>
+      <h2>账户与偏好</h2>
+      <div class="desc">偏好会参与下一次行程推演；点“保存偏好”后写入本机账户。</div>
+
+      <div class="accthead">
+        <div class="avatar" id="acctAvatar">U</div>
+        <div>
+          <div class="nm" id="acctName">—</div>
+          <div class="meta" id="acctMeta"></div>
+        </div>
+      </div>
+
+      <div class="sect">
+        <h3>行程偏好</h3>
+        <div class="field">
+          <label for="prefPace">节奏</label>
+          <select id="prefPace">
+            <option value="relaxed">轻松，少走少赶</option>
+            <option value="balanced" selected>均衡</option>
+            <option value="packed">紧凑，多去几个</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="prefBudget">预算</label>
+          <select id="prefBudget">
+            <option value="free">尽量免费</option>
+            <option value="low">省一点</option>
+            <option value="medium" selected>正常</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="prefMobility">同行与行动</label>
+          <select id="prefMobility">
+            <option value="normal" selected>无特殊限制</option>
+            <option value="lesswalk">少走路 / 腿脚不便</option>
+            <option value="stroller">带婴儿车</option>
+            <option value="wheelchair">轮椅出行</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>兴趣（可多选）</label>
+          <div class="checks" id="prefChecks">
+            <label><input type="checkbox" value="photo">拍照</label>
+            <label><input type="checkbox" value="sunset">日落</label>
+            <label><input type="checkbox" value="wetland">湿地候鸟</label>
+            <label><input type="checkbox" value="art">艺术文化</label>
+            <label><input type="checkbox" value="sea">海边</label>
+            <label><input type="checkbox" value="family">亲子</label>
+            <label><input type="checkbox" value="quiet">安静</label>
+            <label><input type="checkbox" value="cafe">咖啡</label>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label for="prefNotes">备注（可选）</label>
+          <input id="prefNotes" type="text" maxlength="60" placeholder="例如：不吃辣、想拍夜景">
+        </div>
+        <button class="primary" id="prefSave" type="button">保存偏好</button>
+      </div>
+
+      <div class="sect" id="lastPlanBox" hidden>
+        <h3>上次推演</h3>
+        <div class="lastplan" id="lastPlanText"></div>
+      </div>
+
+      <div class="sect">
+        <h3>大模型（可选）</h3>
+        <div class="llmnote">支持 OpenAI 兼容的 <code>/chat/completions</code> 接口。填了才会调用大模型；不填时完全走本地核心词与规则推演，所有资料仍来自景点库。Key 只存本机应用私有目录。</div>
+        <div class="field">
+          <label for="llmEndpoint">接口地址</label>
+          <input id="llmEndpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions">
+        </div>
+        <div class="field">
+          <label for="llmModel">模型名</label>
+          <input id="llmModel" type="text" placeholder="gpt-4o-mini">
+        </div>
+        <div class="field">
+          <label for="llmKey">API Key</label>
+          <input id="llmKey" type="password" autocomplete="off" placeholder="sk-…（留空则保留已保存的 Key）">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="primary" id="llmSave" type="button" style="flex:1">保存设置</button>
+          <button class="ghost" id="llmTest" type="button" style="flex:1;margin-top:4px">测试连接</button>
+        </div>
+        <div class="llmstatus" id="llmStatus"></div>
+      </div>
+
+      <div class="sect">
+        <button class="ghost" id="logoutBtn" type="button" style="color:#a33b26;border-color:#e8c9c2">退出登录</button>
+        <div class="fine">退出后本机仍保留账户，下次可重新登录；未登录状态每次打开都是新界面。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="data.js"></script>
 <script src="cloud_snapshot.js"></script>
 <script src="cloud.js"></script>
 <script src="app.js"></script>
+<script src="live.js"></script>
+<script src="session.js"></script>
+<script src="planner.js"></script>
 <script>
 (function(){
   var E = window.BusanEngine, D = window.BUSAN_DATA, C = window.BusanCloud;
   var lang = "zh";
   var autoCat = true, autoGrp = true;
   var history = [];        // [{role:'user'|'bot', text, res?, q?}]
+  var lastPlan = null;
+  var welcomeBack = null;
   var chat = document.getElementById("chat");
   var followups = document.getElementById("followups");
   var cloudReady = false;
@@ -170,7 +440,7 @@
       .replace(/^###\s(.+)$/gm, "<h3>$1</h3>")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/^---$/gm, '<hr class="sep">')
-      .replace(/^- (.+)$/gm, "• $1");
+      .replace(/^\s*[-*]\s*(?:[•·]\s*)?(.+)$/gm, "• $1");
     return out.replace(/\n{2,}/g, "<br>").replace(/\n/g, "<br>")
       .replace(/<\/h3><br>/g, "</h3>")
       .replace(/<br><hr class="sep"><br>/g, '<hr class="sep">')
@@ -249,17 +519,20 @@
     document.getElementById("subline").textContent = T("welcomeTitle");
     document.getElementById("catLbl").textContent = lang === "zh" ? "玩法" : lang === "ko" ? "테마" : "Theme";
     document.getElementById("grpLbl").textContent = lang === "zh" ? "出行" : lang === "ko" ? "동행" : "Party";
-    document.getElementById("q").placeholder = lang === "zh" ? "输入景点名或问题…" : lang === "ko" ? "명소 이름이나 질문을 입력…" : "Type a spot or a question…";
+    document.getElementById("q").placeholder = lang === "zh" ? "说想法、景点或问题…" : lang === "ko" ? "생각·명소·질문을 입력…" : "Type an idea, spot or question…";
     document.getElementById("send").textContent = lang === "zh" ? "发送" : lang === "ko" ? "전송" : "Send";
     document.getElementById("gps").textContent = lang === "zh" ? "附近" : lang === "ko" ? "주변" : "Nearby";
+    document.getElementById("planBtn").textContent = lang === "zh" ? "按当前选择规划" : lang === "ko" ? "현재 조건으로 일정" : "Plan with these choices";
+    document.getElementById("planHint").textContent = lang === "zh" ? "结合账户偏好与实时位置" : lang === "ko" ? "계정 취향·현재 위치 반영" : "Uses account profile + live location";
     document.getElementById("hint").textContent = lang === "zh"
-      ? "联网查云端库与景点官网；断网自动用包内数据"
-      : lang === "ko" ? "온라인에서는 클라우드·공식 사이트, 끊기면 내장 데이터"
-      : "Online reads the cloud DB + official sites; offline falls back to bundled data";
+      ? "说“半天、想拍照、少走路”这类想法，会自动识别核心词并给方案"
+      : lang === "ko" ? "'반나절, 사진, 덜 걷기'처럼 말하면 핵심어를 인식해 일정을 제안합니다"
+      : "Say “half day, photos, less walking” — it extracts core words and plans";
     document.querySelectorAll(".langs button").forEach(function(b){
       b.classList.toggle("on", b.getAttribute("data-lang") === lang);
     });
     paintStatus();
+    if (window.BusanLive && BusanLive.paint) BusanLive.paint();
   }
 
   /* ---------------- 消息渲染 ---------------- */
@@ -282,12 +555,10 @@
       '<a href="' + esc(c.map.google) + '">' + esc(T("google")) + "</a></div></div>";
   }
 
-  function bubbleFor(result){
-    var m = document.createElement("div");
-    m.className = "msg bot";
+  function paintBubble(m, result){
     var html = '<div class="bubble' + (result.loading ? " loading" : "") + '">';
     if (!result.loading && result.tag){
-      html += '<div class="tagrow"><span class="badge' + (online() ? "" : " off") + '">' + esc(result.tag) + "</span></div>";
+      html += '<div class="tagrow"><span class="badge' + (result.llm ? "" : (online() ? "" : " off")) + '">' + esc(result.tag) + "</span></div>";
     }
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
     if (result.cards && result.cards.length){
@@ -303,7 +574,6 @@
     if (!result.loading) html += '<div class="official" hidden></div>';
     html += "</div>";
     m.innerHTML = html;
-    chat.appendChild(m);
     chat.scrollTop = chat.scrollHeight;
 
     var retryBtn = m.querySelector(".act-retry");
@@ -311,6 +581,14 @@
     if (result.more && result.more.onClick){
       m.querySelector(".act-more").onclick = function(){ result.more.onClick(m); };
     }
+    return m;
+  }
+
+  function bubbleFor(result){
+    var m = document.createElement("div");
+    m.className = "msg bot";
+    chat.appendChild(m);
+    paintBubble(m, result);
     return m;
   }
 
@@ -373,6 +651,15 @@
   function ask(text){
     text = (text || "").trim();
     if (!text) return;
+    // 规划类想法先交给核心词/约束分析器；具体景点事实问答仍走原有资料组装
+    if (window.BusanPlanner && BusanPlanner.intercept(text)){
+      BusanPlanner.run(text, {
+        theme: autoCat ? "" : curCat(),
+        party: autoGrp ? "" : curGrp(),
+        lang: lang
+      });
+      return;
+    }
     history.push({role:"user", text:text});
     addUser(text);
     var res = online() ? cloudAnswer(text) : offlineAnswer(text);
@@ -380,6 +667,8 @@
     history.push({role:"bot", q:text, res:res});
     renderFollowups(res);
     document.getElementById("q").value = "";
+    if (res.spotId && window.BusanLive) BusanLive.setTarget(res.spotId);
+    if (window.BusanAuth) BusanAuth.saveSoon();
 
     // 联网：先占位「官网核对中」，再抓官网正文补进同一张气泡（不阻塞主回答）
     if (online() && res.spotId){
@@ -406,11 +695,19 @@
       greet();
       return;
     }
+    var lastRes = null;
     asks.forEach(function(t){
       history.push({role:"user", text:t});
       addUser(t);
+      var planRes = (window.BusanPlanner && BusanPlanner.intercept(t)) ? BusanPlanner.replay(t) : null;
+      if (planRes){
+        bubbleFor(planRes);
+        lastRes = planRes;
+        return;
+      }
       var res = online() ? cloudAnswer(t) : offlineAnswer(t);
       bubbleFor(res);
+      lastRes = res;
       history.push({role:"bot", q:t, res:res});
       if (online() && res.spotId){
         var elNow = chat.lastElementChild;
@@ -418,20 +715,26 @@
         if (sp) C.fetchOfficial(sp, function(note){ fillOfficial(elNow, note); });
       }
     });
-    var last = history.filter(function(h){ return h.role === "bot"; }).pop();
-    if (last) renderFollowups(last.res);
+    if (lastRes) renderFollowups(lastRes);
   }
 
   function greet(){
     var box = document.createElement("div");
     box.className = "msg bot";
     var quick = [
+      lang === "zh" ? "半天想拍照，少走路，帮我安排" : lang === "ko" ? "반나절 사진, 덜 걷기, 일정 짜줘" : "Half day, photos, less walking — plan it",
       lang === "zh" ? "甘川文化村 交通" : lang === "ko" ? "감천문화마을 교통" : "Gamcheon Culture Village transport",
-      lang === "zh" ? "多大浦海水浴场 门票" : lang === "ko" ? "다대포해수욕장 입장료" : "Dadaepo Beach tickets",
-      lang === "zh" ? "没云台 开放时间" : lang === "ko" ? "몰운대 운영시간" : "Molundae opening hours",
+      lang === "zh" ? "傍晚想看海边日落" : lang === "ko" ? "저녁에 바다 일몰 보고 싶어" : "I want a seaside sunset this evening",
       lang === "zh" ? "长林浦口 拍照" : lang === "ko" ? "장림포구 사진" : "Jangnim Port photo spots"
     ];
-    box.innerHTML = '<div class="bubble">' + md(T("welcome")) +
+    var intro = T("welcome");
+    if (welcomeBack){
+      intro = (lang === "zh" ? "欢迎回来，" + welcomeBack + "。上次的条件我已经记下，可以直接接着规划。"
+        : lang === "ko" ? welcomeBack + "님, 다시 오셨네요. 지난 조건을 기억하고 있습니다."
+        : "Welcome back, " + welcomeBack + ". I kept your last conditions — we can plan from there.") + "\n\n" + intro;
+      welcomeBack = null;
+    }
+    box.innerHTML = '<div class="bubble">' + md(intro) +
       '<div class="quick">' + quick.map(function(q){ return '<button class="pick" data-q="' + esc(q) + '">' + esc(q) + "</button>"; }).join("") +
       "</div></div>";
     chat.appendChild(box);
@@ -564,12 +867,17 @@
   document.getElementById("q").addEventListener("keydown", function(e){
     if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
   });
+  document.getElementById("planBtn").onclick = function(){
+    if (window.BusanPlanner) BusanPlanner.planFromSelection();
+  };
 
   document.querySelectorAll(".langs button").forEach(function(b){
+    if (b.id === "acctBtn") return;
     b.onclick = function(){
       lang = b.getAttribute("data-lang");
       try { localStorage.setItem("busan_lang", lang); } catch(e){}
       rerenderAll();
+      if (window.BusanAuth) BusanAuth.saveSoon();
     };
   });
 
@@ -598,16 +906,6 @@
   document.getElementById("retry").onclick = function(){ reloadCloud(true); };
 
   /* ---------------- 启动 ---------------- */
-  try {
-    var saved = localStorage.getItem("busan_lang");
-    if (saved && /^(zh|ko|en)$/.test(saved)) lang = saved;
-    var savedCat = localStorage.getItem("busan_cat");
-    if (savedCat) window.__cat = savedCat;
-  } catch(e){}
-  document.querySelectorAll(".langs button").forEach(function(b){
-    b.classList.toggle("on", b.getAttribute("data-lang") === lang);
-  });
-
   C.init(lang);
   E.init(D);
   E.setLang(lang);
@@ -615,10 +913,100 @@
   applyUI();
   renderChips();
 
+  window.BusanUI = {
+    getLang: function(){ return lang; },
+    getCat: function(){ return window.__cat || firstCat(); },
+    getGrp: function(){ return window.__grp || ""; },
+    isAutoCat: function(){ return autoCat; },
+    isAutoGrp: function(){ return autoGrp; },
+    online: online,
+    cloudReady: function(){ return cloudReady; },
+    strings: T,
+    ask: ask,
+    addUser: addUser,
+    noteUser: function(text){
+      history.push({role:"user", text:String(text || "")});
+      addUser(text);
+    },
+    addBot: addBot,
+    paintBubble: paintBubble,
+    updateBubble: function(msg, res){ paintBubble(msg, res); },
+    renderFollowups: renderFollowups,
+    firstCat: firstCat,
+    catLabel: function(c){ return C.catLabel(c); },
+    spotTitle: function(s){ return C.spotTitle(s); },
+    field: function(s, f){ return C.field(s, f); },
+    allSpots: function(){ return C.allSpots(); },
+    matches: function(q){ return C.matchSpots(q, 6); },
+    lexicon: function(){ return C.lexicon(); },
+    lastPlan: function(){ return lastPlan; },
+    setLastPlan: function(p){ lastPlan = p; },
+    setWelcome: function(name){ welcomeBack = name; },
+    refresh: function(){ applyUI(); renderChips(); },
+    reloadCloud: reloadCloud,
+    resetGuest: function(){
+      lang = "zh";
+      autoCat = true; autoGrp = true;
+      window.__cat = firstCat(); window.__grp = "";
+      history = []; lastPlan = null; welcomeBack = null;
+      try { localStorage.removeItem("busan_lang"); localStorage.removeItem("busan_cat"); } catch(e){}
+      C.setLang(lang); E.setLang(lang);
+      chat.innerHTML = ""; followups.innerHTML = "";
+      applyUI(); renderChips(); greet();
+      if (window.BusanLive) BusanLive.paint();
+    },
+    applyState: function(st){
+      if (!st) return;
+      if (/^(zh|ko|en)$/.test(st.lang || "")) lang = st.lang;
+      autoCat = (st.autoTheme === undefined) ? true : !!st.autoTheme;
+      autoGrp = (st.autoParty === undefined) ? true : !!st.autoParty;
+      window.__cat = st.theme || firstCat();
+      window.__grp = st.party || "";
+      lastPlan = st.lastPlan || null;
+      history = [];
+      (st.history || []).slice(-8).forEach(function(t){ if (t) history.push({role:"user", text:String(t)}); });
+      C.setLang(lang); E.setLang(lang);
+      applyUI(); renderChips(); rerenderAll();
+    },
+    snapshot: function(){
+      var asks = history.filter(function(h){ return h.role === "user"; }).map(function(h){ return h.text; }).slice(-8);
+      return {
+        lang: lang,
+        theme: autoCat ? "" : (window.__cat || ""),
+        party: autoGrp ? "" : (window.__grp || ""),
+        autoTheme: autoCat,
+        autoParty: autoGrp,
+        history: asks,
+        lastPlan: lastPlan,
+        updatedAt: new Date().toISOString()
+      };
+    },
+    resetChat: function(){ chat.innerHTML = ""; followups.innerHTML = ""; }
+  };
+
+  window.__busanNetChanged = function(nowOnline){
+    if (!cloudReady) return;
+    var was = online();
+    if (nowOnline === was) return;
+    if (nowOnline){
+      if (window.BusanToast) BusanToast.show(
+        lang === "zh" ? "网络已恢复" : lang === "ko" ? "네트워크가 복구되었습니다" : "Network restored",
+        lang === "zh" ? "正在切回云端库与官网核对。" : lang === "ko" ? "클라우드 데이터와 공식 사이트로 다시 전환합니다." : "Switching back to the cloud DB and official sites.");
+    } else {
+      if (window.BusanToast) BusanToast.show(
+        lang === "zh" ? "网络已断开" : lang === "ko" ? "네트워크가 끊겼습니다" : "Network lost",
+        lang === "zh" ? "已改用包内数据，已有回答仍可继续查看。" : lang === "ko" ? "내장 데이터로 전환했습니다. 기존 답변은 계속 볼 수 있습니다." : "Using bundled data now; existing answers stay available.");
+    }
+    reloadCloud(false);
+  };
+
   // 启动即判定「手机是否允许联网」：能连就读云端库，不能就连包内快照。
   document.getElementById("netDot").className = "dot pulse";
   document.getElementById("netText").textContent = T("loading");
+  greet();
+  if (window.BusanLive) BusanLive.init();
   reloadCloud(false);
+  if (window.BusanAuth) BusanAuth.init();
 })();
 </script>
 </body>

@@ -96,7 +96,77 @@
 
   function t(key) { return (STR[st.lang] || STR.zh)[key]; }
   function tidy(s) { return String(s == null ? "" : s).replace(/\r/g, "").trim(); }
-  function key(s) { return tidy(s).toLowerCase().replace(/[\s\u3000]+/g, ""); }
+  function key(s) {
+    return tidy(s).toLowerCase()
+      .replace(/[\s\u3000·,，。.!?！？、/\\()（）【】\[\]<>《》"'“”‘’\-_+~:：;；]+/g, "");
+  }
+
+  /** 一个景点可用于检索的全部词：三语名称、别名、核心词。 */
+  function keywordsOf(s) {
+    var out = [s.name, s.name_ko, s.name_en].concat(s.aliases || [], s.core || []);
+    var seen = {}, list = [];
+    for (var i = 0; i < out.length; i++) {
+      var k = key(out[i]);
+      if (k && !seen[k]) { seen[k] = 1; list.push(k); }
+    }
+    return list;
+  }
+
+  /** 某核心词覆盖了几个景点；唯一命中给额外权重。 */
+  function keywordSpread(list, kw) {
+    var n = 0;
+    for (var i = 0; i < list.length; i++) {
+      var words = keywordsOf(list[i]);
+      for (var j = 0; j < words.length; j++) {
+        if (words[j] === kw) { n++; break; }
+      }
+    }
+    return n;
+  }
+
+  /**
+   * 多景点打分：名称 / 别名优先，其次核心词。
+   * 返回 [{spot, score, hits}]，planner 用它做多约束筛选。
+   */
+  function matchSpots(q, limit) {
+    var k = key(q), list = spots(), rows = [];
+    if (!k) return [];
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i], score = 0, hits = [], direct = false;
+      var names = [s.name, s.name_ko, s.name_en].concat(s.aliases || []);
+      for (var j = 0; j < names.length; j++) {
+        var nk = key(names[j]);
+        if (!nk) continue;
+        if (k === nk) { score = Math.max(score, 1000); direct = true; }
+        else if (k.indexOf(nk) >= 0) { score = Math.max(score, 620 + nk.length); direct = true; }
+        else if (nk.indexOf(k) >= 0 && k.length >= 2) { score = Math.max(score, 500 + k.length); direct = true; }
+      }
+      var cores = s.core || [];
+      for (var c = 0; c < cores.length; c++) {
+        var ck = key(cores[c]);
+        if (!ck || ck.length < 2) continue;
+        if (k.indexOf(ck) >= 0) {
+          var spread = keywordSpread(list, ck);
+          var sc = 120 + ck.length * 4 + (ck.length >= 4 ? 60 : 0) + (spread === 1 ? 80 : 0);
+          if (sc > score) score = sc;
+          hits.push(cores[c]);
+        } else if (ck.indexOf(k) >= 0 && k.length >= 2 && score < 90) {
+          score = Math.max(score, 90);
+        }
+      }
+      if (score > 0) rows.push({ spot: s, score: score, hits: hits, direct: direct });
+    }
+    rows.sort(function (a, b) { return b.score - a.score; });
+    return rows.slice(0, limit || rows.length);
+  }
+
+  function findSpot(q) {
+    var rows = matchSpots(q, 1);
+    if (!rows.length) return null;
+    // 只命中一个泛化核心词（如「拍照」「海边」）时不当成具体景点，交给 planner 多选
+    if (!rows[0].direct && rows[0].score < 180) return null;
+    return rows[0].spot;
+  }
 
   function haversine(a, b, c, d) {
     var R = 6371, rad = Math.PI / 180;
@@ -336,6 +406,23 @@
     } catch (e) { return null; }
   }
 
+  function mergeLocalLexicon(db) {
+    if (!db || !db.spots) return db;
+    if (!SNAP || !SNAP.spots) return db;
+    var byId = {};
+    SNAP.spots.forEach(function (s) { byId[s.id] = s; });
+    db.spots.forEach(function (s) {
+      var local = byId[s.id];
+      if (!local) return;
+      if (!s.core || !s.core.length) s.core = local.core || [];
+      if (!s.vibes || !s.vibes.length) s.vibes = local.vibes || [];
+      if (!s.plan) s.plan = local.plan || {};
+    });
+    if (!db.lexicon || !db.lexicon.themes) db.lexicon = SNAP.lexicon || db.lexicon;
+    if (!db.schema || db.schema < 3) db.schema = 3;
+    return db;
+  }
+
   function loadCloud(cb) {
     var i = 0;
     var blocked = window.BusanHost && typeof window.BusanHost.netAllowed === "function" && !window.BusanHost.netAllowed();
@@ -354,6 +441,7 @@
       httpGet(url, function (status, body) {
         var db = (status === 200 || status === 0) ? parse(body) : null;
         if (db && db.spots && db.spots.length) {
+          db = mergeLocalLexicon(db);
           st.db = db; st.mode = "online"; st.reason = "";
           st.snapshot = false;
           st.fetchedAt = new Date().toTimeString().slice(0, 5);
@@ -414,6 +502,12 @@
     answer: answer,
     intentOf: intentOf,
     findSpot: findSpot,
+    matchSpots: matchSpots,
+    keywordsOf: keywordsOf,
+    allSpots: function () { return spots(); },
+    lexicon: function () { return (st.db && st.db.lexicon) || {}; },
+    updatedAt: function () { return (st.db && st.db.updated_at) || ""; },
+    field: pickField,
     nearby: nearby,
     mapLinks: mapLinks,
     fetchOfficial: fetchOfficial,

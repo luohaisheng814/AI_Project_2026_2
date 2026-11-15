@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="5"
-    android:versionName="1.4">
+    android:versionCode="6"
+    android:versionName="1.5">
 
-    <!-- v1.4：联网 / 离线只看手机是否允许本 App 访问当前网络，网上的回答来自
-         云端数据库（GitHub raw）与景点官网，不再依赖任何一台电脑。 -->
+    <!-- v1.5：加入本机账户、30 天会话、账户偏好持久化、实时定位、网络波动回调
+         与可选的大模型通道。联网 / 离线仍只由手机网络能力判定。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
