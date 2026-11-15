@@ -3,6 +3,7 @@
 - 日期：2026-11-15
 - 版本：Android `versionCode 6` / `versionName 1.5`（上一版 5 / 1.4）
 - 仓库：`https://github.com/luohaisheng814/AI_Project_2026_2.git`（分支 `main`）
+- 本轮代码提交：`9118ad0`（`feat(mobile): v1.5 账户化与现场推演 —— 本机登录/注册与30天会话、网络波动提示、实时定位距离、核心词库扩容与行程推演、可选LLM通道，重打APK与分发包`）
 - 安装包：`Busan/dist/Busan旅行助手.apk`（218,524 B）
 - 分发包：`Busan/dist/Busan_Tour_App.zip`（2,581,997 B，已换入 v1.5 APK、`mobile/assets/` 与新版 `spots.json`）
 - 签名：SHA-256 `9d91ed6b8ffeec5eaf5b597ee19f56bfda6f8663d94ec726390a552224d33356`；SHA-1 `0a5cecc7cbc9c70ca60c6b16b918017276cf97de`
