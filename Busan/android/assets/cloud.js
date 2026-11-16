@@ -624,8 +624,127 @@
       t === "afternoon" ? P("下午", "오후", "afternoon") : P("全天", "종일", "any");
   }
 
+  /** 出行组合：不只按“几个人”，还区分男/女/男女，给不同节奏和点位。 */
+  var GROUP_PICKS = {
+    solo_male: ["甘川文化村", "海东龙宫寺", "太宗台"],
+    solo_female: ["甘川文化村", "白浅滩文化村", "广安里海水浴场"],
+    two_mf: ["广安里海水浴场", "甘川文化村", "松岛海水浴场"],
+    two_mm: ["太宗台", "札嘎其市场", "海云台海水浴场"],
+    two_ff: ["白浅滩文化村", "广安里海水浴场", "甘川文化村"],
+    group_3plus: ["海云台海水浴场", "松岛海水浴场", "札嘎其市场"]
+  };
+
+  function groupOf(q, opts) {
+    opts = opts || {};
+    if (opts.group && GROUP_PICKS[opts.group]) return opts.group;
+    var t = String(q || "");
+    if (/三个人|三人及以上|三人以上|三人|四个人|四人|一家|全家|亲子|团体|多人|朋友一群|3인|가족|단체|family|group|three people|four people/i.test(t)) return "group_3plus";
+    if (/情侣|夫妻|男女|约会|恋人|对象|커플|남녀|연인|데이트|couple/i.test(t)) return "two_mf";
+    if (/两个男|两男|男男|男生.*男生|2男|two men|two guys/i.test(t)) return "two_mm";
+    if (/两个女|两女|女女|女生.*女生|2女|two women|two girls/i.test(t)) return "two_ff";
+    if (/两个人|2个人|두\s*명|two people/i.test(t)) return "two_mf";
+    if (/一个人|独自|单人|一人|独游|혼자|solo|alone|by myself/i.test(t)) {
+      if (/女|女性|女生|female|woman|girl|여/i.test(t)) return "solo_female";
+      if (/男|男性|男生|male|man|guy|남/i.test(t)) return "solo_male";
+      return "solo_male";
+    }
+    return "";
+  }
+
+  function groupLabel(g) {
+    return g === "solo_female" ? P("一个人（女）", "혼자(여)", "Solo (female)") :
+      g === "two_mf" ? P("两人（男女）", "2인(남녀)", "Two (male & female)") :
+      g === "two_mm" ? P("两人（男男）", "2인(남남)", "Two (male & male)") :
+      g === "two_ff" ? P("两人（女女）", "2인(여여)", "Two (female & female)") :
+      g === "group_3plus" ? P("三人及以上", "3인 이상", "Three or more") :
+      P("一个人（男）", "혼자(남)", "Solo (male)");
+  }
+
+  var GROUP_WHY = {
+    solo_male: {
+      "甘川文化村": "巷子多、坡度大，一个人走可以随时停下来拍；上午人少。",
+      "海东龙宫寺": "清晨海边寺庙光线最好，一个人早起不拖节奏；石阶多，穿防滑鞋。",
+      "太宗台": "悬崖海岸线适合一个人慢慢走；园区大，坐小火车省体力。"
+    },
+    solo_female: {
+      "甘川文化村": "彩色巷子和咖啡店密度高，一个人拍照、歇脚都方便；避开居民门口。",
+      "白浅滩文化村": "海景巷子适合慢逛和拍照，傍晚光线柔和；巷道窄，别穿难走的鞋。",
+      "广安里海水浴场": "日落后看桥灯，一个人也安全热闹；海边风大，带件外套。"
+    },
+    two_mf: {
+      "广安里海水浴场": "傍晚桥灯和海边咖啡街适合两个人慢慢逛；比甘川省台阶。",
+      "甘川文化村": "上午一起拍照、下午找咖啡店；巷子窄，别并排堵路。",
+      "松岛海水浴场": "缆车 + 天空步道适合两个人玩半天，体力要求低。"
+    },
+    two_mm: {
+      "太宗台": "悬崖步道和小火车适合两个人走一下午；风大但出片。",
+      "札嘎其市场": "一起选海鲜、楼上代加工，节奏直接；先问价再点。",
+      "海云台海水浴场": "海滩 + 冬柏岛步道，走累了就找咖啡店；夏天人多。"
+    },
+    two_ff: {
+      "白浅滩文化村": "海景巷子和咖啡店适合两个人拍照；台阶多，轻装。",
+      "广安里海水浴场": "傍晚桥灯 + 咖啡街，聊天拍照都合适；晚风大。",
+      "甘川文化村": "上午人少，彩色房子和壁画出片；巷子窄，别堵路。"
+    },
+    group_3plus: {
+      "海云台海水浴场": "沙滩开阔、交通方便，多人集合容易；夏天人多，约在地铁站更稳。",
+      "松岛海水浴场": "缆车和天空步道适合多人一起玩，排队时也能分散；注意潮汐。",
+      "札嘎其市场": "多人选海鲜、楼上加工最省事；先统一预算再点。"
+    }
+  };
+
+  function groupRecommend(group, time, q, theme) {
+    if (!group) group = groupOf(q) || "solo_male";
+    var named = matchSpots(q, 8).filter(function (r) { return r.direct; }).slice(0, 3).map(function (r) { return r.spot; });
+    var ids = named.length >= 2 ? named.map(function (s) { return s.id; }) : GROUP_PICKS[group];
+    if (!named.length && /室内|下雨|雨天|雨/.test(String(q || ""))) ids = ["札嘎其市场", "西面", "龙头山公园"];
+    var byId = {}, list = spots();
+    list.forEach(function (s) { byId[s.id] = s; });
+    var picked = [];
+    // “玩法 + 出行”同时选时，先保证所选玩法有 2 个点，再用该人群的默认点位补第 3 个。
+    if (!named.length && theme) {
+      list.filter(function (s) { return String(s.category || "").indexOf(theme) === 0; }).slice(0, 2).forEach(function (s) {
+        if (byId[s.id]) picked.push(s);
+      });
+    }
+    (ids || []).forEach(function (id) {
+      if (byId[id] && !picked.some(function (x) { return x.id === id; })) picked.push(byId[id]);
+    });
+    list.forEach(function (s) {
+      if (picked.length >= 3) return;
+      if (picked.some(function (x) { return x.id === s.id; })) return;
+      picked.push(s);
+    });
+    picked = picked.slice(0, 3);
+    var why = GROUP_WHY[group] || {};
+    var titleBits = [groupLabel(group)];
+    if (theme && !named.length) titleBits.push(catLabel(theme));
+    var lines = ["**" + titleBits.join(" · ") + " · " + P("3 个更合适的点", "더 맞는 3곳", "3 better picks") + "**"];
+    lines.push(P("按出行组合、步行强度和现场节奏排的；点一个就能看交通与细节。",
+      "동행 조합·도보 강도·현장 리듬 기준으로 정렬했습니다. 하나를 누르면 교통과 상세를 봅니다.",
+      "Ordered by party mix, walking level and on-site rhythm. Tap one for transport and details."));
+    var choices = [];
+    picked.forEach(function (s, i) {
+      var note = why[s.id] || reasonOf(s);
+      lines.push("");
+      lines.push((i + 1) + ". **" + spotTitle(s) + "** — " + note);
+      choices.push({
+        spotId: s.id, name: spotTitle(s),
+        tag: i === 0 ? P("首选", "우선", "Best") : i === 1 ? P("更省力", "덜 걷기", "Easier") : P("换口味", "색다른 곳", "Change"),
+        reason: note, query: spotTitle(s)
+      });
+    });
+    return {
+      text: lines.join("\n"), choices: choices,
+      followups: picked.map(function (s) { return spotTitle(s) + " " + t("askTransport"); }).slice(0, 3),
+      kind: "group", group: group, concrete: true
+    };
+  }
+
+
   /** 没有指定景点时，按「上午/下午/傍晚」给 3 个真正合适的点，而不是报“库里没有”。 */
-  function recommend(time, q) {
+  function recommend(time, q, group) {
+    if (group) return groupRecommend(group, time, q);
     var preferred = {
       morning: ["甘川文化村", "海东龙宫寺", "乙淑岛候鸟公园"],
       afternoon: ["太宗台", "白浅滩文化村", "松岛海水浴场"],
@@ -800,11 +919,15 @@
     opts = opts || {};
     var s = findSpot(q);
     var intent = intentOf(q);
+    var group = groupOf(q, opts);
+    var theme = opts.theme || "";
+    var named = matchSpots(q, 8).filter(function (r) { return r.direct; });
     var pos = (window.BusanLive && BusanLive.position && BusanLive.position()) || null;
+    if (group && named.length >= 2) return groupRecommend(group, timeOf(q), q, theme);
     if (!s) {
       if (pos && /附近|周边|nearby|around|근처|주변/.test(key(q))) return nearbyAnswer(pos, q, 3);
       var time = timeOf(q);
-      if (isRecommendQuestion(q)) return recommend(time || "any", q);
+      if (isRecommendQuestion(q)) return group ? groupRecommend(group, time || "any", q, theme) : recommend(time || "any", q);
       // 「附近 / 推荐」交给 nearby；这里只处理纯文本匹配不到的情况
       var names = spots().map(function (x) { return "**" + spotTitle(x) + "**"; });
       return {
@@ -996,6 +1119,9 @@
     strings: function () { return STR[st.lang] || STR.zh; },
     answer: answer,
     recommend: recommend,
+    groupRecommend: groupRecommend,
+    groupOf: groupOf,
+    groupLabel: groupLabel,
     routeTo: routeTo,
     timeOf: timeOf,
     intentOf: intentOf,

@@ -48,7 +48,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.0
+ * 釜山 AI 旅行助手 v2.1
+ *
+ * v2.1 把“玩法/出行”合并成可折叠条：默认展开，7 秒无操作自动收起；
+ * 官方资料块只给网址，不再展示官网韩文原文；
+ * 按一人男/一人女/两人男女/两人男男/两人女女/三人以上给出差异化点位与路线。
  *
  * v2.0 补入海云台、广安里、太宗台、札嘎其等 10 个釜山核心景点；
  * 路线不再写死甘川，任意收录景点都能从当前位置出 3 类走法；
@@ -683,7 +687,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.0 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.1 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

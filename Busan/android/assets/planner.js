@@ -82,19 +82,31 @@
   }
 
   function partyOf(text, opts, prof) {
-    if (opts && opts.party) {
-      if (/solo_/.test(opts.party)) return "solo";
-      if (/two_/.test(opts.party)) return "two";
-      if (/group_/.test(opts.party)) return "group";
-    }
+    if (opts && opts.party) return opts.party;
     var t = String(text || "");
     if (/孩子|亲子|아이|kids|child/i.test(t)) return "kids";
     if (/老人|父母|长辈|어르신|elder/i.test(t)) return "family";
-    if (/情侣|两人|2人|두\s*명|couple/i.test(t)) return "two";
+    if (/两个男|两男|男男|男生.*男生|2男|two men|two guys/i.test(t)) return "two_mm";
+    if (/两个女|两女|女女|女生.*女生|2女|two women|two girls/i.test(t)) return "two_ff";
+    if (/情侣|夫妻|男女|约会|恋人|对象|两人|2人|두\s*명|couple/i.test(t)) return "two_mf";
     if (/朋友|친구|friends/i.test(t)) return "friends";
-    if (/一人|独自|혼자|solo/i.test(t)) return "solo";
-    return (prof && prof.mobility === "stroller") ? "kids" : "solo";
+    if (/三个人|三人及以上|三人以上|三人|四个人|四人|一家|全家|团体|多人|3인|가족|단체|three people|four people/i.test(t)) return "group_3plus";
+    if (/一个人|独自|单人|一人|独游|혼자|solo|alone/i.test(t)) {
+      if (/女|女性|女生|female|woman|girl|여/i.test(t)) return "solo_female";
+      return "solo_male";
+    }
+    return (prof && prof.mobility === "stroller") ? "kids" : "solo_male";
   }
+
+  /** 出行组合不是只有“几个人”：男女/男男/女女会改变点位和节奏。 */
+  var PARTY_CATS = {
+    solo_male: ["04_", "02_"],
+    solo_female: ["01_", "02_"],
+    two_mf: ["02_", "01_"],
+    two_mm: ["02_", "04_"],
+    two_ff: ["01_", "02_"],
+    group_3plus: ["02_", "03_"]
+  };
 
   function interestsOf(text, prof) {
     var lex = (C.lexicon ? C.lexicon() : {}) || {};
@@ -199,6 +211,12 @@
       if ((m.walk_level || 2) >= 4) score -= 40;
     }
     if (ctx.party === "kids") score += (m.family_score || 3) * 7;
+    if (PARTY_CATS[ctx.party]) {
+      var prefCats = PARTY_CATS[ctx.party];
+      for (var pi = 0; pi < prefCats.length; pi++) {
+        if (String(s.category || "").indexOf(prefCats[pi]) === 0) score += pi === 0 ? 12 : 6;
+      }
+    }
     if (ctx.budget === "free") {
       if (vibe.indexOf("free") >= 0 || /免费|무료|free/i.test(field(s, "ticket"))) score += 24;
       else if (/[₩원]|收费|paid/i.test(field(s, "ticket"))) score -= 12;
@@ -317,7 +335,15 @@
     return m === "wheelchair" ? P("轮椅", "휠체어", "wheelchair") : m === "stroller" ? P("婴儿车", "유모차", "stroller") : m === "lesswalk" ? P("少走路", "덜 걷기", "less walking") : P("无特殊限制", "제한 없음", "no limit");
   }
   function partyWord(p) {
-    return p === "kids" ? P("带孩子", "아이 동반", "with kids") : p === "family" ? P("陪长辈", "어르신 동반", "with elders") : p === "two" ? P("两人", "2인", "two") : p === "friends" ? P("朋友", "친구", "friends") : p === "group" ? P("三人以上", "3인 이상", "3+") : P("一人", "1인", "solo");
+    return p === "kids" ? P("带孩子", "아이 동반", "with kids") :
+      p === "family" ? P("陪长辈", "어르신 동반", "with elders") :
+      p === "two" || p === "two_mf" ? P("两人（男女）", "2인(남녀)", "two (male & female)") :
+      p === "two_mm" ? P("两人（男男）", "2인(남남)", "two (male & male)") :
+      p === "two_ff" ? P("两人（女女）", "2인(여여)", "two (female & female)") :
+      p === "friends" ? P("朋友", "친구", "friends") :
+      p === "group" || p === "group_3plus" ? P("三人以上", "3인 이상", "3+") :
+      p === "solo_female" ? P("一个人（女）", "혼자(여)", "solo (female)") :
+      P("一个人（男）", "혼자(남)", "solo (male)");
   }
 
   function themeLabel(cat) {
@@ -689,7 +715,7 @@
   function planFromSelection() {
     var opts = {
       theme: window.BusanUI && BusanUI.isAutoCat() ? "" : BusanUI.getCat(),
-      party: window.BusanUI && BusanUI.isAutoGrp() ? "" : BusanUI.getGrp()
+      party: window.BusanUI ? BusanUI.getGrp() : ""
     };
     run("", opts);
   }

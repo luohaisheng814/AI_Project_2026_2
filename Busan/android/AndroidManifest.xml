@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="13"
-    android:versionName="2.0">
+    android:versionCode="14"
+    android:versionName="2.1">
 
     <!-- v2.0：补釜山其他核心景点（海云台/广安里/太宗台/札嘎其/南浦洞/松岛/白浅滩/
          龙头山/海东龙宫寺/西面），路线从“只有甘川”改为任意收录景点；
