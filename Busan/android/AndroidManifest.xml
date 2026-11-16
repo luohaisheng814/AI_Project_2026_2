@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="11"
-    android:versionName="1.9">
+    android:versionCode="12"
+    android:versionName="1.9.1">
 
-    <!-- v1.9：路线问题先检查地图定位权限，未授权时在对话里申请；授权后读取实时坐标，
+    <!-- v1.9.1：修正 planner 把“有几条路线/怎么去/从当前位置去”误当成行程规划，
+         这类句子必须先进入定位权限与实时路线流程。
+         v1.9：路线问题先检查地图定位权限，未授权时在对话里申请；授权后读取实时坐标，
          汇总 NAVER 三类走法；意图解析继续用云端模型纠正错字并猜测真实需求。
          v1.8.1：云端意图解析、上午推荐、从实时定位到景点的 3 条走法。
          v1.8：取消端侧 379 MB 模型与原生库，改为联网自动连接免费云端模型（Kilo Gateway 匿名层，

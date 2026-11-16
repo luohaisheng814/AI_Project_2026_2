@@ -669,9 +669,15 @@
 
   function intercept(text) {
     var t = String(text || "");
+    var spot = C.findSpot(t);
+    // 明确问“有几条路/怎么去/从当前位置出发”时，先交给路线权限与实时路线流程，
+    // 不能因为出现“路线”二字就被当成行程规划。
+    if (spot && /几条(路|线)|有哪几条|哪几条|怎么去|怎么走|怎么到|如何到|从.{0,8}当前位置|从我(这里|当前位置)?|当前位置.{0,8}(去|到)|路线可|交通方式/.test(t) &&
+        !/规划|安排|行程|一日游|半日|半天|怎么玩|玩什么|带.{0,6}(逛|玩)| itinerary|plan a trip/i.test(t)) {
+      return false;
+    }
     var strong = /规划|安排|行程|路线|怎么玩|玩什么|一日游|半日|半天|一天|带我|推荐路线|计划去|想去|想看|想拍|去哪儿看|去哪看|看日落|看夜景|일정|코스|반나절|하루|plan|itinerary|route|schedule/i;
     if (!strong.test(t)) return false;
-    var spot = C.findSpot(t);
     var intent = C.intentOf(t);
     if (spot && intent !== "overview" && !/规划|安排|行程|路线|怎么玩|一日游|半日|半天|一天|带|일정|코스|plan|itinerary|route/i.test(t)) {
       return false;
