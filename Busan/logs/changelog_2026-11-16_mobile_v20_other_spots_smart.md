@@ -29,6 +29,7 @@
 - `mobile/cloud/spots.json` 与 `android/assets/cloud_snapshot.*`：18 个景点。
 - `android/assets/data.json` / `mobile/cloud/core_keywords.json` 同步补齐，下一次 `cloud_build.py` 可复现。
 - 每个新点带 `aliases`（中/韩/英）、`core`、`vibes`、`plan`（最佳时段、步行强度、亲子/拍照评分）。
+- `loadCloud()` 新增 `mergeSnapshotSpots()`：即使 GitHub raw 的 `main` 分支缓存暂时还是旧 8 个点，也会用 APK 内快照补齐新景点，不会联网后“又只剩甘川等 8 个”。
 
 ### 1.2 任意景点都能从当前位置出路线
 
@@ -153,10 +154,10 @@ HTTP 200
 | --- | --- |
 | APK | `Busan/dist/Busan旅行助手.apk` |
 | APK 体积 | **259,484 B（253.4 KB）** |
-| APK SHA-256 | `997ED9835B581FB2C7FC5A35EBD25B8BA2755F2E6111953E89DBFFDF98C7F6DA` |
+| APK SHA-256 | `1AAFCCA8408FF860868AB9500BC9705007D4149973424B7C8B62F57CACC07D60` |
 | zip | `Busan/dist/Busan_Tour_App.zip` |
-| zip 体积 | **2,673,256 B** |
-| zip SHA-256 | `34257DA34B79EBAA4B01C5F0B9B935F038B5DE1D5A66323F28077603B1D5ED75` |
+| zip 体积 | **2,673,566 B** |
+| zip SHA-256 | `E571ED780A8F40600493D0CEE05130AE2CB9C6FAF6F275DB32AD231EEBEEFA12` |
 
 构建链：`aapt2 compile/link` → `javac` → `d8` → `zipalign` → `apksigner`，全部通过。
 

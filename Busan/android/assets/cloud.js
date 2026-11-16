@@ -905,6 +905,18 @@
     return db;
   }
 
+  /** 云端 raw 可能比 APK 慢一拍：把包内新增景点补进来，避免联网后“又只剩 8 个点”。 */
+  function mergeSnapshotSpots(db) {
+    if (!db || !db.spots || !SNAP || !SNAP.spots) return db;
+    var ids = {};
+    db.spots.forEach(function (s) { ids[s.id] = 1; });
+    SNAP.spots.forEach(function (s) {
+      if (!ids[s.id]) { db.spots.push(s); ids[s.id] = 1; }
+    });
+    if (!db.updated_at && SNAP.updated_at) db.updated_at = SNAP.updated_at;
+    return db;
+  }
+
   function loadCloud(cb) {
     var i = 0;
     var blocked = window.BusanHost && typeof window.BusanHost.netAllowed === "function" && !window.BusanHost.netAllowed();
@@ -923,6 +935,7 @@
       httpGet(url, function (status, body) {
         var db = (status === 200 || status === 0) ? parse(body) : null;
         if (db && db.spots && db.spots.length) {
+          db = mergeSnapshotSpots(db);
           db = mergeLocalLexicon(db);
           st.db = db; st.mode = "online"; st.reason = "";
           st.snapshot = false;
