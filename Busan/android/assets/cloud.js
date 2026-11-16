@@ -726,6 +726,11 @@
       ],
       spotId: s.id,
       kind: "route",
+      routeMeta: {
+        spotId: s.id, name: title, km: Number(km.toFixed(2)),
+        accuracy: pos.accuracy ? Math.round(pos.accuracy) : null,
+        taxiMin: taxiMin, walkMin: walkMin, at: Date.now()
+      },
       concrete: true
     };
   }

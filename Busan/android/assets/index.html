@@ -232,6 +232,10 @@
   .routeopt b{display:block; font-size:12.5px; color:var(--sea)}
   .routeopt small{display:block; font-size:10.5px; color:var(--muted); margin-top:2px}
   .routeopt em{font-style:normal; font-size:11px; color:var(--sea); white-space:nowrap}
+  .permact{display:flex; gap:7px; margin-top:8px; flex-wrap:wrap}
+  .permact button{flex:1 1 130px; margin-top:0; border:1px solid #bcd8e2; background:#f7fbfc; color:var(--sea); border-radius:9px; padding:9px 8px; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer}
+  .permact .act-grant{background:var(--sea); border-color:var(--sea); color:#fff}
+  .permact button:active{opacity:.75}
   .cloudllm{background:#f7fbfc; border-left:3px solid var(--sea); border-radius:0 10px 10px 0; padding:9px 10px}
   .cloudllm .cl-top{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#23313c}
   .cloudllm .cl-dot{width:6px; height:6px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 2px #e3f3ea}
@@ -624,6 +628,16 @@
       });
       html += "</div>";
     }
+    if (result.permissionPrompt){
+      html += '<div class="permact">' +
+        '<button class="act-grant" type="button">' + esc(L("允许定位并继续", "위치 허용 후 계속", "Allow location & continue")) + "</button>" +
+        '<button class="act-settings" type="button">' + esc(L("去系统设置", "시스템 설정", "Open settings")) + "</button>" +
+        "</div>";
+    } else if (result.permissionDenied){
+      html += '<div class="permact">' +
+        '<button class="act-settings" type="button">' + esc(L("去系统设置开启定位", "시스템 설정에서 위치 켜기", "Enable location in settings")) + "</button>" +
+        "</div>";
+    }
     if (result.cards && result.cards.length){
       result.cards.forEach(function(c){ html += cardHtml(c); });
     }
@@ -646,6 +660,17 @@
         b.onclick = function(){ ask(b.getAttribute("data-q")); };
       });
     }
+    var grantBtn = m.querySelector(".act-grant");
+    if (grantBtn) grantBtn.onclick = function(){ grantRoute(result.q, result.spot); };
+    var settingsBtn = m.querySelector(".act-settings");
+    if (settingsBtn) settingsBtn.onclick = function(){
+      if (window.BusanHost && typeof window.BusanHost.openAppSettings === "function"){
+        try { window.BusanHost.openAppSettings(); } catch (e) {}
+      } else {
+        var hintEl = document.getElementById("hint");
+        if (hintEl) hintEl.textContent = L("请到系统设置 > 应用 > 釜山旅行助手 > 权限 > 位置 开启", "시스템 설정 > 앱 > 부산 여행 도우미 > 권한 > 위치를 켜세요", "Settings > Apps > Busan Travel Assistant > Permissions > Location");
+      }
+    };
     var retryBtn = m.querySelector(".act-retry");
     if (retryBtn) retryBtn.onclick = function(){ reloadCloud(true); };
     if (result.more && result.more.onClick){
@@ -802,7 +827,15 @@
         C.fetchOfficial(s, function(note){ fillOfficial(msg, note); });
       }
     }
-    if (online() && res.spotId && res.kind !== "recommend" && window.BusanLLM && BusanLLM.configured()){
+    if (online() && res.kind === "route" && res.routeMeta && window.BusanLLM && BusanLLM.configured()){
+      var routeLang = lang === "zh" ? "中文" : lang === "ko" ? "한국어" : "English";
+      BusanLLM.chat([
+        { role: "system", content: "You are the Busan route summarizer. Use ONLY the live position, straight-line distance and the three route options below. Never invent bus/metro numbers, fares, frequencies, last departure times or travel times. Reply in " + routeLang + " with 2-3 sentences: which option fits walking-limited users, what must be checked in NAVER, and one caution. Say clearly that straight-line distance is not road distance." },
+        { role: "user", content: "Question: " + text + "\nLive route meta: " + JSON.stringify(res.routeMeta) + "\nReference: " + res.text }
+      ], function(code, out){
+        if (code === 0 && out && out.length <= 360) addCloudNote(msg, out);
+      });
+    } else if (online() && res.spotId && res.kind !== "recommend" && window.BusanLLM && BusanLLM.configured()){
       var langName = lang === "zh" ? "中文" : lang === "ko" ? "한국어" : "English";
       BusanLLM.chat([
         { role: "system", content: "You are the Busan travel assistant. Use ONLY the reference answer below. Never add facts, prices, opening hours, distances or new places. Reply in " + langName + " with one short actionable tip (max 2 sentences)." },
@@ -816,6 +849,100 @@
   function intentSpot(res){
     if (!res || !res.spotId) return null;
     return C.findSpot(res.spotId) || null;
+  }
+
+  /** 只有“有明确目的地 + 走法/交通语义”才进路线流程，普通景点事实问答不受影响。 */
+  function wantsRoute(text){
+    return /当前位置|我这里|从我|怎么去|怎么走|路线|几条路|有哪几条|交通|地铁|公交|打车|how\s+(do|to)\s+i\s+get|route|transit|subway|bus/i.test(String(text || ""));
+  }
+
+  function routeSpotName(s){ return s ? (C.spotTitle ? C.spotTitle(s) : s.name) : ""; }
+
+  function routeNoPosReason(why){
+    if (why === "denied"){
+      return L("定位权限被拒绝，这次只能用常规交通说明。可在系统设置里允许定位后重问。",
+        "위치 권한이 거부되어 이번에는 기본 교통 안내만 제공합니다. 시스템 설정에서 허용한 뒤 다시 물어보세요.",
+        "Location permission was denied, so only standard transport is shown. Allow it in settings and ask again.");
+    }
+    if (why === "timeout"){
+      return L("等了约 18 秒还没拿到定位（室内或 GPS 信号弱时常见）。下面是常规交通说明。",
+        "약 18초 동안 위치를 못 받았습니다(실내·GPS 약할 때 흔함). 아래는 기본 교통 안내입니다.",
+        "No fix after ~18s (common indoors or with weak GPS). Standard transport is below.");
+    }
+    return L("暂时没有拿到当前位置。下面是常规交通说明。",
+      "현재 위치를 아직 못 받았습니다. 아래는 기본 교통 안내입니다.",
+      "No live position yet. Standard transport is below.");
+  }
+
+  function routeResWithPos(text, spot, pos){
+    var res = C.routeTo(spot, pos);
+    if (!res) return null;
+    res.tag = online() ? C.strings().online : C.strings().offline;
+    return res;
+  }
+
+  /** 权限卡：没有授权时先问，不偷偷把定位当成已允许。 */
+  function routePermissionCard(text, spot, msg){
+    var name = routeSpotName(spot);
+    paintBubble(msg, {
+      tag: L("路线 · 需要地图定位权限", "경로 · 지도 위치 권한 필요", "Route · map location permission"),
+      text: L("去 **" + name + "** 的走法需要你的当前位置。\n\n点“允许定位并继续”，系统会弹一次定位授权；允许后我会读取当前坐标，再汇总公交 / 打车 / 步行三种走法。",
+        "**" + name + "** 경로를 안내하려면 현재 위치가 필요합니다.\n\n'위치 허용 후 계속'을 누르면 시스템 위치 권한 창이 뜹니다. 허용하면 현재 좌표를 읽어 대중교통·택시·도보 세 가지를 정리합니다.",
+        "Routing to **" + name + "** needs your current location.\n\nTap “Allow location & continue”; the system will ask once. After allowing, I read your coordinates and summarize public transport, taxi and walking."),
+      permissionPrompt: true,
+      q: text,
+      spot: name
+    });
+  }
+
+  function grantRoute(text, name){
+    var spot = C.findSpot(name) || C.findSpot(text);
+    if (!spot){ ask(text); return; }
+    var msg = bubbleFor({text: L("正在申请定位并计算路线…", "위치 권한을 요청하고 경로를 계산하는 중…", "Requesting location and calculating routes…"), loading: true});
+    if (!window.BusanLive || typeof BusanLive.ensure !== "function"){
+      finishAnswer(text, msg, routeResWithPos(text, spot, null));
+      return;
+    }
+    BusanLive.ensure(function(pos, why){
+      var res;
+      if (pos) res = routeResWithPos(text, spot, pos);
+      else {
+        res = routeResWithPos(text, spot, null);
+        res.text = routeNoPosReason(why) + "\n\n" + res.text;
+        res.permissionDenied = (why === "denied");
+        res.kind = "routeNoPos";
+      }
+      finishAnswer(text, msg, res);
+    }, 18000);
+  }
+
+  function routeAnswer(text, spot, msg){
+    if (!spot){ finishAnswer(text, msg, answerWithIntent(text, null)); return; }
+    var pos = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+    if (pos){
+      finishAnswer(text, msg, routeResWithPos(text, spot, pos));
+      return;
+    }
+    var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+    if (perm === "denied"){
+      var res = routeResWithPos(text, spot, null);
+      res.text = routeNoPosReason("denied") + "\n\n" + res.text;
+      res.kind = "routeNoPos";
+      res.permissionDenied = true;
+      finishAnswer(text, msg, res);
+      return;
+    }
+    if (perm === "granted"){
+      // 已授权但还没首个坐标：自动等一次 GPS，不让用户再点
+      paintBubble(msg, {text: L("定位已允许，正在获取当前位置…", "위치 권한 허용됨. 현재 위치를 확인하는 중…", "Location allowed — getting your position…"), loading: true});
+      BusanLive.ensure(function(pos2, why){
+        var r = routeResWithPos(text, spot, pos2);
+        if (!pos2){ r.text = routeNoPosReason(why) + "\n\n" + r.text; r.kind = "routeNoPos"; }
+        finishAnswer(text, msg, r);
+      }, 18000);
+      return;
+    }
+    routePermissionCard(text, spot, msg);
   }
 
   function ask(text){
@@ -839,6 +966,14 @@
     var settle = function(intent){
       if (settled) return;
       settled = true;
+      var hit = (intent && intent.spot && C.findSpot(intent.spot)) || C.findSpot(text);
+      // 模型判断是路线但没抽到具体地名：用实时坐标在数据库里找最近的收录点
+      if (!hit && intent && intent.intent === "route" && window.BusanLive && BusanLive.position && BusanLive.position() && C.nearby){
+        var near = C.nearby(BusanLive.position().lat, BusanLive.position().lng, 1);
+        if (near && near.length) hit = near[0].spot;
+      }
+      var routeWanted = !!(hit && ((intent && intent.intent === "route") || wantsRoute(text)));
+      if (routeWanted) { routeAnswer(text, hit, msg); return; }
       finishAnswer(text, msg, answerWithIntent(text, intent));
     };
     if (online() && window.BusanLLM && BusanLLM.configured()){

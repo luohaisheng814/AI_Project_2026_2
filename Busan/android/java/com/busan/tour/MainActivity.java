@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
@@ -47,7 +48,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v1.8.1
+ * 釜山 AI 旅行助手 v1.9
+ *
+ * v1.9 路线问答先检查地图定位权限：未授权时在对话里申请，授权后读取实时坐标，
+ * 再汇总公交/打车/步行三类走法与 NAVER 深链。
  *
  * v1.8.1 增加云端意图解析：纠正错字、识别“上午去哪”和“从当前位置去某地”，
  * 把“库里没有这个地点”改成真正可执行的推荐/路线回答。
@@ -675,7 +679,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/1.8.1 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/1.9 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
@@ -710,6 +714,17 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < 23) return true;
         return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public void openAppSettings() {
+        try {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Exception e) {
+            toast("请到系统设置里为本应用开启定位权限");
+        }
     }
 
     @JavascriptInterface
@@ -910,6 +925,26 @@ public class MainActivity extends Activity {
                     js("window.__busanLocReady&&window.__busanLocReady();");
                 }
             });
+        }
+
+        @JavascriptInterface
+        public boolean hasLocationPermission() {
+            return MainActivity.this.hasLocationPermission();
+        }
+
+        @JavascriptInterface
+        public boolean startLocationWatch() {
+            return MainActivity.this.startLocationWatch();
+        }
+
+        @JavascriptInterface
+        public void stopLocationWatch() {
+            MainActivity.this.stopLocationWatch();
+        }
+
+        @JavascriptInterface
+        public void openAppSettings() {
+            MainActivity.this.openAppSettings();
         }
     }
 

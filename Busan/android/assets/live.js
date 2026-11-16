@@ -4,11 +4,23 @@
  * 转成到目标景点（或最近景点）的直线距离，绝不推断实时营业或拥挤程度。
  */
 (function () {
-  var st = { pos: null, target: null, watching: false, error: "", waitTimer: null };
+  var st = { pos: null, target: null, watching: false, error: "", waitTimer: null, permission: "unknown" };
   var watchId = null;
 
   function lang() { return (window.BusanUI && BusanUI.getLang()) || "zh"; }
   function T(zh, ko, en) { return lang() === "zh" ? zh : lang() === "ko" ? ko : en; }
+
+  /** 定位权限：granted / denied / prompt / unknown。原生优先，浏览器用 Permissions API。 */
+  function permState() {
+    if (st.pos) return "granted";
+    if (st.permission === "denied" || st.permission === "granted") return st.permission;
+    if (window.BusanHost && typeof window.BusanHost.hasLocationPermission === "function") {
+      try {
+        if (window.BusanHost.hasLocationPermission()) return "granted";
+      } catch (e) {}
+    }
+    return st.permission === "unknown" ? "prompt" : st.permission;
+  }
 
   function spotById(id) {
     var list = (window.BusanCloud && BusanCloud.allSpots()) || [];
@@ -79,6 +91,7 @@
       try { ok = window.BusanHost.startLocationWatch(); } catch (e) { ok = false; }
       if (!ok) {
         // 原生已弹出系统授权框；授权后会直接开始回传坐标
+        st.permission = "prompt";
         clearTimeout(st.waitTimer);
         st.waitTimer = setTimeout(function () {
           if (!st.pos && st.watching) {
@@ -86,19 +99,24 @@
             paint();
           }
         }, 4000);
+      } else {
+        st.permission = "granted";
       }
       return;
     }
 
     if (navigator.geolocation) {
+      st.permission = "prompt";
       watchId = navigator.geolocation.watchPosition(function (p) {
         update(p.coords.latitude, p.coords.longitude, p.coords.accuracy, "web", Date.now());
-      }, function () {
+      }, function (err) {
+        st.permission = (err && err.code === 1) ? "denied" : "prompt";
         st.error = T("定位失败，请检查权限", "위치 확인 실패, 권한을 확인하세요", "Location failed — check permission");
         st.watching = false;
         paint();
       }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
     } else {
+      st.permission = "denied";
       st.error = T("这台设备不支持定位", "이 기기에서는 위치를 지원하지 않습니다", "Location not supported on this device");
       st.watching = false;
       paint();
@@ -121,6 +139,7 @@
   function update(lat, lng, acc, provider, at) {
     st.pos = { lat: lat, lng: lng, accuracy: acc, provider: provider, at: at || Date.now() };
     st.watching = true;
+    st.permission = "granted";
     st.error = "";
     clearTimeout(st.waitTimer);
     paint();
@@ -131,6 +150,7 @@
   };
 
   window.__busanLocError = function (code, msg) {
+    st.permission = code === 1 ? "denied" : "prompt";
     st.error = code === 1
       ? T("定位权限被拒绝，可在系统设置里开启", "위치 권한이 거부됨. 시스템 설정에서 허용하세요", "Location denied — enable it in system settings")
       : T("定位不可用，请检查 GPS 或网络", "위치를 사용할 수 없음. GPS·네트워크를 확인하세요", "Location unavailable — check GPS or network");
@@ -138,10 +158,39 @@
     paint();
   };
 
+  /** 路线问答专用：有坐标立即返回；没有就启动定位并等待授权/首个坐标。 */
+  function ensure(cb, timeoutMs) {
+    var done = false, poll = null, timer = null;
+    function finish(pos, why) {
+      if (done) return;
+      done = true;
+      if (poll) clearInterval(poll);
+      if (timer) clearTimeout(timer);
+      cb(pos || null, why || "");
+    }
+    if (st.pos) { finish(st.pos); return; }
+    start();
+    timer = setTimeout(function () {
+      finish(null, st.permission === "denied" ? "denied" : "timeout");
+    }, timeoutMs || 15000);
+    poll = setInterval(function () {
+      if (st.pos) finish(st.pos);
+      else if (st.permission === "denied") finish(null, "denied");
+    }, 400);
+  }
+
   window.BusanLive = {
     init: function () {
       var btn = document.getElementById("liveBtn");
       if (btn) btn.onclick = function () { st.watching ? stop() : start(); };
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          navigator.permissions.query({ name: "geolocation" }).then(function (p) {
+            if (p.state === "granted" || p.state === "denied") st.permission = p.state;
+            p.onchange = function () { if (p.state !== "prompt") st.permission = p.state; };
+          });
+        } catch (e) {}
+      }
       paint();
     },
     start: start,
@@ -149,6 +198,8 @@
     paint: paint,
     position: function () { return st.pos; },
     isWatching: function () { return st.watching; },
+    permission: permState,
+    ensure: ensure,
     setTarget: function (id) {
       st.target = id || null;
       paint();
