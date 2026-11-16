@@ -198,7 +198,8 @@
     var k = key(q);
     if (!k) return null;
     // 口语/错字兜底：云端模型未返回时也要能认出常见写法
-    k = k.replace(/看川/g, "甘川").replace(/甘川文化$/g, "甘川文化村")
+    k = k.replace(/看川/g, "甘川").replace(/甘村文化村/g, "甘川文化村")
+      .replace(/甘村/g, "甘川").replace(/甘川文化$/g, "甘川文化村")
       .replace(/乙淑岛$/g, "乙淑岛候鸟公园").replace(/长林浦$/g, "长林浦口");
     var list = spots(), best = null, bestScore = 0;
     for (var i = 0; i < list.length; i++) {
@@ -822,6 +823,19 @@
     lines.push(P("从当前位置出发，直线约 " + km.toFixed(1) + " km" + acc + "；实际道路距离会更长一点。",
       "현재 위치에서 직선 약 " + km.toFixed(1) + " km" + acc + ". 실제 도로 거리는 조금 더 깁니다.",
       "From your current location, about " + km.toFixed(1) + " km straight-line" + acc + "; road distance will be a little longer."));
+    lines.push("");
+    var best = km <= 1.2
+      ? P("步行/无障碍优先：距离近，直接走过去最省事；有行李或行动不便再打车。",
+          "도보/무장애 우선: 거리가 가까워 걸어가는 편이 가장 간단합니다. 짐이 많거나 이동이 불편하면 택시를 이용하세요.",
+          "Walk/accessibility first: close enough to walk; take a taxi if carrying luggage or mobility is limited.")
+      : km <= 7
+        ? P("公共交通优先：地铁/巴士到最近站点，再步行或换小巴；打车只作为时间紧的备选。",
+            "대중교통 우선: 지하철/버스로 가장 가까운 정류장까지 간 뒤 도보 또는 마을버스로 환승하세요. 택시는 시간이 급할 때만.",
+            "Public transport first: metro/bus to the nearest stop, then walk or transfer; taxi only when time is tight.")
+        : P("公共交通优先 + 打车备选：距离较远，不建议全程步行；赶时间可直接打车。",
+            "대중교통 우선 + 택시 대안: 거리가 멀어 전 구간 도보는 비추천. 시간이 급하면 택시를 이용하세요.",
+            "Public transport first, taxi as backup: too far to walk all the way; take a taxi if time is tight.");
+    lines.push("**" + P("最优建议", "최적 제안", "Best choice") + "** · " + best);
     lines.push("");
     lines.push("**" + P("3 条可选走法", "3가지 이동 방법", "3 ways to go") + "**");
     var transitNote = s.id === "甘川文化村"

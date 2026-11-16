@@ -48,8 +48,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.1
+ * 釜山 AI 旅行助手 v2.2
  *
+ * v2.2 修复路线问句被行程规划抢答：地名错字（甘村/看川）先归一；
+ * 显式路线问句优先走实时定位路线卡，并按直线距离给“最优建议”；
+ * 官方资料块只给网址，不再展示官网韩文原文；
  * v2.1 把“玩法/出行”合并成可折叠条：默认展开，7 秒无操作自动收起；
  * 官方资料块只给网址，不再展示官网韩文原文；
  * 按一人男/一人女/两人男女/两人男男/两人女女/三人以上给出差异化点位与路线。
@@ -687,7 +690,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.1 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.2 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
