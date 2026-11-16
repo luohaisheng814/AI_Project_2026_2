@@ -165,9 +165,10 @@
 
 ## 七、提交与推送
 
-- 代码与产物提交：`<待填>`
+- 代码与产物提交：`a84ea420fd6905f0119d847257674a3a757c0759`
 - 远端：`https://github.com/luohaisheng814/AI_Project_2026_2.git`，分支 `main`
 - 上一版 v2.3：`8d7e195238f109bc0cf3ba75d6632fd893e06f5d`
-- 推送结果：`<待填>`
+- 推送结果：`8d7e195..a84ea42  main -> main`
+- 对比页：<https://github.com/luohaisheng814/AI_Project_2026_2/compare/8d7e195238f109bc0cf3ba75d6632fd893e06f5d...a84ea420fd6905f0119d847257674a3a757c0759>
 
-> 日志中的提交哈希在 push 后回填。
+> 日志回填提交为紧随其后的 `docs` 提交；代码与产物的正式提交是 `a84ea420fd6905f0119d847257674a3a757c0759`。
