@@ -119,10 +119,38 @@
   .photos{margin:0 0 8px}
   .photostrip{display:flex; gap:6px; overflow-x:auto; padding:1px 0 4px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
   .photostrip::-webkit-scrollbar{display:none}
-  .photostrip figure{flex:0 0 128px; margin:0}
+  .photostrip figure{flex:0 0 128px; margin:0; position:relative; cursor:zoom-in}
   .photostrip img{display:block; width:128px; height:86px; object-fit:cover; border-radius:9px; background:#eaf1f5; border:1px solid #e3edf2}
+  .photostrip figure::after{
+    content:"+"; position:absolute; right:4px; bottom:4px; width:17px; height:17px;
+    border-radius:50%; background:rgba(10,78,99,.82); color:#fff; font-size:11px;
+    line-height:17px; text-align:center; pointer-events:none;
+  }
   .photocredit{font-size:10px; color:var(--muted); line-height:1.45; margin:0 0 7px}
   .photocredit a{color:var(--muted)}
+  /* v2.4 图片大图查看层：点缩略图打开，双指/双击放大，单指拖动 */
+  body.lb-open{overflow:hidden}
+  .lightbox{position:fixed; inset:0; z-index:1000; background:#08151b; display:flex; flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 10px); touch-action:none;
+    user-select:none; -webkit-user-select:none}
+  .lightbox[hidden]{display:none}
+  .lb-top{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px; height:34px}
+  .lb-count{font-size:12px; color:#cfe3ea; letter-spacing:.5px}
+  .lb-close{width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.10); color:#fff; font-size:22px; line-height:30px; padding:0}
+  .lb-stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden; touch-action:none; margin:4px 0}
+  .lb-canvas{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    transform-origin:50% 50%; will-change:transform}
+  .lb-canvas img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block;
+    border-radius:4px; -webkit-user-drag:none; user-select:none; -webkit-user-select:none}
+  .lb-nav{position:absolute; top:50%; transform:translateY(-50%); width:36px; height:54px; border-radius:12px;
+    border:1px solid rgba(255,255,255,.28); background:rgba(8,21,27,.55); color:#fff; font-size:26px; line-height:50px; padding:0; z-index:2}
+  .lb-nav[hidden]{display:none}
+  .lb-prev{left:8px}
+  .lb-next{right:8px}
+  .lb-bottom{flex:0 0 auto; min-height:48px; padding:4px 4px 0}
+  .lb-cap{font-size:12.5px; color:#eaf4f7; line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+  .lb-hint{font-size:10.5px; color:#8fb7c4; margin-top:4px; line-height:1.4}
   .quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
   #followups[hidden]{display:none}
   .dot.pulse{animation:pulse 1.1s ease-in-out infinite}
@@ -480,6 +508,22 @@
   </div>
 </div>
 
+<div class="lightbox" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="查看大图">
+  <div class="lb-top">
+    <div class="lb-count" id="lbCount"></div>
+    <button class="lb-close" id="lbClose" type="button" aria-label="关闭">×</button>
+  </div>
+  <div class="lb-stage" id="lbStage">
+    <div class="lb-canvas" id="lbCanvas"><img id="lbImg" alt=""></div>
+    <button class="lb-nav lb-prev" id="lbPrev" type="button" aria-label="上一张">‹</button>
+    <button class="lb-nav lb-next" id="lbNext" type="button" aria-label="下一张">›</button>
+  </div>
+  <div class="lb-bottom">
+    <div class="lb-cap" id="lbCap"></div>
+    <div class="lb-hint" id="lbHint"></div>
+  </div>
+</div>
+
 <script src="data.js"></script>
 <script src="cloud_snapshot.js"></script>
 <script src="photos.js"></script>
@@ -712,6 +756,212 @@
       (licenses.length ? " · " + esc(licenses.slice(0, 2).join(" / ")) : "") + "</div></div>";
     return strip;
   }
+
+  /* ---------------- v2.4 图片大图查看层 ---------------- */
+  var lbEl = document.getElementById("lightbox");
+  var lbImg = document.getElementById("lbImg");
+  var lbCanvas = document.getElementById("lbCanvas");
+  var lbStage = document.getElementById("lbStage");
+  var lbCap = document.getElementById("lbCap");
+  var lbCount = document.getElementById("lbCount");
+  var lbHint = document.getElementById("lbHint");
+  var lbPrev = document.getElementById("lbPrev");
+  var lbNext = document.getElementById("lbNext");
+  var lbCloseBtn = document.getElementById("lbClose");
+  var lbItems = [], lbIndex = 0, lbScale = 1, lbX = 0, lbY = 0;
+  var lbPointers = {}, lbDrag = null, lbPinch = null;
+  var lbLastTap = 0, lbLastTapX = 0, lbLastTapY = 0, lbLastToggle = 0;
+
+  function lbClosest(el, cls){
+    while (el && el !== document){
+      if (el.classList && el.classList.contains(cls)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+  function lbApply(){
+    lbCanvas.style.transform = "translate3d(" + lbX + "px," + lbY + "px,0) scale(" + lbScale + ")";
+  }
+  function lbClamp(){
+    var maxX = Math.max(0, lbStage.clientWidth * (lbScale - 1) / 2);
+    var maxY = Math.max(0, lbStage.clientHeight * (lbScale - 1) / 2);
+    lbX = Math.max(-maxX, Math.min(maxX, lbX));
+    lbY = Math.max(-maxY, Math.min(maxY, lbY));
+    if (lbScale <= 1.02){ lbScale = 1; lbX = 0; lbY = 0; }
+  }
+  function lbReset(){
+    lbScale = 1; lbX = 0; lbY = 0;
+    lbCanvas.style.transition = "none";
+    lbApply();
+  }
+  function lbHintText(){
+    return L("双指缩放 · 双击放大 · 单指拖动查看", "두 손가락 확대 · 두 번 탭 확대 · 드래그해서 보기", "Pinch or double-tap to zoom · drag to pan");
+  }
+  function lbRender(){
+    var item = lbItems[lbIndex];
+    if (!item) return;
+    lbImg.src = item.src;
+    lbImg.alt = item.alt || item.cap || "景点图片";
+    lbCap.textContent = item.cap || item.alt || "";
+    lbCount.textContent = (lbIndex + 1) + " / " + lbItems.length;
+    lbPrev.hidden = lbItems.length < 2;
+    lbNext.hidden = lbItems.length < 2;
+    lbHint.textContent = lbHintText();
+    lbCloseBtn.setAttribute("aria-label", L("关闭", "닫기", "Close"));
+    lbPrev.setAttribute("aria-label", L("上一张", "이전 사진", "Previous"));
+    lbNext.setAttribute("aria-label", L("下一张", "다음 사진", "Next"));
+    lbReset();
+  }
+  function lbOpen(items, index){
+    if (!items || !items.length) return;
+    lbItems = items;
+    lbIndex = Math.max(0, Math.min(items.length - 1, index || 0));
+    lbEl.hidden = false;
+    lbEl.setAttribute("aria-hidden", "false");
+    document.body.classList.add("lb-open");
+    lbRender();
+  }
+  function lbClose(){
+    lbEl.hidden = true;
+    lbEl.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("lb-open");
+    lbImg.removeAttribute("src");
+    lbItems = []; lbIndex = 0;
+    lbPointers = {}; lbDrag = null; lbPinch = null;
+    lbReset();
+  }
+  function lbMove(delta){
+    if (!lbItems.length) return;
+    lbIndex = (lbIndex + delta + lbItems.length) % lbItems.length;
+    lbRender();
+  }
+  function lbToggleZoom(x, y){
+    var now = Date.now();
+    if (now - lbLastToggle < 280) return;
+    lbLastToggle = now;
+    lbCanvas.style.transition = "transform .18s ease";
+    if (lbScale > 1.05){
+      lbScale = 1; lbX = 0; lbY = 0;
+    } else {
+      lbScale = 2.4;
+      var cx = lbStage.clientWidth / 2, cy = lbStage.clientHeight / 2;
+      lbX = (cx - (x || cx)) * (lbScale - 1);
+      lbY = (cy - (y || cy)) * (lbScale - 1);
+    }
+    lbClamp();
+    lbApply();
+    setTimeout(function(){ lbCanvas.style.transition = "none"; }, 220);
+  }
+  function lbTap(x, y){
+    var now = Date.now();
+    if (now - lbLastTap < 320 && Math.abs(x - lbLastTapX) < 42 && Math.abs(y - lbLastTapY) < 42){
+      lbLastTap = 0;
+      lbToggleZoom(x, y);
+    } else {
+      lbLastTap = now; lbLastTapX = x; lbLastTapY = y;
+    }
+  }
+
+  document.addEventListener("click", function(e){
+    var strip = lbClosest(e.target, "photostrip");
+    if (!strip || !e.target || e.target.tagName !== "IMG") return;
+    var imgs = strip.querySelectorAll("img");
+    var idx = Array.prototype.indexOf.call(imgs, e.target);
+    if (idx < 0) return;
+    e.preventDefault();
+    lbOpen(Array.prototype.map.call(imgs, function(im){
+      return {
+        src: im.getAttribute("src"),
+        alt: im.getAttribute("alt") || "景点图片",
+        cap: im.getAttribute("title") || im.getAttribute("alt") || ""
+      };
+    }), idx);
+  });
+
+  lbCloseBtn.addEventListener("click", function(e){ e.stopPropagation(); lbClose(); });
+  lbPrev.addEventListener("click", function(e){ e.stopPropagation(); lbMove(-1); });
+  lbNext.addEventListener("click", function(e){ e.stopPropagation(); lbMove(1); });
+  document.addEventListener("keydown", function(e){
+    if (lbEl.hidden) return;
+    if (e.key === "Escape") lbClose();
+    else if (e.key === "ArrowLeft") lbMove(-1);
+    else if (e.key === "ArrowRight") lbMove(1);
+  });
+
+  lbStage.addEventListener("pointerdown", function(e){
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (lbClosest(e.target, "lb-nav")) return;
+    e.preventDefault();
+    lbPointers[e.pointerId] = {x: e.clientX, y: e.clientY};
+    var keys = Object.keys(lbPointers);
+    lbCanvas.style.transition = "none";
+    if (keys.length === 1){
+      lbDrag = {x: e.clientX, y: e.clientY, tx: lbX, ty: lbY, moved: false, t: Date.now()};
+      lbPinch = null;
+    } else if (keys.length === 2){
+      var p1 = lbPointers[keys[0]], p2 = lbPointers[keys[1]];
+      lbPinch = {dist: Math.max(1, Math.hypot(p1.x - p2.x, p1.y - p2.y)), scale: lbScale};
+      lbDrag = null;
+    }
+    try { lbStage.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  lbStage.addEventListener("pointermove", function(e){
+    if (!lbPointers[e.pointerId]) return;
+    e.preventDefault();
+    lbPointers[e.pointerId] = {x: e.clientX, y: e.clientY};
+    var keys = Object.keys(lbPointers);
+    if (keys.length >= 2 && lbPinch){
+      var p1 = lbPointers[keys[0]], p2 = lbPointers[keys[1]];
+      var dist = Math.max(1, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+      lbScale = Math.max(1, Math.min(4, lbPinch.scale * dist / lbPinch.dist));
+      lbClamp();
+      lbApply();
+    } else if (keys.length === 1 && lbDrag){
+      var dx = e.clientX - lbDrag.x, dy = e.clientY - lbDrag.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) lbDrag.moved = true;
+      lbX = lbDrag.tx + dx;
+      lbY = lbDrag.ty + dy;
+      lbClamp();
+      lbApply();
+    }
+  });
+  function lbPointerEnd(e){
+    var wasDrag = lbDrag;
+    delete lbPointers[e.pointerId];
+    var keys = Object.keys(lbPointers);
+    if (keys.length === 1){
+      var p = lbPointers[keys[0]];
+      lbDrag = {x: p.x, y: p.y, tx: lbX, ty: lbY, moved: true, t: Date.now()};
+      lbPinch = null;
+    } else {
+      lbDrag = null; lbPinch = null;
+    }
+    lbClamp(); lbApply();
+    if (wasDrag && !wasDrag.moved && e.pointerType !== "mouse" && Date.now() - wasDrag.t < 300){
+      lbTap(e.clientX, e.clientY);
+    }
+  }
+  lbStage.addEventListener("pointerup", lbPointerEnd);
+  lbStage.addEventListener("pointercancel", lbPointerEnd);
+  lbStage.addEventListener("dblclick", function(e){ e.preventDefault(); lbToggleZoom(e.clientX, e.clientY); });
+  lbStage.addEventListener("wheel", function(e){
+    e.preventDefault();
+    var factor = e.deltaY < 0 ? 1.16 : 0.86;
+    lbScale = Math.max(1, Math.min(4, lbScale * factor));
+    lbClamp(); lbApply();
+  }, {passive: false});
+
+  window.BusanLightbox = {
+    open: lbOpen,
+    close: lbClose,
+    next: function(){ lbMove(1); },
+    prev: function(){ lbMove(-1); },
+    zoom: function(x, y){ lbToggleZoom(x, y); },
+    state: function(){
+      return {open: !lbEl.hidden, index: lbIndex, count: lbItems.length, scale: lbScale, x: lbX, y: lbY};
+    }
+  };
+
 
   function paintBubble(m, result){
     var html = '<div class="bubble' + (result.loading ? " loading" : "") + '">';

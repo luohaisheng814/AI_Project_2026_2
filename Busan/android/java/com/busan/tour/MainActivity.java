@@ -48,8 +48,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.3
+ * 釜山 AI 旅行助手 v2.4
  *
+ * v2.4 景点图片支持点按全屏查看：双指缩放、双击放大、单指拖动、左右切换；
+ * 大图仍使用 APK 内置图片，离线可用。
  * v2.3 修复实时定位链路：GPS 按钮统一走原生 LocationManager；权限已授予时启动自动恢复
  * 实时定位；15 秒无坐标给出可操作提示；权限被拒绝时不再重复弹窗。
  * 地图按钮明确标注 NAVER / Google 归属；景点回答上方内置 1-3 张实景图。
@@ -694,7 +696,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.3 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.4 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
