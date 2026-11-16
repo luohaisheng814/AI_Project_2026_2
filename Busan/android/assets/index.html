@@ -661,7 +661,10 @@
       });
     }
     var grantBtn = m.querySelector(".act-grant");
-    if (grantBtn) grantBtn.onclick = function(){ grantRoute(result.q, result.spot); };
+    if (grantBtn) grantBtn.onclick = function(){
+      if (result.nearbyGrant) grantNearby(result.q);
+      else grantRoute(result.q, result.spot);
+    };
     var settingsBtn = m.querySelector(".act-settings");
     if (settingsBtn) settingsBtn.onclick = function(){
       if (window.BusanHost && typeof window.BusanHost.openAppSettings === "function"){
@@ -763,7 +766,7 @@
     try {
       var x = JSON.parse(s.slice(a, b + 1));
       var it = String(x.intent || "").toLowerCase();
-      if (!/^(recommend|route|spot|unknown)$/.test(it)) return null;
+      if (!/^(recommend|route|spot|general|nearby|unknown)$/.test(it)) return null;
       return {
         intent: it,
         spot: String(x.spot || "").trim(),
@@ -781,10 +784,12 @@
     var hasPos = !!(window.BusanLive && BusanLive.position && BusanLive.position());
     var sys = "你是釜山旅行助手的意图解析器。只输出一行合法 JSON，不要解释、不要 Markdown。\n" +
       "用户可能打错字、用口语或省略地点，请按语义纠正。可选景点：" + names + "。\n" +
-      "字段：intent=recommend|route|spot|unknown；spot=正式景点名（没有就空字符串）；" +
+      "字段：intent=recommend|route|spot|general|nearby|unknown；spot=正式景点名（没有就空字符串）；" +
       "time=morning|afternoon|evening|any|空；from_current=true/false。\n" +
       "判定：问“白天/上午/去哪/推荐/玩什么”且没有明确景点→recommend；" +
-      "说“从当前位置/从我这里/怎么去/路线”并有目的地→route；只问某个景点的事实→spot；其余 unknown。\n" +
+      "说“从当前位置/从我这里/怎么去/路线/几条路”并有目的地→route；" +
+      "问“附近/周边/走路能到”且没有明确景点→nearby；" +
+      "问天气、带娃、两天怎么安排、下雨备选、预算、吃饭等开放建议→general；只问某个景点的事实→spot；其余 unknown。\n" +
       "注意：下面的“实时定位”只是状态，不代表问题一定是在问路线；提问里没有目的地时不要判 route。";
     var user = "用户问题：" + text + "\n实时定位：" + (hasPos ? "开启" : "关闭");
     BusanLLM.chat([{ role: "system", content: sys }, { role: "user", content: user }], function(code, out){
@@ -799,15 +804,32 @@
       rec.tag = C.strings().online;
       return rec;
     }
+    if (intent && intent.intent === "nearby"){
+      var p = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+      var near = p && C.nearbyAnswer ? C.nearbyAnswer(p, text, 3) : null;
+      if (near){ near.tag = C.strings().online; return near; }
+      var nr = C.recommend(intent.time || C.timeOf(text) || "any", text);
+      nr.tag = C.strings().online;
+      return nr;
+    }
+    if (intent && intent.intent === "general"){
+      var g = C.recommend(intent.time || C.timeOf(text) || "any", text);
+      g.kind = "general";
+      g.tag = (window.BusanLLM && BusanLLM.configured()) ? "智能回答 · 大模型" : C.strings().online;
+      return g;
+    }
+    if (intent && intent.intent === "route" && !intent.spot){
+      var pp = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+      var nroutes = pp && C.nearbyRoutes ? C.nearbyRoutes(pp, text) : null;
+      if (nroutes){ nroutes.tag = C.strings().online; return nroutes; }
+      var rr = C.recommend(intent.time || C.timeOf(text) || "any", text);
+      rr.tag = C.strings().online;
+      return rr;
+    }
     if (intent && intent.spot && C.findSpot(intent.spot)){
       var res = C.answer(intent.spot + " " + text, {lang: lang});
       res.tag = C.strings().online;
       return res;
-    }
-    if (intent && intent.intent === "route" && !intent.spot){
-      var rr = C.recommend(intent.time || C.timeOf(text) || "any", text);
-      rr.tag = C.strings().online;
-      return rr;
     }
     return online() ? cloudAnswer(text) : offlineAnswer(text);
   }
@@ -822,7 +844,7 @@
     // 官网核对：路线回答也保留目的地官网入口；推荐卡片本身不抓官网
     if (online() && res.spotId && res.kind !== "recommend"){
       var s = C.findSpot(text) || (intentSpot(res));
-      if (s){
+      if (s && s.official && s.official.url){
         fillOfficial(msg, null, true);
         C.fetchOfficial(s, function(note){ fillOfficial(msg, note); });
       }
@@ -832,6 +854,14 @@
       BusanLLM.chat([
         { role: "system", content: "You are the Busan route summarizer. Use ONLY the live position, straight-line distance and the three route options below. Never invent bus/metro numbers, fares, frequencies, last departure times or travel times. Reply in " + routeLang + " with 2-3 sentences: which option fits walking-limited users, what must be checked in NAVER, and one caution. Say clearly that straight-line distance is not road distance." },
         { role: "user", content: "Question: " + text + "\nLive route meta: " + JSON.stringify(res.routeMeta) + "\nReference: " + res.text }
+      ], function(code, out){
+        if (code === 0 && out && out.length <= 360) addCloudNote(msg, out);
+      });
+    } else if (online() && res.kind === "general" && window.BusanLLM && BusanLLM.configured()){
+      var genLang = lang === "zh" ? "中文" : lang === "ko" ? "한국어" : "English";
+      BusanLLM.chat([
+        { role: "system", content: "You are the Busan travel assistant. Use ONLY the candidate spots and reference below. Never invent tickets, opening hours, prices, route numbers or new places. Reply in " + genLang + " with 2-3 short sentences: a practical order (morning/afternoon/evening), why these fit, and one caution. If the candidates do not fit the question, say so plainly." },
+        { role: "user", content: "Question: " + text + "\nCandidates/reference: " + res.text }
       ], function(code, out){
         if (code === 0 && out && out.length <= 360) addCloudNote(msg, out);
       });
@@ -893,6 +923,42 @@
       q: text,
       spot: name
     });
+  }
+
+  /** 没有指定目的地、只问“从当前位置去其他景点”时的权限卡。 */
+  function nearbyRoutePermissionCard(text, msg){
+    paintBubble(msg, {
+      tag: L("路线 · 需要地图定位权限", "경로 · 지도 위치 권한 필요", "Route · map location permission"),
+      text: L("要给你列出当前位置附近可去的景点和走法，需要先读取当前位置。\n\n点“允许定位并继续”，系统会弹一次定位授权；允许后我会按直线距离列出最近的 3 个收录景点，再分别给公交 / 打车 / 步行三种走法。",
+        "현재 위치 주변 명소와 이동 방법을 안내하려면 현재 위치가 필요합니다.\n\n'위치 허용 후 계속'을 누르면 시스템 위치 권한 창이 뜹니다. 허용하면 가까운 3곳과 대중교통·택시·도보를 정리합니다.",
+        "To list nearby spots and routes, I need your current location.\n\nTap “Allow location & continue”; the system will ask once. Then I list the three nearest covered spots with public transport, taxi and walking."),
+      permissionPrompt: true,
+      nearbyGrant: true,
+      q: text
+    });
+  }
+
+  function grantNearby(text, reuseMsg){
+    var msg = reuseMsg || bubbleFor({text: L("正在申请定位并查找附近景点…", "위치 권한을 요청하고 주변 명소를 찾는 중…", "Requesting location and finding nearby spots…"), loading: true});
+    if (!window.BusanLive || typeof BusanLive.ensure !== "function"){
+      var fallback = C.recommend("any", text);
+      fallback.text = routeNoPosReason("unknown") + "\n\n" + fallback.text;
+      finishAnswer(text, msg, fallback);
+      return;
+    }
+    BusanLive.ensure(function(pos, why){
+      if (pos){
+        var res = C.nearbyRoutes(pos, text);
+        res.tag = online() ? C.strings().online : C.strings().offline;
+        finishAnswer(text, msg, res);
+      } else {
+        var rec = C.recommend("any", text);
+        rec.text = routeNoPosReason(why) + "\n\n" + rec.text;
+        rec.kind = "routeNoPos";
+        rec.permissionDenied = (why === "denied");
+        finishAnswer(text, msg, rec);
+      }
+    }, 18000);
   }
 
   function grantRoute(text, name){
@@ -967,10 +1033,31 @@
       if (settled) return;
       settled = true;
       var hit = (intent && intent.spot && C.findSpot(intent.spot)) || C.findSpot(text);
-      // 模型判断是路线但没抽到具体地名：用实时坐标在数据库里找最近的收录点
-      if (!hit && intent && intent.intent === "route" && window.BusanLive && BusanLive.position && BusanLive.position() && C.nearby){
-        var near = C.nearby(BusanLive.position().lat, BusanLive.position().lng, 1);
-        if (near && near.length) hit = near[0].spot;
+      // 模型判断是路线但没抽到具体地名：给“当前位置到其他景点”的 3 条可选路线，而不是只猜最近一个
+      var routeNoSpot = !hit && ((intent && intent.intent === "route") || (/当前位置|从我/.test(text) && wantsRoute(text)));
+      if (routeNoSpot && C.nearbyRoutes){
+        var pp = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+        if (pp){
+          var nr = C.nearbyRoutes(pp, text);
+          nr.tag = C.strings().online;
+          finishAnswer(text, msg, nr);
+          return;
+        }
+        var perm0 = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+        if (perm0 === "prompt" || perm0 === "unknown"){
+          nearbyRoutePermissionCard(text, msg);
+          return;
+        }
+        if (perm0 === "granted"){
+          grantNearby(text, msg);
+          return;
+        }
+        var rec0 = C.recommend("any", text);
+        rec0.text = routeNoPosReason(perm0 === "denied" ? "denied" : "timeout") + "\n\n" + rec0.text;
+        rec0.kind = "routeNoPos";
+        rec0.permissionDenied = (perm0 === "denied");
+        finishAnswer(text, msg, rec0);
+        return;
       }
       var routeWanted = !!(hit && ((intent && intent.intent === "route") || wantsRoute(text)));
       if (routeWanted) { routeAnswer(text, hit, msg); return; }

@@ -48,13 +48,14 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v1.9.1
+ * 釜山 AI 旅行助手 v2.0
+ *
+ * v2.0 补入海云台、广安里、太宗台、札嘎其等 10 个釜山核心景点；
+ * 路线不再写死甘川，任意收录景点都能从当前位置出 3 类走法；
+ * 新增“当前位置去其他景点”的最近 3 点路线、附近问答和通用智能建议。
  *
  * v1.9.1 修正“有几条路线/怎么去/从当前位置去”被 planner 当成行程规划的问题，
  * 这类明确路线问题优先进入定位权限与实时路线流程。
- *
- * v1.9 路线问答先检查地图定位权限：未授权时在对话里申请，授权后读取实时坐标，
- * 再汇总公交/打车/步行三类走法与 NAVER 深链。
  *
  * v1.8.1 增加云端意图解析：纠正错字、识别“上午去哪”和“从当前位置去某地”，
  * 把“库里没有这个地点”改成真正可执行的推荐/路线回答。
@@ -682,7 +683,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/1.9.1 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.0 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
