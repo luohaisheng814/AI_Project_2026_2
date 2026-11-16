@@ -267,8 +267,10 @@ python apk_build\_v23liveprobe.py
 
 ## 十、提交与推送
 
-- 本次提交：`<待填>`（代码 + 图片资产 + 构建脚本 + 日志）
+- 本次提交：`536cb3bb969c40d0a1ee55924c96bb0c02eb32b0`
 - 远端：`https://github.com/luohaisheng814/AI_Project_2026_2.git`，分支 `main`
 - 上一版 v2.2：`27932a70e08de409b69f4440e04ec4a7f7405c87`
+- 推送结果：`27932a7..536cb3b  main -> main`
+- 对比页：<https://github.com/luohaisheng814/AI_Project_2026_2/compare/27932a70e08de409b69f4440e04ec4a7f7405c87...536cb3bb969c40d0a1ee55924c96bb0c02eb32b0>
 
-> 日志中的提交哈希在 push 后回填；如出现第二个 docs 提交，以 `git log` 最新一条为准。
+> 日志回填提交为紧随其后的 `docs` 提交；代码与产物的正式提交是 `536cb3bb969c40d0a1ee55924c96bb0c02eb32b0`。
