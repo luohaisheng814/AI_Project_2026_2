@@ -48,7 +48,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.2
+ * 釜山 AI 旅行助手 v2.3
+ *
+ * v2.3 修复实时定位链路：GPS 按钮统一走原生 LocationManager；权限已授予时启动自动恢复
+ * 实时定位；15 秒无坐标给出可操作提示；权限被拒绝时不再重复弹窗。
+ * 地图按钮明确标注 NAVER / Google 归属；景点回答上方内置 1-3 张实景图。
  *
  * v2.2 修复路线问句被行程规划抢答：地名错字（甘村/看川）先归一；
  * 显式路线问句优先走实时定位路线卡，并按直线距离给“最优建议”；
@@ -690,7 +694,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.2 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.3 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
@@ -965,12 +969,16 @@ public class MainActivity extends Activity {
         boolean granted = false;
         for (int r : grantResults) if (r == PackageManager.PERMISSION_GRANTED) granted = true;
         if (requestCode == 1001) {
-            web.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    js("window.__busanLocReady&&window.__busanLocReady();");
-                }
-            }, 300);
+            if (granted) {
+                web.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        js("window.__busanLocReady&&window.__busanLocReady();");
+                    }
+                }, 300);
+            } else {
+                js("window.__busanLocError&&window.__busanLocError(1,'permission_denied');");
+            }
         } else if (requestCode == 1002) {
             if (granted) {
                 startLocationInternal();

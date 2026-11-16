@@ -115,6 +115,14 @@
   .card .cb a{font-size:11.5px; text-decoration:none; color:var(--sea-dark); border:1px solid var(--line);
               border-radius:10px; padding:4px 8px; background:#fbfcfd}
   .card .rec{font-size:10.5px; background:#fff3d6; color:#8a5b00; border-radius:8px; padding:2px 6px; margin-left:6px}
+  /* v2.3 景点实景图：横向滑动，不挤压正文 */
+  .photos{margin:0 0 8px}
+  .photostrip{display:flex; gap:6px; overflow-x:auto; padding:1px 0 4px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .photostrip::-webkit-scrollbar{display:none}
+  .photostrip figure{flex:0 0 128px; margin:0}
+  .photostrip img{display:block; width:128px; height:86px; object-fit:cover; border-radius:9px; background:#eaf1f5; border:1px solid #e3edf2}
+  .photocredit{font-size:10px; color:var(--muted); line-height:1.45; margin:0 0 7px}
+  .photocredit a{color:var(--muted)}
   .quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
   #followups[hidden]{display:none}
   .dot.pulse{animation:pulse 1.1s ease-in-out infinite}
@@ -474,6 +482,7 @@
 
 <script src="data.js"></script>
 <script src="cloud_snapshot.js"></script>
+<script src="photos.js"></script>
 <script src="cloud.js"></script>
 <script src="app.js"></script>
 <script src="live.js"></script>
@@ -679,11 +688,37 @@
       '<a href="' + esc(c.map.google) + '">' + esc(T("google")) + "</a></div></div>";
   }
 
+  function photosHtml(result){
+    var list = result.photos || [];
+    if (!list.length){
+      var id = result.spotId || (result.spot && result.spot.id) || "";
+      list = (window.BUSAN_PHOTOS && window.BUSAN_PHOTOS[id]) || [];
+    }
+    if (!list.length) return "";
+    var licenses = [], sources = [];
+    var strip = '<div class="photos"><div class="photostrip">';
+    list.slice(0, 4).forEach(function(p){
+      var alt = p.alt || p.caption || "景点图片";
+      var tip = [p.caption || "", p.credit || "", p.license || ""].filter(Boolean).join(" · ");
+      strip += '<figure><img src="' + esc(p.src) + '" alt="' + esc(alt) + '" title="' + esc(tip) + '" loading="lazy"></figure>';
+      if (p.license && licenses.indexOf(p.license) < 0) licenses.push(p.license);
+      var s = p.sourceUrl && p.sourceUrl.indexOf("wikimedia.org") >= 0 ? "Wikimedia Commons" :
+        (p.sourceUrl && p.sourceUrl.indexOf("wikipedia.org") >= 0 ? "Wikipedia" : "");
+      if (s && sources.indexOf(s) < 0) sources.push(s);
+    });
+    strip += "</div>";
+    strip += '<div class="photocredit">' + esc(L("实景图片", "현장 사진", "Photos")) +
+      " · " + esc(sources.join(" / ") || "Wikimedia Commons") +
+      (licenses.length ? " · " + esc(licenses.slice(0, 2).join(" / ")) : "") + "</div></div>";
+    return strip;
+  }
+
   function paintBubble(m, result){
     var html = '<div class="bubble' + (result.loading ? " loading" : "") + '">';
     if (!result.loading && result.tag){
       html += '<div class="tagrow"><span class="badge' + (result.llm ? "" : (online() ? "" : " off")) + '">' + esc(result.tag) + "</span></div>";
     }
+    if (!result.loading) html += photosHtml(result);
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
     if (!result.loading && result.choices && result.choices.length){
       html += '<div class="choices"><div class="choices-h">' + esc(T("choicesLabel")) + "</div>";
@@ -698,11 +733,11 @@
       html += "</div>";
     }
     if (result.links && result.links.length){
-      html += '<div class="routes"><div class="routes-h">' + esc(L("按实时地图选一条", "실시간 지도에서 선택", "Pick a live route")) + "</div>";
+      html += '<div class="routes"><div class="routes-h">' + esc(L("NAVER 地图 · 选一条实时路线", "NAVER 지도 · 실시간 경로 선택", "NAVER Map · pick a live route")) + "</div>";
       result.links.forEach(function(l){
         html += '<a class="routeopt" href="' + esc(l.href) + '" target="_blank" rel="noopener">' +
           "<span><b>" + esc(l.name) + "</b><small>" + esc(l.detail || "") + "</small></span>" +
-          "<em>" + esc(L("打开", "열기", "Open")) + " ›</em></a>";
+          "<em>" + esc(L("NAVER 地图", "NAVER 지도", "NAVER Map")) + " ›</em></a>";
       });
       html += "</div>";
     }
@@ -1300,20 +1335,29 @@
 
   function locateOnce(){
     if (locBusy) return;
+    locBusy = true;
+    var waitMsg = addBot({text: T("locating"), loading: true, sources: [], followups: []});
+    function done(pos, why){
+      locBusy = false;
+      if (waitMsg) waitMsg.remove();
+      if (pos) renderNearby(rowsNear(pos.lat, pos.lng, 4));
+      else renderLocFail({code: why === "denied" ? 1 : 2});
+    }
+    // 优先走原生 LocationManager（WebView 的 geolocation 在部分国产 ROM 上不回调）
+    if (window.BusanLive && typeof BusanLive.ensure === "function"){
+      BusanLive.ensure(done, 15000);
+      return;
+    }
     if (!navigator.geolocation){
+      locBusy = false;
+      if (waitMsg) waitMsg.remove();
       renderLocFail({code: 2});
       return;
     }
-    locBusy = true;
-    var waitMsg = addBot({text: T("locating"), loading: true, sources: [], followups: []});
     navigator.geolocation.getCurrentPosition(function(pos){
-      locBusy = false;
-      if (waitMsg) waitMsg.remove();
-      renderNearby(rowsNear(pos.coords.latitude, pos.coords.longitude, 4));
+      done({lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy});
     }, function(err){
-      locBusy = false;
-      if (waitMsg) waitMsg.remove();
-      renderLocFail(err);
+      done(null, err && err.code === 1 ? "denied" : "timeout");
     }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000});
   }
 

@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="15"
-    android:versionName="2.2">
+    android:versionCode="16"
+    android:versionName="2.3">
 
-    <!-- v2.2：修“去甘村文化村的路线有几条”被半日行程抢答——补甘村/看川别名，
+    <!-- v2.3：完善手机版 UI——实时定位自动恢复与 15 秒无坐标提示；GPS 按钮统一走原生
+         LocationManager；地图按钮明确标注 NAVER / Google 归属；景点回答上方增加
+         1-3 张内置实景图（Wikimedia Commons，离线可用）。
+         v2.2：修“去甘村文化村的路线有几条”被半日行程抢答——补甘村/看川别名，
          显式路线问句优先进入定位与实时路线；路线结果新增按直线距离的“最优建议”。
          v2.0：补釜山其他核心景点（海云台/广安里/太宗台/札嘎其/南浦洞/松岛/白浅滩/
          龙头山/海东龙宫寺/西面），路线从“只有甘川”改为任意收录景点；

@@ -20,7 +20,7 @@
       officialFrom: "官网原文（韩文）", fetchedAt: "抓取时间",
       km: "公里", nearbyTitle: "附近景点", nearbyNone: "附近 15 公里内没有收录景点。",
       rec: "推荐", rest: "其余", more: "个（点开看）",
-      askTransport: "交通", askTicket: "门票", askHours: "开放时间", askPhoto: "拍照点",      youMayAsk: "你可能还想问", jump: "导航", place: "地点", webmap: "网页地图", google: "Google",
+      askTransport: "交通", askTicket: "门票", askHours: "开放时间", askPhoto: "拍照点",      youMayAsk: "你可能还想问", jump: "NAVER 导航", place: "NAVER 地点", webmap: "NAVER 网页地图", google: "Google 地图",
       conciseHint: "想看交通、门票或开放时间，直接问我就行。",
       catArt: "艺术村落，适合慢慢逛、拍照",
       catSunset: "海岸日落，傍晚最值",
@@ -50,7 +50,7 @@
       km: "km", nearbyTitle: "주변 명소", nearbyNone: "주변 15km 내에 수록된 명소가 없습니다.",
       rec: "추천", rest: "나머지", more: "곳(펼쳐 보기)",
       askTransport: "교통", askTicket: "입장료", askHours: "운영시간", askPhoto: "사진 명소",
-      youMayAsk: "이런 질문도 가능", jump: "길찾기", place: "장소", webmap: "웹 지도", google: "Google",
+      youMayAsk: "이런 질문도 가능", jump: "NAVER 길찾기", place: "NAVER 장소", webmap: "NAVER 웹 지도", google: "Google 지도",
       conciseHint: "교통·입장료·운영시간이 궁금하면 바로 물어보세요.",
       catArt: "예술마을, 천천히 걷고 사진 찍기 좋음",
       catSunset: "해안 일몰, 저녁이 가장 좋음",
@@ -80,7 +80,7 @@
       km: "km", nearbyTitle: "Nearby spots", nearbyNone: "No covered spot within 15 km.",
       rec: "Pick", rest: "Other", more: "more (tap to open)",
       askTransport: "Transport", askTicket: "Tickets", askHours: "Hours", askPhoto: "Photo spots",
-      youMayAsk: "You may also ask", jump: "Directions", place: "Place", webmap: "Web map", google: "Google",
+      youMayAsk: "You may also ask", jump: "NAVER Directions", place: "NAVER Place", webmap: "NAVER Web Map", google: "Google Maps",
       conciseHint: "Ask me about transport, tickets or hours anytime.",
       catArt: "Art village — slow walks and photos",
       catSunset: "Coastal sunset — best in the evening",
@@ -102,6 +102,9 @@
   var st = { lang: "zh", db: null, mode: "offline", reason: "", fetchedAt: "", official: {}, snapshot: false };
   // 包内最近一份云端快照：离线时也能算附近、拼地图深链，避免「有数据但按钮点不了」
   var SNAP = window.BUSAN_CLOUD_SNAPSHOT || null;
+  // 本地内置实景图：photos.js 按景点 id 提供 1-3 张，离线也能显示
+  var PHOTOS = window.BUSAN_PHOTOS || {};
+  function photosOf(s) { return (s && PHOTOS[s.id]) ? PHOTOS[s.id] : []; }
   var CAT_REASON = {
     "01_艺术村落_文化街区": "catArt",
     "02_海岸休闲_日落夜景": "catSunset",
@@ -595,6 +598,7 @@
       spotId: s.id,
       intent: intent,
       choices: pickedChoices,
+      photos: photosOf(s),
       concrete: true
     };
   }
@@ -867,6 +871,7 @@
       ],
       spotId: s.id,
       kind: "route",
+      photos: photosOf(s),
       routeMeta: {
         spotId: s.id, name: title, km: Number(km.toFixed(2)),
         accuracy: pos.accuracy ? Math.round(pos.accuracy) : null,

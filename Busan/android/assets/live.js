@@ -95,12 +95,24 @@
         clearTimeout(st.waitTimer);
         st.waitTimer = setTimeout(function () {
           if (!st.pos && st.watching) {
-            st.error = T("等待定位授权…", "위치 권한을 기다리는 중…", "Waiting for location permission…");
+            st.error = T("等待定位授权…如已允许，请确认手机定位开关已打开",
+              "위치 권한을 기다리는 중… 이미 허용했다면 기기 위치 스위치를 확인하세요",
+              "Waiting for location permission… if already allowed, check the device location switch");
             paint();
           }
-        }, 4000);
+        }, 8000);
       } else {
         st.permission = "granted";
+        // 已授权但室内/GPS 弱时可能一直没有首个坐标，给明确提示而不是无限等待
+        clearTimeout(st.waitTimer);
+        st.waitTimer = setTimeout(function () {
+          if (!st.pos && st.watching) {
+            st.error = T("已开启定位，但 15 秒还没拿到坐标：室内或 GPS 弱时可走到窗边/室外，或点“停止”后重试",
+              "위치를 켰지만 15초 동안 좌표를 못 받았습니다. 실내/GPS 약하면 창가·야외로 나가거나 '중지' 후 다시 시도하세요",
+              "Location is on but no fix after 15s. Indoors or weak GPS: move near a window/outdoors, or tap Stop and retry");
+            paint();
+          }
+        }, 15000);
       }
       return;
     }
@@ -131,6 +143,7 @@
     if (window.BusanHost && typeof window.BusanHost.stopLocationWatch === "function") {
       try { window.BusanHost.stopLocationWatch(); } catch (e) {}
     }
+    clearTimeout(st.waitTimer);
     st.watching = false;
     st.error = "";
     paint();
@@ -150,6 +163,7 @@
   };
 
   window.__busanLocError = function (code, msg) {
+    clearTimeout(st.waitTimer);
     st.permission = code === 1 ? "denied" : "prompt";
     st.error = code === 1
       ? T("定位权限被拒绝，可在系统设置里开启", "위치 권한이 거부됨. 시스템 설정에서 허용하세요", "Location denied — enable it in system settings")
@@ -192,6 +206,13 @@
         } catch (e) {}
       }
       paint();
+      // v2.3：权限已授予时自动恢复实时定位，避免每次启动都停在“未开启”
+      try {
+        if (window.BusanHost && typeof window.BusanHost.hasLocationPermission === "function" &&
+            window.BusanHost.hasLocationPermission()) {
+          setTimeout(function(){ if (!st.pos && !st.watching) start(); }, 800);
+        }
+      } catch (e) {}
     },
     start: start,
     stop: stop,
