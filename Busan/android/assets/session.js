@@ -444,7 +444,7 @@
       hasKey: !!rawCfg.hasKey,
       keyTail: rawCfg.keyTail || "",
       apiKey: rawCfg.apiKey || "",
-      builtin: !rawCfg.endpoint && !rawCfg.model,
+      builtin: rawCfg.builtin === true || (!rawCfg.endpoint && !rawCfg.model),
       provider: rawCfg.provider || (rawCfg.endpoint || rawCfg.model ? "custom" : "Kilo Gateway · Free")
     };
   }

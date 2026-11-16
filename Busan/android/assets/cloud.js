@@ -197,6 +197,9 @@
   function findSpot(q) {
     var k = key(q);
     if (!k) return null;
+    // 口语/错字兜底：云端模型未返回时也要能认出常见写法
+    k = k.replace(/看川/g, "甘川").replace(/甘川文化$/g, "甘川文化村")
+      .replace(/乙淑岛$/g, "乙淑岛候鸟公园").replace(/长林浦$/g, "长林浦口");
     var list = spots(), best = null, bestScore = 0;
     for (var i = 0; i < list.length; i++) {
       var s = list[i], names = [s.name, s.name_ko, s.name_en].concat(s.aliases || []);
@@ -595,11 +598,145 @@
     };
   }
 
+  function timeOf(q) {
+    var k = key(q);
+    if (/上午|早上|清晨|一早|morning|오전|아침/.test(k)) return "morning";
+    if (/下午|午后|afternoon|오후/.test(k)) return "afternoon";
+    if (/傍晚|晚上|夜景|日落|夕阳|night|sunset|evening|저녁|밤|일몰/.test(k)) return "evening";
+    if (/白天|全天|一天|any/.test(k)) return "any";
+    return "";
+  }
+
+  function isRecommendQuestion(q) {
+    var k = key(q);
+    return /去哪|哪里|哪儿|推荐|玩什么|看什么|干什么|安排|值得|白天|上午|下午|晚上/.test(k);
+  }
+
+  function timeLabel(time) {
+    return time === "morning" ? P("上午", "오전", "morning") :
+      time === "afternoon" ? P("下午", "오후", "afternoon") :
+      time === "evening" ? P("傍晚", "저녁", "evening") : P("白天", "낮", "daytime");
+  }
+
+  function bestTimeLabel(t) {
+    return t === "morning" ? P("上午", "오전", "morning") :
+      (t === "sunset" || t === "evening") ? P("日落/傍晚", "일몰·저녁", "sunset/evening") :
+      t === "afternoon" ? P("下午", "오후", "afternoon") : P("全天", "종일", "any");
+  }
+
+  /** 没有指定景点时，按「上午/下午/傍晚」给 3 个真正合适的点，而不是报“库里没有”。 */
+  function recommend(time, q) {
+    var preferred = {
+      morning: ["甘川文化村", "洛东江河口生态中心", "乙淑岛候鸟公园"],
+      afternoon: ["长林浦口", "甘川文化村", "乙淑岛候鸟公园"],
+      evening: ["多大浦梦之夕阳喷泉", "多大浦海水浴场", "峨嵋山观景台"],
+      "": ["甘川文化村", "长林浦口", "乙淑岛候鸟公园"]
+    };
+    var ids = preferred[time] || preferred[""];
+    var byId = {}, list = spots();
+    list.forEach(function (s) { byId[s.id] = s; });
+    var picked = [];
+    ids.forEach(function (id) { if (byId[id] && picked.length < 3) picked.push(byId[id]); });
+    // 数据换版时兜底：按最佳时段补足 3 个
+    list.forEach(function (s) {
+      if (picked.length >= 3) return;
+      if (picked.some(function (x) { return x.id === s.id; })) return;
+      var bt = (s.plan || {}).best_time;
+      if (time === "morning" ? bt === "morning" : time === "evening" ? (bt === "sunset" || bt === "evening") : true) {
+        picked.push(s);
+      }
+    });
+    picked = picked.slice(0, 3);
+    var labels = [P("首选", "우선", "Best"), P("更省力", "덜 걷기", "Easier"), P("换主题", "다른 테마", "Different")];
+    var lines = ["**" + timeLabel(time) + " · " + P("3 个更合适的选择", "더 맞는 3곳", "3 better picks") + "**"];
+    var tags = [P("首选", "우선", "Best"), P("更省力", "덜 걷기", "Easier"), P("换口味", "색다른 곳", "Change of scene")];
+    lines.push(P("按最佳时段、步行强度和看头排的；点一个就能看交通与官网核对。",
+      "최적 시간·도보 강도·볼거리 기준으로 정렬했습니다. 하나를 누르면 교통과 공식 사이트를 확인합니다.",
+      "Ordered by best time, walking level and things to see. Tap one for transport and official-site checks."));
+    var choices = [];
+    picked.forEach(function (s, i) {
+      var m = s.plan || {};
+      var reason = (catLabel(s.category) || "") + " · " + P("最佳时段 " + bestTimeLabel(m.best_time) + " · 步行 " + (m.walk_level || 2) + "/5",
+        "최적 " + bestTimeLabel(m.best_time) + " · 도보 " + (m.walk_level || 2) + "/5",
+        "best " + bestTimeLabel(m.best_time) + " · walk " + (m.walk_level || 2) + "/5");
+      lines.push("");
+      lines.push((i + 1) + ". **" + spotTitle(s) + "** — " + reasonOf(s));
+      lines.push("- " + reason);
+      choices.push({ spotId: s.id, name: spotTitle(s), tag: tags[i] || "", reason: reason, query: spotTitle(s) });
+    });
+    return {
+      text: lines.join("\n"),
+      sources: [],
+      followups: picked.map(function (s) { return spotTitle(s) + " " + t("askTransport"); }).slice(0, 3),
+      choices: choices,
+      concrete: true,
+      kind: "recommend"
+    };
+  }
+
+  function nmapRoute(scheme, s, pos) {
+    var name = encodeURIComponent(s.name_ko || s.name);
+    return "nmap://route/" + scheme + "?slat=" + pos.lat + "&slng=" + pos.lng +
+      "&sname=" + encodeURIComponent(P("当前位置", "현재 위치", "Current location")) +
+      "&dlat=" + s.lat + "&dlng=" + s.lng + "&dname=" + name + "&appname=com.busan.tour";
+  }
+
+  /** 从实时定位到目标：给 3 类可执行的走法 + NAVER 深链，不编造具体班次。 */
+  function routeTo(s, pos) {
+    if (!s) return null;
+    if (!pos || pos.lat == null || pos.lng == null) {
+      var fallback = compose(s, "transport", { text: "" });
+      fallback.text = P("还没拿到当前位置。先点顶部「实时」，或看下面的常规交通：", "현재 위치를 아직 못 받았습니다. 상단 '실시간'을 누르거나 아래 기본 교통을 보세요.", "No live position yet. Tap “Live” at the top, or use the standard transport below:") + "\n\n" + fallback.text;
+      return fallback;
+    }
+    var km = haversine(pos.lat, pos.lng, s.lat, s.lng);
+    var acc = pos.accuracy ? "（±" + Math.round(pos.accuracy) + " m）" : "";
+    var taxiMin = Math.max(6, Math.round(km / 25 * 60 + 4));
+    var walkMin = Math.max(5, Math.round(km / 4.2 * 60));
+    var title = spotTitle(s);
+    var lines = [];
+    lines.push("**" + title + "**" + (catLabel(s.category) ? " · " + catLabel(s.category) : ""));
+    lines.push(P("从当前位置出发，直线约 " + km.toFixed(1) + " km" + acc + "；实际道路距离会更长一点。",
+      "현재 위치에서 직선 약 " + km.toFixed(1) + " km" + acc + ". 실제 도로 거리는 조금 더 깁니다.",
+      "From your current location, about " + km.toFixed(1) + " km straight-line" + acc + "; road distance will be a little longer."));
+    lines.push("");
+    lines.push("**" + P("3 条可选走法", "3가지 이동 방법", "3 ways to go") + "**");
+    lines.push("- **" + P("公共交通（推荐）", "대중교통 (추천)", "Public transport (recommended)") + "** · " +
+      P("点开 NAVER 路线，按实时地铁/巴士给你具体换乘；甘川文化村通常需要地铁 + 小巴。",
+        "NAVER 길찾기를 열면 실시간 지하철·버스 환승을 보여줍니다. 감천문화마을은 보통 지하철 + 마을버스입니다.",
+        "Open NAVER directions for live subway/bus transfers; Gamcheon usually needs metro + village bus."));
+    lines.push("- **" + P("打车直达", "택시", "Taxi") + "** · " + P("按直线距离估算约 " + taxiMin + " 分钟；以计价器和实时路况为准。",
+      "직선 거리 기준 약 " + taxiMin + "분; 미터기와 실시간 교통 기준입니다.",
+      "About " + taxiMin + " min by straight-line estimate; meter and live traffic decide the rest."));
+    lines.push("- **" + P("步行/无障碍", "도보/무장애", "Walk / accessible") + "** · " + P("约 " + walkMin + " 分钟（按 4.2 km/h 估算）" + (km > 3 ? "；距离较远，不建议全程走，可走到最近站点再换乘。" : "。"),
+      "약 " + walkMin + "분(4.2 km/h 기준)" + (km > 3 ? "; 거리가 있어 전 구간 도보는 비추천, 가까운 정류장까지 걸어 환승하세요." : "."),
+      "About " + walkMin + " min at 4.2 km/h" + (km > 3 ? "; too far to walk all the way — walk to the nearest stop and transfer." : ".")));
+    lines.push("");
+    lines.push(P("具体线路、班次和末班时间以 NAVER 地图实时结果为准；轮椅用户优先看「公交 + 小巴」里少台阶的方案。",
+      "구체적 노선·배차·막차는 NAVER 지도 실시간 결과를 기준으로 하세요. 휠체어 이용자는 계단이 적은 '버스 + 마을버스' 경로를 우선 보세요.",
+      "Exact routes, frequencies and last departures follow NAVER live results. Wheelchair users should prioritize the metro + village-bus option with fewer stairs."));
+    return {
+      text: lines.join("\n"),
+      sources: [],
+      followups: [title + " " + t("askTransport"), title + " " + t("askHours"), title + " " + t("askTicket")],
+      links: [
+        { name: P("公共交通", "대중교통", "Public transport"), detail: P("NAVER 实时地铁/巴士换乘", "NAVER 실시간 환승", "NAVER live transfers"), href: nmapRoute("public", s, pos) },
+        { name: P("打车直达", "택시", "Taxi"), detail: P("约 " + taxiMin + " 分钟（估算）", "약 " + taxiMin + "분(추정)", "~" + taxiMin + " min (est.)"), href: nmapRoute("car", s, pos) },
+        { name: P("步行/无障碍", "도보/무장애", "Walk / accessible"), detail: P("约 " + walkMin + " 分钟（估算）", "약 " + walkMin + "분(추정)", "~" + walkMin + " min (est.)"), href: nmapRoute("walk", s, pos) }
+      ],
+      spotId: s.id,
+      kind: "route",
+      concrete: true
+    };
+  }
+
   function answer(q, opts) {
     opts = opts || {};
     var s = findSpot(q);
     var intent = intentOf(q);
     if (!s) {
+      var time = timeOf(q);
+      if (time && isRecommendQuestion(q)) return recommend(time, q);
       // 「附近 / 推荐」交给 nearby；这里只处理纯文本匹配不到的情况
       var names = spots().map(function (x) { return "**" + spotTitle(x) + "**"; });
       return {
@@ -607,6 +744,11 @@
         sources: [], followups: names.slice(0, 4).map(function (x) { return x.replace(/\*\*/g, ""); }),
         concrete: false
       };
+    }
+    // “从当前位置/从我这里去某地”必须用实时坐标算，不能拿机场/车站的静态交通糊弄
+    if ((intent === "transport" || /当前位置|我这里|从我|怎么去|路线/.test(key(q))) &&
+        /当前位置|我这里|从我/.test(key(q)) && window.BusanLive && BusanLive.position) {
+      return routeTo(s, BusanLive.position() || null);
     }
     var onlyName = key(q) === key(s.name) || key(q) === key(s.name_ko || "") || key(q) === key(s.name_en || "");
     return compose(s, onlyName ? "overview" : intent, { concise: onlyName || opts.concise, text: q });
@@ -773,6 +915,9 @@
     isSnapshot: function () { return (st.mode !== "online") && !!st.db; },
     strings: function () { return STR[st.lang] || STR.zh; },
     answer: answer,
+    recommend: recommend,
+    routeTo: routeTo,
+    timeOf: timeOf,
     intentOf: intentOf,
     findSpot: findSpot,
     matchSpots: matchSpots,

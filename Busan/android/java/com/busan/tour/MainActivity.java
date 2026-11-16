@@ -47,7 +47,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v1.8
+ * 釜山 AI 旅行助手 v1.8.1
+ *
+ * v1.8.1 增加云端意图解析：纠正错字、识别“上午去哪”和“从当前位置去某地”，
+ * 把“库里没有这个地点”改成真正可执行的推荐/路线回答。
  *
  * v1.8 取消端侧模型与 379 MB 模型下载，改为「联网即用」的免费云端模型：
  *   - 内置 Kilo Gateway 匿名免费接入，默认 NVIDIA Nemotron 3.5 Super VL（开放权重）；
@@ -672,7 +675,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/1.8 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/1.8.1 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

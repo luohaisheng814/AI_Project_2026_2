@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="9"
-    android:versionName="1.8">
+    android:versionCode="10"
+    android:versionName="1.8.1">
 
-    <!-- v1.8：取消端侧 379 MB 模型与原生库，改为联网自动连接免费云端模型（Kilo Gateway 匿名层，
+    <!-- v1.8.1：云端意图解析（纠正“看川文化村”等错字）、上午推荐、从实时定位到景点的 3 条走法。
+         v1.8：取消端侧 379 MB 模型与原生库，改为联网自动连接免费云端模型（Kilo Gateway 匿名层，
          默认 NVIDIA Nemotron 3.5 Super VL 开放权重）；离线自动回退包内规则。 
          v1.7：顶部不常驻在线/离线控件；每条回答固定 3 个可选方案。 -->
     <uses-permission android:name="android.permission.INTERNET" />
