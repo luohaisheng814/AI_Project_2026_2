@@ -193,7 +193,20 @@ D:\AI_Project_2026_2\.venv\Scripts\python.exe Busan\admin_server.py
 
 ---
 
-## 五、提交记录
+## 五、提交记录与线上实测
 
-- `feat(mobile): v3.1 追问区收起/展开 + 后台管理（账号/内容/版本）+ 内容实时下发`（待填 hash）
-- `docs: v3.1 日志（含可扩展功能分析）与后台/折叠态截图`（待填 hash）
+- `cc4595c` `feat(mobile): v3.1 追问区收起/展开 + 后台管理（账号/内容/版本）+ 内容实时下发`
+- `67365fe` `docs: v3.1 日志（含可扩展功能分析）与后台/折叠态截图`
+- 已推送 `origin/main`（`f7502cf..67365fe`）。
+
+Pages 实测（2026-11-22 23:0x，带随机查询串避开缓存）：
+
+| URL | 结果 |
+| --- | --- |
+| `/api/state.json` | 200，`rev=17`，`version=3.1 / code 24`，`size=10635569` |
+| `/api/content.json` | 200，18 个景点，`rev=17` |
+| `/admin_base.js` | 200，30 B（默认空串，不固化内网 IP） |
+| `/sync.js` | 200，14,962 B |
+| `/index.html` | 200，142,487 B |
+| `raw/main/Busan/dist/Busan旅行助手.apk` | 200，`Content-Length=10635569`，下载后 SHA-256 与本地产物一致（`12b3bd…55d8`） |
+
