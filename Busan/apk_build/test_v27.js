@@ -59,9 +59,9 @@ ok("昼夜: class 切换", /document\.body\.classList\.toggle\("night", night\)/
 ok("昼夜: BusanUI 暴露", /isNight: function|themeMode: function/.test(html));
 
 /* 5. 版本与双端同步 */
-ok("版本: APK 22 / 2.9（随版本链路同步）", /android:versionCode="23"/.test(apkMan) && /android:versionName="3\.0"/.test(apkMan));
-ok("版本: 原生 UA 2.9", /BusanTour\/3\.0 \(Android\)/.test(native));
-ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "3\.0"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
+ok("版本: APK 22 / 2.9（随版本链路同步）", /android:versionCode="24"/.test(apkMan) && /android:versionName="3\.1"/.test(apkMan));
+ok("版本: 原生 UA 2.9", /BusanTour\/3\.1 \(Android\)/.test(native));
+ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "3\.1"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "24"/.test(iosYml));
 ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
 
 /* 6. 既有能力不回退 */
@@ -69,7 +69,7 @@ ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
   ok("保留: " + k, html.indexOf(k) > -1);
 });
 ok("保留: PWA manifest", fs.existsSync(path.join(A, "manifest.webmanifest")));
-ok("保留: service worker", sw.indexOf("busan-3.0") > -1);
+ok("保留: service worker", sw.indexOf("busan-3.1") > -1);
 ok("保留: 深色下官网链接可读", /body\.night \.official \.ol a/.test(html));
 ok("夜间: 有天气时按钮仍是橙底", /body\.night \.wx-fab\.on\{[\s\S]{0,120}#f0a94c/.test(html));
 ok("夜间: 权限按钮不发白", /body\.night \.permact button\{/.test(html));
@@ -80,3 +80,4 @@ console.log("PASS " + pass + " / FAIL " + fail);
 if (fail) { console.log("FAILED:"); failed.forEach((f) => console.log("  x " + f)); }
 console.log(fail ? "v2.7 断言未通过" : "v2.7 全部断言通过");
 process.exit(fail ? 1 : 0);
+

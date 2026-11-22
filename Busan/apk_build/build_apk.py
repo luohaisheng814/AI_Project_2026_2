@@ -104,7 +104,8 @@ def build():
     assets = os.path.join(ANDROID_DIR, "assets")
     for f in ("index.html", "app.js", "data.js", "cloud.js", "cloud_snapshot.json",
               "cloud_snapshot.js", "photos.js", "live.js", "session.js", "planner.js",
-              "weather.js", "ratings.js"):
+              "weather.js", "ratings.js", "mix.js", "sync.js", "admin_base.js", "sw.js",
+              "manifest.webmanifest"):
         if not os.path.exists(os.path.join(assets, f)):
             raise SystemExit(f"assets 缺少 {f}，先运行 cloud_build.py / export_assets.py")
 

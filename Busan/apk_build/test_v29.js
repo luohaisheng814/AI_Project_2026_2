@@ -115,18 +115,18 @@ ok("不回退: 昼夜判定仍是 19/6", /return h >= 19 \|\| h < 6;/.test(html)
 ok("不回退: 手动天气 chip 仍 8 项", (html.match(/k: "(clear|cloudy|rain|snow|fog|storm|hot|cold)", zh:/g) || []).length === 8);
 
 /* ---------------- F. 版本 ---------------- */
-ok("版本: APK 23 / 3.0", /android:versionCode="23"/.test(apkMan) && /android:versionName="3\.0"/.test(apkMan));
+ok("版本: APK 23 / 3.0", /android:versionCode="24"/.test(apkMan) && /android:versionName="3\.1"/.test(apkMan));
 ok("版本: 无旧 versionCode 21 残留", !/android:versionCode="21"/.test(apkMan));
-ok("版本: 原生 UA 3.0", /BusanTour\/3\.0 \(Android\)/.test(native));
+ok("版本: 原生 UA 3.0", /BusanTour\/3\.1 \(Android\)/.test(native));
 ok("版本: 无 2.8 UA 残留", !/BusanTour\/2\.8/.test(native));
-ok("版本: 类注释 v3.0 且保留 v2.9 说明", /釜山 AI 旅行助手 v3\.0/.test(native) && /v2\.9 个性化推荐条/.test(native));
-ok("版本: iOS 3.0 / 23", /MARKETING_VERSION: "3\.0"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
-ok("版本: iOS README 同步 3.0", /（v3\.0）/.test(iosReadme));
-ok("版本: PWA 缓存名 busan-3.0", /const CACHE = 'busan-3\.0'/.test(sw));
+ok("版本: 类注释 v3.0 且保留 v2.9 说明", /釜山 AI 旅行助手 v3\.1/.test(native) && /v2\.9 个性化推荐条/.test(native));
+ok("版本: iOS 3.0 / 23", /MARKETING_VERSION: "3\.1"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "24"/.test(iosYml));
+ok("版本: iOS README 同步 3.0", /（v3\.1）/.test(iosReadme));
+ok("版本: PWA 缓存名 busan-3.1", /const CACHE = 'busan-3\.1'/.test(sw));
 ok("版本: 无旧缓存残留", sw.indexOf("busan-2.8") === -1);
 ok("版本: SW 清单仍含 mix.js", /'\.\/mix\.js'/.test(sw));
 ok("版本: PWA 脚本产物名 v30", /Busan_Tour_WebApp_v30/.test(pwaPy) && /Busan_iOS_WebApp_v30\.zip/.test(pwaPy));
-ok("版本: PWA 说明 3.0", /v3\.0 · iPhone/.test(pwaPy));
+ok("版本: PWA 说明 3.0", /v3\.1 · iPhone/.test(pwaPy));
 ok("版本: AndroidManifest 有 v2.9 说明块", /v2\.9：个性化推荐/.test(apkMan));
 
 /* ---------------- 汇总 ---------------- */
@@ -140,3 +140,4 @@ if (fail) {
 } else {
   console.log("v2.9 全部断言通过");
 }
+

@@ -98,13 +98,13 @@ ok("不回退: 夜间样式仍在（body.night 定义）", /body\.night\{[\s\S]{
 ok("不回退: SW 清单含 mix.js", /'\.\/mix\.js'/.test(sw));
 
 /* ---------------- F. 版本 ---------------- */
-ok("版本: APK 23 / 3.0", /android:versionCode="23"/.test(apkMan) && /android:versionName="3\.0"/.test(apkMan));
+ok("版本: APK 23 / 3.0", /android:versionCode="24"/.test(apkMan) && /android:versionName="3\.1"/.test(apkMan));
 ok("版本: 无 22 / 2.9 残留", !/android:versionCode="22"/.test(apkMan) && !/android:versionName="2\.9"/.test(apkMan));
-ok("版本: 原生 UA 3.0", /BusanTour\/3\.0 \(Android\)/.test(native) && !/BusanTour\/2\.9/.test(native));
-ok("版本: 类注释 v3.0 且说明昼夜开关", /釜山 AI 旅行助手 v3\.0/.test(native) && /v3\.0 昼夜手动开关/.test(native));
-ok("版本: iOS 3.0 / 23", /MARKETING_VERSION: "3\.0"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
-ok("版本: iOS README 同步 3.0", /（v3\.0）/.test(iosReadme));
-ok("版本: PWA 缓存 busan-3.0", /const CACHE = 'busan-3\.0'/.test(sw));
+ok("版本: 原生 UA 3.0", /BusanTour\/3\.1 \(Android\)/.test(native) && !/BusanTour\/2\.9/.test(native));
+ok("版本: 类注释 v3.0 且说明昼夜开关", /釜山 AI 旅行助手 v3\.1/.test(native) && /v3\.0 昼夜手动开关/.test(native));
+ok("版本: iOS 3.0 / 23", /MARKETING_VERSION: "3\.1"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "24"/.test(iosYml));
+ok("版本: iOS README 同步 3.0", /（v3\.1）/.test(iosReadme));
+ok("版本: PWA 缓存 busan-3.1", /const CACHE = 'busan-3\.1'/.test(sw));
 ok("版本: 无 busan-2.9 残留", sw.indexOf("busan-2.9") === -1);
 ok("版本: PWA 产物 v30", /Busan_Tour_WebApp_v30/.test(pwaPy) && /Busan_iOS_WebApp_v30\.zip/.test(pwaPy));
 ok("版本: manifest 有 v3.0 说明块", /v3\.0：页头右上角新增昼夜切换按钮/.test(apkMan));
@@ -119,3 +119,4 @@ if (fail) {
 } else {
   console.log("v3.0 全部断言通过");
 }
+

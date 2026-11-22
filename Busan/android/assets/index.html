@@ -156,9 +156,20 @@
   .official .empty{color:#a85a26}
   .pick{display:inline-block; margin:6px 6px 0 0; border:1px solid var(--line); background:#fbfcfd;
         border-radius:12px; padding:5px 9px; font-size:11.5px; color:var(--sea-dark)}
-  #followups{padding:8px 12px 10px; background:#fff; border-top:1px solid var(--line);
-             display:flex; flex-wrap:wrap; flex:0 0 auto; max-height:27vh; overflow-y:auto;
-             -webkit-overflow-scrolling:touch}
+  /* v3.1 追问建议：头部可收起/展开，主体保持原来的胶囊排布 */
+  #followups{padding:0; background:#fff; border-top:1px solid var(--line);
+             flex:0 0 auto; display:flex; flex-direction:column; overflow:hidden}
+  .fu-head{width:100%; display:flex; align-items:center; gap:8px; border:0; background:transparent;
+           padding:7px 12px; min-height:36px; text-align:left; color:var(--ink)}
+  .fu-title{flex:0 0 auto; font-size:11.5px; font-weight:600; color:var(--sea-dark)}
+  .fu-sum{flex:1 1 auto; min-width:0; font-size:11px; color:var(--muted);
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .fu-act{flex:0 0 auto; font-size:11px; color:var(--sea); border:1px solid #cfe3ea;
+          border-radius:12px; padding:3px 9px; background:#eef7fa; white-space:nowrap}
+  .fu-body{padding:2px 12px 10px; max-height:27vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+           display:flex; flex-wrap:wrap; align-content:flex-start}
+  #followups.folded .fu-body{display:none}
+  #followups.folded{padding-bottom:0}
   #followups .pick:active{background:#eef6f9}
   footer{flex:0 0 auto; width:100%; max-width:100vw; background:#fff; border-top:1px solid var(--line);
          padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
@@ -497,6 +508,9 @@
   body.night .qrec .pick{
     background:#1a242d; border-color:#2b3844; color:#cfe6ef
   }
+  body.night .fu-title{color:#a9dcec}
+  body.night .fu-act{background:#1b2732; border-color:#2c3a46; color:#bfe2ee}
+  body.night .fu-body .pick{background:#1a242d; border-color:#2b3844; color:#cfe6ef}
   body.night .chip.on{
     background:var(--sea); border-color:var(--sea); color:#08131a
   }
@@ -664,7 +678,14 @@
 </div>
 
 <div id="chat"></div>
-<div id="followups"></div>
+<div id="followups" hidden>
+  <button class="fu-head" id="fuToggle" type="button" aria-expanded="true" aria-controls="fuBody">
+    <span class="fu-title" id="fuTitle">追问建议</span>
+    <span class="fu-sum" id="fuSum"></span>
+    <span class="fu-act" id="fuAct">收起</span>
+  </button>
+  <div class="fu-body" id="fuBody"></div>
+</div>
 
 <div id="netToast" role="status" aria-live="polite">
   <div class="nt" id="netToastTitle"></div>
@@ -826,6 +847,20 @@
       </div>
 
       <div class="sect">
+        <h3 id="syncTitle">内容与版本</h3>
+        <div class="fine" id="syncDesc">填入后台地址后，内容一改前端就能收到提示；有新安装包也会在这里提示。留空则只读仓库里的静态数据。</div>
+        <div class="field">
+          <label for="syncBase">后台地址</label>
+          <input id="syncBase" type="url" autocomplete="off" placeholder="http://192.168.1.100:8765">
+        </div>
+        <div class="sync-status" id="syncStatus">尚未检查</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="ghost" id="syncSave" type="button" style="flex:1">保存并检查</button>
+          <button class="ghost" id="syncNow" type="button" style="flex:1">立即检查</button>
+        </div>
+      </div>
+
+      <div class="sect">
         <button class="ghost" id="logoutBtn" type="button" style="color:#a33b26;border-color:#e8c9c2">退出登录</button>
         <div class="fine">退出后本机仍保留账户，下次可重新登录；未登录状态每次打开都是新界面。</div>
       </div>
@@ -849,6 +884,8 @@
   </div>
 </div>
 
+<script>window.BUSAN_BUILD = { code: 24, name: "3.1" };</script>
+<script src="admin_base.js"></script>
 <script src="data.js"></script>
 <script src="cloud_snapshot.js"></script>
 <script src="photos.js"></script>
@@ -860,6 +897,7 @@
 <script src="weather.js"></script>
 <script src="ratings.js"></script>
 <script src="mix.js"></script>
+<script src="sync.js"></script>
 <script>
 (function(){
   var E = window.BusanEngine, D = window.BUSAN_DATA, C = window.BusanCloud;
@@ -870,6 +908,7 @@
   var welcomeBack = null;
   var chat = document.getElementById("chat");
   var followups = document.getElementById("followups");
+  var fuBody = document.getElementById("fuBody");
   var cloudReady = false;
 
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -1514,6 +1553,7 @@
     document.getElementById("planHint").textContent = lang === "zh" ? "结合账户偏好与实时位置" : lang === "ko" ? "계정 취향·현재 위치 반영" : "Uses account profile + live location";
     paintPrefs();
     paintThemeBtn();
+    paintFu();
     document.getElementById("hint").textContent = lang === "zh"
       ? "说“半天、想拍照、少走路”这类想法，会自动识别核心词并给方案"
       : lang === "ko" ? "'반나절, 사진, 덜 걷기'처럼 말하면 핵심어를 인식해 일정을 제안합니다"
@@ -1898,8 +1938,32 @@
     box.hidden = false;
   }
 
+  /* v3.1 追问建议：头部固定一行，主体可收起/展开，状态记在 busan_fu_collapsed */
+  function fuIsFolded(){
+    try { return localStorage.getItem("busan_fu_collapsed") === "1"; } catch(e){ return false; }
+  }
+  function setFuFolded(fold){
+    try { localStorage.setItem("busan_fu_collapsed", fold ? "1" : "0"); } catch(e){}
+    paintFu();
+  }
+  function paintFu(){
+    var head = document.getElementById("fuToggle");
+    if (!head || !fuBody) return;
+    var n = fuBody.children.length;
+    var folded = fuIsFolded();
+    followups.classList.toggle("folded", folded && n > 0);
+    head.setAttribute("aria-expanded", (folded && n > 0) ? "false" : "true");
+    document.getElementById("fuTitle").textContent = L("追问建议", "이어서 묻기", "Follow-ups");
+    document.getElementById("fuSum").textContent = (folded && n)
+      ? L(n + " 条 · 点击展开", n + "개 · 펼치기", n + " · tap to expand") : "";
+    document.getElementById("fuAct").textContent = (folded && n)
+      ? L("展开", "펼치기", "Expand") : L("收起", "접기", "Collapse");
+  }
+  var fuToggle = document.getElementById("fuToggle");
+  if (fuToggle) fuToggle.onclick = function(){ setFuFolded(!fuIsFolded()); };
+
   function renderFollowups(result){
-    followups.innerHTML = "";
+    fuBody.innerHTML = "";
     var list = (result.followups || []).slice(0, 5);
     followups.hidden = !list.length;
     list.forEach(function(q){
@@ -1907,8 +1971,9 @@
       b.className = "pick";
       b.textContent = q;
       b.onclick = function(){ ask(q); };
-      followups.appendChild(b);
+      fuBody.appendChild(b);
     });
+    paintFu();
   }
 
   /* ---------------- 回答 ---------------- */
@@ -2275,7 +2340,8 @@
 
   function rerenderAll(){
     chat.innerHTML = "";
-    followups.innerHTML = "";
+    if (fuBody) fuBody.innerHTML = "";
+    followups.hidden = true;
     C.setLang(lang);
     E.setLang(lang);
     wxSetLang();
@@ -2616,7 +2682,7 @@
       history = []; lastPlan = null; welcomeBack = null;
       try { localStorage.removeItem("busan_lang"); localStorage.removeItem("busan_cat"); } catch(e){}
       C.setLang(lang); E.setLang(lang);
-      chat.innerHTML = ""; followups.innerHTML = "";
+      chat.innerHTML = ""; if (fuBody) fuBody.innerHTML = ""; followups.hidden = true;
       applyUI(); renderChips(); greet();
       if (window.BusanLive) BusanLive.paint();
     },
@@ -2646,7 +2712,7 @@
         updatedAt: new Date().toISOString()
       };
     },
-    resetChat: function(){ chat.innerHTML = ""; followups.innerHTML = ""; },
+    resetChat: function(){ chat.innerHTML = ""; if (fuBody) fuBody.innerHTML = ""; followups.hidden = true; },
     weather: function(){ return wxState(); },
     weatherCard: function(w){ return weatherResult(w || wxState(), []); },
     setWeather: function(k, temp){ if (!WX) return null; var w = WX.manual(k, temp); paintWxBar(); return w; },

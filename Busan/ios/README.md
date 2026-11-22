@@ -1,4 +1,4 @@
-# iOS 版（v3.0）构建与安装说明
+# iOS 版（v3.1）构建与安装说明
 
 iOS 版和 Android 版共用**同一套前端**：`Busan/android/assets/`（`index.html`、`app.js`、`cloud.js`、
 `weather.js`、`ratings.js`、`photos.js`、54 张实景图等）。壳只是把这份资源装进 WKWebView，
@@ -13,7 +13,7 @@ iOS 版和 Android 版共用**同一套前端**：`Busan/android/assets/`（`ind
 
 > iOS 不允许侧载未签名 App，Windows 上也编不出 `.ipa`；本仓库的 macOS Actions runner
 > 实测三次都是 `cancelled / 0 steps`（账号侧不可用），所以本轮交付 PWA 作为可安装产物，
-> 同时把 Xcode 工程升到 3.0 等有 Mac 时直接出包。
+> 同时把 Xcode 工程升到 3.1 等有 Mac 时直接出包。
 
 
 ## 目录
@@ -81,3 +81,4 @@ xcodebuild -project BusanTour.xcodeproj -scheme BusanTour -configuration Release
 - [ ] 拒绝定位 → 天气条显示“默认位置”，天气卡仍能手动选天气
 - [ ] 景点回答出现星级块，点星后刷新仍保留
 - [ ] 点 NAVER 路线按钮能跳到 NAVER Map
+

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>釜山 AI 旅行助手 · 后台</title>
+<style>
+:root{
+  --bg:#0f1720; --panel:#16222e; --panel2:#1b2a38; --line:#26384a;
+  --text:#e7f0f7; --muted:#8ba2b5; --sea:#2a9d8f; --sea2:#1f7a70;
+  --warn:#f0a94c; --bad:#e2685c; --ok:#4ade80;
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text)}
+a{color:#7fd8cb;text-decoration:none}
+.hide{display:none!important}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1200px 600px at 20% 0%,#1d3b46 0%,#0f1720 60%)}
+.login{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:26px 24px;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+.brand{font-size:20px;font-weight:700;letter-spacing:.3px}
+.brand small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:4px}
+.field{margin-top:14px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;background:#0d1720;border:1px solid var(--line);border-radius:10px;
+  color:var(--text);padding:10px 12px;font-size:14px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--sea)}
+textarea{min-height:86px;resize:vertical;line-height:1.6}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;
+  background:var(--sea);color:#fff}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:500}
+button.danger{background:#7d2b26;color:#ffd9d6}
+button.small{padding:7px 10px;font-size:12.5px;border-radius:9px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+.err{color:#ffb4ad;font-size:12.5px;min-height:18px;margin-top:8px}
+
+.shell{display:grid;grid-template-columns:216px 1fr;min-height:100vh}
+aside{background:#0c141c;border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh}
+.logo{font-weight:700;font-size:16px;line-height:1.3}
+.logo span{display:block;font-size:11.5px;color:var(--muted);font-weight:400;margin-top:3px}
+nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
+nav button{text-align:left;background:transparent;color:var(--muted);font-weight:500;padding:10px 12px;border-radius:10px}
+nav button.on{background:var(--panel2);color:#fff}
+nav button:hover{color:#fff}
+.me{margin-top:20px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.me b{display:block;font-size:13.5px}
+.me small{color:var(--muted);font-size:11.5px}
+.role{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;font-size:11px;
+  background:#123c36;color:#8fe6cf;border:1px solid #1d5a50}
+.role.user{background:#3a2f16;color:#f4c87a;border-color:#5c4a22}
+.aside-foot{position:absolute;bottom:16px;left:14px;right:14px}
+main{padding:22px 26px 40px;max-width:1180px}
+h1{font-size:20px;margin:0}
+.sub{color:var(--muted);font-size:12.5px;margin-top:4px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.card .k{font-size:11.5px;color:var(--muted)}
+.card .v{font-size:22px;font-weight:700;margin-top:6px}
+.card .v small{font-size:12px;font-weight:400;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.panel h2{font-size:15px;margin:0 0 12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px}
+tr:hover td{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line)}
+.tag.admin{background:#123c36;color:#8fe6cf;border-color:#1d5a50}
+.tag.user{background:#33290f;color:#f4c87a;border-color:#5c4a22}
+.tag.off{background:#3a1c1a;color:#ffb2aa;border-color:#5c2a26}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.list{display:grid;grid-template-columns:270px 1fr;gap:14px}
+.spots{border:1px solid var(--line);border-radius:12px;max-height:70vh;overflow:auto}
+.spots button{display:block;width:100%;text-align:left;background:transparent;color:var(--text);
+  border-bottom:1px solid var(--line);border-radius:0;padding:10px 12px;font-weight:500}
+.spots button small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.spots button.on{background:#123c36}
+.tabs{display:flex;gap:6px;margin:4px 0 10px}
+.tabs button{background:var(--panel2);color:var(--muted);font-weight:500;padding:6px 12px;font-size:12.5px}
+.tabs button.on{background:var(--sea);color:#fff}
+.modal{position:fixed;inset:0;background:rgba(3,8,12,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:40}
+.modal .box{width:100%;max-width:520px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;max-height:88vh;overflow:auto}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#123c36;border:1px solid #1d5a50;
+  color:#c9f5e8;padding:10px 16px;border-radius:999px;font-size:13px;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.toast.bad{background:#3a1c1a;border-color:#5c2a26;color:#ffd9d6}
+.readonly{padding:8px 12px;border-radius:10px;background:#33290f;border:1px solid #5c4a22;color:#f4c87a;font-size:12.5px}
+code{background:#0d1720;border:1px solid var(--line);padding:2px 6px;border-radius:6px;font-size:12px}
+.linkrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  aside{position:static;height:auto}
+  nav{flex-direction:row;flex-wrap:wrap}
+  .aside-foot{position:static;margin-top:12px}
+  .list{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div class="login-wrap" id="loginView">
+  <div class="login">
+    <div class="brand">釜山 AI 旅行助手 · 后台<small>账号、内容与版本，一处管理</small></div>
+    <div class="field"><label>账号</label><input id="lgUser" autocomplete="username" placeholder="admin"></div>
+    <div class="field"><label>密码</label><input id="lgPwd" type="password" autocomplete="current-password" placeholder="admin"></div>
+    <div class="err" id="lgErr"></div>
+    <div style="margin-top:14px"><button id="lgBtn" style="width:100%">登录</button></div>
+    <div class="hint">默认管理员：<code>admin</code> / <code>admin</code>；普通账号由管理员创建，登录后只能查看。</div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div class="shell hide" id="appView">
+  <aside>
+    <div class="logo">Busan 后台<span>v3.1 · 内容 / 账号 / 版本</span></div>
+    <nav>
+      <button data-tab="overview" class="on">概览</button>
+      <button data-tab="users">账号与权限</button>
+      <button data-tab="content">景点内容</button>
+      <button data-tab="version">版本与发布</button>
+      <button data-tab="audit">操作日志</button>
+    </nav>
+    <div class="me">
+      <b id="meName">-</b>
+      <small id="meMail">-</small>
+      <div id="meRole" class="role">admin</div>
+    </div>
+    <div class="aside-foot">
+      <button class="ghost small" id="btnLogout" style="width:100%">退出登录</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div>
+        <h1 id="pageTitle">概览</h1>
+        <div class="sub" id="pageSub">后台运行状态与最新发布</div>
+      </div>
+      <div class="row">
+        <button class="ghost small" id="btnRefresh">刷新</button>
+      </div>
+    </div>
+
+    <!-- 概览 -->
+    <section id="tab-overview">
+      <div class="cards" id="stats"></div>
+      <div class="panel">
+        <h2>手机端接入</h2>
+        <div class="hint">手机与电脑连同一 Wi‑Fi 时，在 App 的「设置 → 内容与版本」里填下面这个地址，就能收到内容更新与新版本提示。</div>
+        <div class="linkrow"><code id="baseUrl">-</code><button class="ghost small" id="btnCopyBase">复制</button></div>
+        <hr>
+        <h2>当前版本</h2>
+        <div id="curVer" class="hint">-</div>
+        <div class="linkrow">
+          <button class="small" id="btnStatic">生成静态发布包（Pages 兜底）</button>
+          <span class="hint" style="margin:0">写入 assets/api/state.json 与 content.json</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 账号 -->
+    <section id="tab-users" class="hide">
+      <div id="readonlyUsers" class="readonly hide">当前账号是普通用户，只能查看账号列表。</div>
+      <div class="panel">
+        <div class="row" style="margin-bottom:10px">
+          <h2 style="margin:0" class="grow">账号列表</h2>
+          <button class="small" id="btnNewUser">新建账号</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>账号</th><th>昵称</th><th>邮箱</th><th>角色</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 内容 -->
+    <section id="tab-content" class="hide">
+      <div id="readonlyContent" class="readonly hide">当前账号是普通用户，只能浏览内容，不能修改。</div>
+      <div class="panel">
+        <div class="row" style="margin-bottom:12px">
+          <input id="spotSearch" placeholder="搜索景点名 / 别名" style="max-width:280px">
+          <button class="ghost small" id="btnSearch">搜索</button>
+          <div class="grow"></div>
+          <button class="small" id="btnNewSpot">新增景点</button>
+        </div>
+        <div class="list">
+          <div class="spots" id="spotList"></div>
+          <div id="spotEditor">
+            <div class="hint">左侧选择一个景点开始编辑。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 版本 -->
+    <section id="tab-version" class="hide">
+      <div class="panel">
+        <h2>发布新版本</h2>
+        <div class="hint">发布后写库并生成静态 state.json；手机端下次轮询（约 25 秒）会弹出更新提示，下载按钮指向仓库里的安装包。</div>
+        <div class="grid2" style="margin-top:12px">
+          <div class="field"><label>版本名 versionName</label><input id="vName" placeholder="3.1"></div>
+          <div class="field"><label>版本号 versionCode</label><input id="vCode" type="number" placeholder="24"></div>
+        </div>
+        <div class="field"><label>更新说明</label><textarea id="vNotes" placeholder="这次更新了什么，手机弹窗会原样显示"></textarea></div>
+        <div class="row" style="margin-top:12px">
+          <button id="btnPublish">发布</button>
+          <span class="hint" style="margin:0">安装包取 <code>Busan/dist/Busan旅行助手.apk</code></span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>版本历史</h2>
+        <table><thead><tr><th>版本</th><th>Code</th><th>说明</th><th>大小</th><th>SHA-256</th><th>时间</th></tr></thead>
+        <tbody id="verBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- 日志 -->
+    <section id="tab-audit" class="hide">
+      <div class="panel">
+        <h2>操作日志</h2>
+        <table><thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>对象</th><th>详情</th></tr></thead>
+        <tbody id="auditBody"></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+var state={token:localStorage.getItem('busan_admin_token')||'', user:null, tab:'overview',
+  spots:[], editing:null, lang:'zh', version:null};
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function toast(msg,bad){
+  var t=document.createElement('div'); t.className='toast'+(bad?' bad':''); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(function(){t.remove()},2600);
+}
+function api(path,opt){
+  opt=opt||{}; var headers={'Content-Type':'application/json'};
+  if(state.token) headers['Authorization']='Bearer '+state.token;
+  return fetch(path,{method:opt.method||'GET',headers:headers,
+    body:opt.body?JSON.stringify(opt.body):undefined})
+    .then(function(r){
+      if(r.status===401){ logout(true); throw new Error('登录已过期'); }
+      return r.json().then(function(j){
+        if(!r.ok||j.ok===false) throw new Error(j.error||('HTTP '+r.status));
+        return j;
+      });
+    });
+}
+
+/* ---------------- 登录 ---------------- */
+function login(){
+  var u=$('lgUser').value.trim(), p=$('lgPwd').value.trim();
+  if(!u||!p){ $('lgErr').textContent='请输入账号与密码'; return; }
+  $('lgBtn').disabled=true;
+  fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u,password:p})})
+    .then(function(r){return r.json().then(function(j){return {r:r,j:j}})})
+    .then(function(x){
+      if(!x.r.ok||x.j.ok===false) throw new Error(x.j.error||'登录失败');
+      state.token=x.j.token; state.user=x.j.user;
+      localStorage.setItem('busan_admin_token',state.token);
+      boot();
+    })
+    .catch(function(e){ $('lgErr').textContent=e.message; })
+    .then(function(){ $('lgBtn').disabled=false; });
+}
+$('lgBtn').onclick=login;
+$('lgPwd').onkeydown=function(e){ if(e.key==='Enter') login(); };
+$('lgUser').onkeydown=function(e){ if(e.key==='Enter') $('lgPwd').focus(); };
+
+function logout(silent){
+  if(!silent && state.token){ fetch('/api/logout',{method:'POST',headers:{'Authorization':'Bearer '+state.token}}); }
+  state.token=''; state.user=null; localStorage.removeItem('busan_admin_token');
+  $('appView').classList.add('hide'); $('loginView').classList.remove('hide');
+}
+
+/* ---------------- 启动 ---------------- */
+function boot(){
+  api('/api/me').then(function(j){
+    state.user=j.user;
+    $('loginView').classList.add('hide'); $('appView').classList.remove('hide');
+    $('meName').textContent=j.user.nickname||j.user.username;
+    $('meMail').textContent=j.user.email||('ID '+j.user.id);
+    var r=$('meRole'); r.textContent=j.user.role==='admin'?'管理员':'普通用户';
+    r.className='role'+(j.user.role==='admin'?'':' user');
+    var ro=j.user.role!=='admin';
+    if(ro){ $('readonlyUsers').classList.remove('hide'); $('readonlyContent').classList.remove('hide'); }
+    $('btnNewUser').style.display=ro?'none':'';
+    $('btnNewSpot').style.display=ro?'none':'';
+    $('btnPublish').style.display=ro?'none':'';
+    $('btnStatic').style.display=ro?'none':'';
+    $('baseUrl').textContent=location.origin;
+    loadStats(); loadMeVersion();
+    if(state.tab==='users') loadUsers();
+  }).catch(function(){ logout(true); });
+}
+
+/* ---------------- 导航 ---------------- */
+Array.prototype.forEach.call(document.querySelectorAll('nav button'),function(b){
+  b.onclick=function(){
+    Array.prototype.forEach.call(document.querySelectorAll('nav button'),function(x){x.classList.remove('on')});
+    b.classList.add('on'); var tab=b.getAttribute('data-tab'); state.tab=tab;
+    ['overview','users','content','version','audit'].forEach(function(t){
+      $('tab-'+t).classList.toggle('hide',t!==tab);
+    });
+    var titles={overview:['概览','后台运行状态与最新发布'],users:['账号与权限','管理员与普通用户的账号信息'],
+      content:['景点内容','改完保存，手机端下一次轮询即可拉到更新'],version:['版本与发布','发布新版本并通知手机端更新'],
+      audit:['操作日志','谁在什么时候改了什么']};
+    $('pageTitle').textContent=titles[tab][0]; $('pageSub').textContent=titles[tab][1];
+    if(tab==='users') loadUsers();
+    if(tab==='content') loadSpots();
+    if(tab==='version') loadVersions();
+    if(tab==='audit') loadAudit();
+  };
+});
+$('btnRefresh').onclick=function(){ boot(); };
+$('btnLogout').onclick=function(){ logout(false); };
+
+/* ---------------- 概览 ---------------- */
+function loadStats(){
+  api('/api/stats').then(function(j){
+    var s=j.stats, v=s.version||{};
+    $('stats').innerHTML=[
+      ['账号',s.users,'其中管理员 '+s.admins],
+      ['景点',s.spots,'已删除 '+s.deleted_spots],
+      ['内容版本',s.rev,'每次保存 +1'],
+      ['当前版本',v.version_name||'-','code '+(v.version_code||'-')]
+    ].map(function(x){return '<div class="card"><div class="k">'+x[0]+'</div><div class="v">'+esc(x[1])+'<small> '+esc(x[2])+'</small></div></div>'}).join('');
+    state.version=v;
+    $('curVer').innerHTML=v.version_name?('当前：<b>'+esc(v.version_name)+'</b> · code '+esc(v.version_code)+' · '+
+      esc(v.created_at||'')+'<br>说明：'+esc(v.notes||'—')):'还没有版本记录';
+  }).catch(function(e){toast(e.message,true)});
+}
+function loadMeVersion(){ loadStats(); }
+$('btnCopyBase').onclick=function(){
+  navigator.clipboard&&navigator.clipboard.writeText(location.origin).then(function(){toast('已复制')});
+};
+$('btnStatic').onclick=function(){
+  api('/api/publish',{method:'POST',body:{}}).then(function(j){
+    toast('已生成静态包，rev='+j.state.rev);
+  }).catch(function(e){toast(e.message,true)});
+};
+
+/* ---------------- 账号 ---------------- */
+function loadUsers(){
+  api('/api/users').then(function(j){
+    var admin=state.user&&state.user.role==='admin';
+    $('usersBody').innerHTML=j.items.map(function(u){
+      var role=u.role==='admin'?'<span class="tag admin">管理员</span>':'<span class="tag user">普通用户</span>';
+      var st=(u.status||'active')==='active'?'<span class="tag">正常</span>':'<span class="tag off">停用</span>';
+      var ops=admin?('<button class="ghost small" onclick="editUser('+u.id+')">编辑</button> '+
+        (u.id===state.user.id?'':'<button class="danger small" onclick="delUser('+u.id+',\''+esc(u.username)+'\')">删除</button>')):
+        '<span class="hint" style="margin:0">只读</span>';
+      return '<tr><td>'+u.id+'</td><td><b>'+esc(u.username)+'</b></td><td>'+esc(u.nickname||'-')+
+        '</td><td>'+esc(u.email||'-')+'</td><td>'+role+'</td><td>'+st+'</td><td>'+
+        esc(u.last_login||'-')+'</td><td>'+ops+'</td></tr>';
+    }).join('') || '<tr><td colspan="8" class="hint">暂无账号</td></tr>';
+  }).catch(function(e){toast(e.message,true)});
+}
+$('btnNewUser').onclick=function(){ userModal(null); };
+window.editUser=function(id){
+  api('/api/users').then(function(j){
+    var u=j.items.filter(function(x){return x.id===id})[0];
+    if(u) userModal(u);
+  });
+};
+function userModal(u){
+  var isNew=!u;
+  var m=document.createElement('div'); m.className='modal';
+  m.innerHTML='<div class="box"><h2 style="margin:0 0 6px">'+(isNew?'新建账号':'编辑账号')+'</h2>'+
+    '<div class="hint">'+(isNew?'新账号默认状态正常，可用手机 App 登录。':'账号名不可修改；密码留空表示不改。')+'</div>'+
+    '<div class="field"><label>账号</label><input id="uName" value="'+esc(u?u.username:'')+'" '+(isNew?'':'disabled')+'></div>'+
+    '<div class="field"><label>密码</label><input id="uPwd" type="password" placeholder="'+(isNew?'至少 4 位':'留空不改')+'"></div>'+
+    '<div class="grid2"><div class="field"><label>昵称</label><input id="uNick" value="'+esc(u?u.nickname||'':'')+'"></div>'+
+    '<div class="field"><label>邮箱</label><input id="uMail" value="'+esc(u?u.email||'':'')+'"></div></div>'+
+    '<div class="grid2"><div class="field"><label>角色</label><select id="uRole">'+
+      '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>普通用户</option>'+
+      '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>管理员</option></select></div>'+
+    '<div class="field"><label>状态</label><select id="uStatus">'+
+      '<option value="active"'+(!u||u.status!=='disabled'?' selected':'')+'>正常</option>'+
+      '<option value="disabled"'+(u&&u.status==='disabled'?' selected':'')+'>停用</option></select></div></div>'+
+    '<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="ghost" id="uCancel">取消</button>'+
+    '<button id="uSave">保存</button></div></div>';
+  document.body.appendChild(m);
+  m.querySelector('#uCancel').onclick=function(){m.remove()};
+  m.querySelector('#uSave').onclick=function(){
+    var body={nickname:m.querySelector('#uNick').value.trim(),email:m.querySelector('#uMail').value.trim(),
+      role:m.querySelector('#uRole').value,status:m.querySelector('#uStatus').value};
+    if(isNew){ body.username=m.querySelector('#uName').value.trim(); body.password=m.querySelector('#uPwd').value; }
+    else if(m.querySelector('#uPwd').value) body.password=m.querySelector('#uPwd').value;
+    var req=isNew?api('/api/users',{method:'POST',body:body}):api('/api/users/'+u.id,{method:'PUT',body:body});
+    req.then(function(){ m.remove(); toast('已保存'); loadUsers(); }).catch(function(e){toast(e.message,true)});
+  };
+}
+window.delUser=function(id,name){
+  if(!confirm('删除账号 '+name+'？该操作用于清理测试账号。')) return;
+  api('/api/users/'+id,{method:'DELETE'}).then(function(){toast('已删除');loadUsers()})
+    .catch(function(e){toast(e.message,true)});
+};
+
+/* ---------------- 内容 ---------------- */
+function loadSpots(){
+  var q=$('spotSearch').value.trim();
+  api('/api/spots'+(q?('?q='+encodeURIComponent(q)):'')).then(function(j){
+    state.spots=j.items;
+    $('spotList').innerHTML=j.items.map(function(s){
+      return '<button data-id="'+esc(s.id)+'">'+esc(s.name)+'<small>'+esc(s.id)+' · '+
+        (s.fields&&s.fields.zh&&s.fields.zh.hours?esc(String(s.fields.zh.hours).split('\n')[0]).slice(0,28):'—')+'</small></button>';
+    }).join('') || '<div class="hint" style="padding:12px">没有匹配的景点</div>';
+    Array.prototype.forEach.call($('spotList').children,function(b){
+      b.onclick=function(){
+        Array.prototype.forEach.call($('spotList').children,function(x){x.classList.remove('on')});
+        b.classList.add('on'); openSpot(b.getAttribute('data-id'));
+      };
+    });
+  }).catch(function(e){toast(e.message,true)});
+}
+$('btnSearch').onclick=loadSpots;
+$('spotSearch').onkeydown=function(e){if(e.key==='Enter')loadSpots()};
+$('btnNewSpot').onclick=function(){ state.editing=null; renderEditor(null); };
+function openSpot(id){
+  api('/api/spots/'+encodeURIComponent(id)).then(function(j){ state.editing=j.item; renderEditor(j.item); })
+    .catch(function(e){toast(e.message,true)});
+}
+function renderEditor(s){
+  var admin=state.user&&state.user.role==='admin';
+  var empty={id:'',name:'',name_ko:'',name_en:'',category:'',address:'',lat:'',lng:'',fields:{zh:{},ko:{},en:{}}};
+  s=s||empty; var isNew=!s.id;
+  var lock=admin?'':'disabled';
+  $('spotEditor').innerHTML=
+    '<div class="row"><h2 style="margin:0" class="grow">'+(isNew?'新增景点':esc(s.name))+'</h2>'+
+      (isNew?'':'<button class="danger small" id="btnDelSpot" '+(admin?'':'style="display:none"')+'>删除</button>')+'</div>'+
+    '<div class="grid2" style="margin-top:8px">'+
+      '<div class="field"><label>ID（唯一，删除后同 ID 可复用）</label><input id="sId" value="'+esc(s.id)+'" '+(isNew?lock:'disabled')+'></div>'+
+      '<div class="field"><label>分类</label><input id="sCat" value="'+esc(s.category||'')+'" '+lock+'></div>'+
+      '<div class="field"><label>中文名</label><input id="sName" value="'+esc(s.name||'')+'" '+lock+'></div>'+
+      '<div class="field"><label>韩文名</label><input id="sKo" value="'+esc(s.name_ko||'')+'" '+lock+'></div>'+
+      '<div class="field"><label>英文名</label><input id="sEn" value="'+esc(s.name_en||'')+'" '+lock+'></div>'+
+      '<div class="field"><label>地址</label><input id="sAddr" value="'+esc(s.address||'')+'" '+lock+'></div>'+
+      '<div class="field"><label>纬度</label><input id="sLat" value="'+esc(s.lat==null?'':s.lat)+'" '+lock+'></div>'+
+      '<div class="field"><label>经度</label><input id="sLng" value="'+esc(s.lng==null?'':s.lng)+'" '+lock+'></div>'+
+    '</div>'+
+    '<div class="tabs" style="margin-top:14px">'+
+      ['zh','ko','en'].map(function(l){return '<button data-l="'+l+'" class="'+(l===state.lang?'on':'')+'">'+
+        (l==='zh'?'中文':l==='ko'?'한국어':'English')+'</button>'}).join('')+
+    '</div><div id="fieldsBox"></div>'+
+    '<div class="row" style="margin-top:14px"><button id="btnSaveSpot" '+(admin?'':'style="display:none"')+'>保存</button>'+
+      '<span class="hint" style="margin:0">保存即写入数据库并让手机端内容版本 +1</span></div>';
+  renderFields(s);
+  Array.prototype.forEach.call(document.querySelectorAll('#spotEditor .tabs button'),function(b){
+    b.onclick=function(){
+      state.lang=b.getAttribute('data-l');
+      Array.prototype.forEach.call(document.querySelectorAll('#spotEditor .tabs button'),function(x){x.classList.remove('on')});
+      b.classList.add('on'); renderFields(state.draft||s);
+    };
+  });
+  state.draft=JSON.parse(JSON.stringify(s));
+  collect=function(){
+    if(!admin) return JSON.parse(JSON.stringify(state.draft));
+    var d=JSON.parse(JSON.stringify(state.draft));
+    d.id=$('sId').value.trim(); d.name=$('sName').value.trim(); d.name_ko=$('sKo').value.trim();
+    d.name_en=$('sEn').value.trim(); d.category=$('sCat').value.trim(); d.address=$('sAddr').value.trim();
+    d.lat=parseFloat($('sLat').value)||null; d.lng=parseFloat($('sLng').value)||null;
+    d.fields=d.fields||{};
+    ['zh','ko','en'].forEach(function(l){
+      d.fields[l]=d.fields[l]||{};
+      var box=document.getElementById('f_'+l);
+      if(!box) return;
+      Array.prototype.forEach.call(box.querySelectorAll('textarea'),function(t){
+        d.fields[l][t.getAttribute('data-k')]=t.value;
+      });
+    });
+    return d;
+  };
+  $('btnSaveSpot').onclick=function(){
+    var body=collect();
+    if(!body.id||!body.name){ toast('ID 与中文名必填',true); return; }
+    var req=isNew?api('/api/spots',{method:'POST',body:body}):api('/api/spots/'+encodeURIComponent(s.id),{method:'PUT',body:body});
+    req.then(function(j){ toast('已保存 · rev '+j.rev); state.editing=j.item; openSpot(j.item.id); loadSpots(); })
+      .catch(function(e){toast(e.message,true)});
+  };
+  if($('btnDelSpot')) $('btnDelSpot').onclick=function(){
+    if(!confirm('删除景点「'+s.name+'」？手机端将不再出现该条目。')) return;
+    api('/api/spots/'+encodeURIComponent(s.id),{method:'DELETE'}).then(function(j){
+      toast('已删除 · rev '+j.rev); state.editing=null; $('spotEditor').innerHTML='<div class="hint">已删除，左侧重新选择。</div>'; loadSpots();
+    }).catch(function(e){toast(e.message,true)});
+  };
+  window.collect=collect;
+}
+var collect=function(){return null};
+function renderFields(s){
+  var l=state.lang, f=(s.fields&&s.fields[l])||{};
+  var keys=[['overview','概览（地址/电话等）'],['hours','开放时间'],['ticket','门票'],
+    ['highlights','看点'],['course','怎么安排'],['tips','提示'],['transport','交通'],['source','来源']];
+  var admin=state.user&&state.user.role==='admin';
+  $('fieldsBox').innerHTML='<div id="f_'+l+'">'+keys.map(function(k){
+    return '<div class="field"><label>'+k[1]+'</label><textarea data-k="'+k[0]+'" '+(admin?'':'disabled')+'>'+
+      esc(f[k[0]]||'')+'</textarea></div>';
+  }).join('')+'</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('#fieldsBox textarea'),function(t){
+    t.oninput=function(){
+      state.draft.fields=state.draft.fields||{}; state.draft.fields[l]=state.draft.fields[l]||{};
+      state.draft.fields[l][t.getAttribute('data-k')]=t.value;
+    };
+  });
+}
+
+/* ---------------- 版本 ---------------- */
+function loadVersions(){
+  api('/api/versions').then(function(j){
+    $('verBody').innerHTML=j.items.map(function(v){
+      return '<tr><td><b>'+esc(v.version_name)+'</b>'+(v.is_current?' <span class="tag">当前</span>':'')+
+        '</td><td>'+v.version_code+'</td><td>'+esc(v.notes||'')+'</td><td>'+
+        (v.apk_size?Math.round(v.apk_size/1024)+' KB':'-')+'</td><td><code>'+
+        esc((v.apk_sha256||'').slice(0,16))+'…</code></td><td>'+esc(v.created_at||'')+'</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="hint">暂无记录</td></tr>';
+    var cur=j.items.filter(function(v){return v.is_current})[0];
+    if(cur){ $('vName').value=cur.version_name; $('vCode').value=cur.version_code+1; }
+  }).catch(function(e){toast(e.message,true)});
+}
+$('btnPublish').onclick=function(){
+  var body={version_name:$('vName').value.trim(),version_code:parseInt($('vCode').value,10),
+    notes:$('vNotes').value.trim()};
+  if(!body.version_name||!body.version_code){ toast('版本名与版本号必填',true); return; }
+  api('/api/versions',{method:'POST',body:body}).then(function(){
+    toast('已发布，手机端轮询后会提示更新'); $('vNotes').value=''; loadVersions(); loadStats();
+  }).catch(function(e){toast(e.message,true)});
+};
+
+/* ---------------- 日志 ---------------- */
+function loadAudit(){
+  api('/api/audit').then(function(j){
+    $('auditBody').innerHTML=j.items.map(function(a){
+      return '<tr><td>'+esc(a.created_at)+'</td><td>'+esc(a.actor)+'</td><td>'+esc(a.action)+
+        '</td><td>'+esc(a.target)+'</td><td>'+esc(a.detail)+'</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="hint">暂无日志</td></tr>';
+  }).catch(function(e){toast(e.message,true)});
+}
+
+if(state.token) boot(); else { $('loginView').classList.remove('hide'); }
+</script>
+</body>
+</html>

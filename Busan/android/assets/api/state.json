@@ -1,0 +1,13 @@
+{
+  "rev": 17,
+  "generated_at": "2026-11-22 22:55:58",
+  "version": {
+    "name": "3.1",
+    "code": 24,
+    "notes": "v3.1：追问建议可收起/展开；新增后台管理（账号/内容/版本，默认 admin/admin）；内容改动实时下发，版本变化提示下载安装包。",
+    "published_at": "2026-11-22 22:52:18",
+    "size": 10635569,
+    "sha256": "12b3bd710d5ceec0d26adc860f83854f88584637435a0bd7d8e93589fb7f55d8",
+    "download": "https://github.com/luohaisheng814/AI_Project_2026_2/raw/main/Busan/dist/Busan%E6%97%85%E8%A1%8C%E5%8A%A9%E6%89%8B.apk"
+  }
+}

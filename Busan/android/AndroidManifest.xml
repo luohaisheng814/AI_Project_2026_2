@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="23"
-    android:versionName="3.0">
+    android:versionCode="24"
+    android:versionName="3.1">
 
-    <!-- v3.0：页头右上角新增昼夜切换按钮（🌓 自动 → ☀️ 白天 → 🌙 夜间 循环），
+    <!-- v3.1：追问建议区加「收起/展开」头部；新增后台管理（账号/内容/版本，默认 admin/admin），
+         手机端每 25 秒轮询内容 rev，变了下发刷新提示；版本号变大时弹安装包更新层。
+         v3.0：页头右上角新增昼夜切换按钮（🌓 自动 → ☀️ 白天 → 🌙 夜间 循环），
          手动选择记在本机（busan_theme），下次打开照旧；切换后给 1.8 秒一次性提示。
          自动模式下仍按手机本地时间走（06:00–18:59 白天 / 19:00–05:59 夜间），
          每 60 秒复判一次，切回前台也会复判。

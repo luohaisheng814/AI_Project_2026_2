@@ -19,7 +19,7 @@ SRC = os.path.join(ROOT, "android", "assets")
 OUT = os.path.join(ROOT, "dist", "pwa", "Busan_Tour_WebApp_v30")
 ZIP = os.path.join(ROOT, "dist", "Busan_iOS_WebApp_v30.zip")
 
-READ_ME = """釜山 AI 旅行助手 v3.0 · iPhone / iPad 安装说明
+READ_ME = """釜山 AI 旅行助手 v3.1 · iPhone / iPad 安装说明
 =====================================================
 
 方式一（推荐，1 分钟）：
@@ -36,7 +36,7 @@ READ_ME = """釜山 AI 旅行助手 v3.0 · iPhone / iPad 安装说明
   * 这是 PWA（网页应用），不是 App Store 上架包，也不会出现在 App Store。
   * iOS 只允许安装 App Store 或签名企业/描述文件分发出来的 .ipa；本机是 Windows，
     没有 macOS/Xcode，无法编译签名的 .ipa。仓库里的 Busan/ios 工程是给有 Mac 的
-    环境出真包用的，前端 assets 与安卓完全同源，版本号同步 3.0。
+    环境出真包用的，前端 assets 与安卓完全同源，版本号同步 3.1。
   * 定位/天气权限：在 iPhone 上首次点“定位”时按系统弹窗允许即可。
 """
 
@@ -79,3 +79,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

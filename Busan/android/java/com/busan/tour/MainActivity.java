@@ -48,8 +48,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v3.0
+ * 釜山 AI 旅行助手 v3.1
  *
+ * v3.1 内容与版本同步：追问建议区新增「收起/展开」头部（状态记在 localStorage），
+ * 前端每 25 秒 / 回到前台轮询后台 /api/state，内容 rev 变化给刷新提示，版本号变大弹更新层；
+ * 后台（admin_server.py）管账号、景点内容与版本，原生壳不参与内容渲染与权限判断。
  * v3.0 昼夜手动开关：页头右上角一枚圆形按钮，按「自动 → 白天 → 夜间」循环，
  * 选择持久化在 WebView 的 localStorage；自动模式仍按手机本地时间切，原生壳不参与配色。
  * v2.9 个性化推荐条：欢迎语里的 5 个点子改成可收起/展开的一条，展开后单行横向滚动，
@@ -712,7 +715,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/3.0 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/3.1 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
