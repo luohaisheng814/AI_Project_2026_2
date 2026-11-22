@@ -115,7 +115,26 @@ ERRORS     []
 - `v27_night.png` — 夜间模式（19:00 后自动生效）
 - `v27_day_after.png` — 手动切回白天
 
-### 4. 未测到的部分
+### 4. 线上验证（GitHub Pages，真实 https）
+
+```
+URL        https://luohaisheng814.github.io/AI_Project_2026_2/
+SECURE     true
+V27        fab=true pillHidden=true fabText="🌤 天气" oldStrip=false
+           night=false hour=15 theme=#0a4e63
+MANIFEST   200 application/manifest+json; charset=utf-8
+SW         registered https://luohaisheng814.github.io/AI_Project_2026_2/
+CACHE      ["busan-2.7"]
+PERM CARD  permacts=1 grant=true（点右上角按钮 → 线上真实弹出权限说明卡）
+NIGHT CSS  true
+LIVE       7.0°C / code 0 / 风 4.8 m/s
+ERRORS     []
+```
+
+截图 `Busan/apk_build/v27_online_pages.png`。发布流水线 `Deploy Web App (PWA)`
+run `f9f2978` → **success**；同一次 push 的 `Build iOS` 仍是 `cancelled`（macOS runner 不可用）。
+
+### 5. 未测到的部分
 
 - 没在真 Android 机 / 真 iPhone 上跑（本机无设备、无 Xcode）：APK 只做构建产物级校验，
   系统定位授权弹窗、真机夜间切换的实际观感需装到手机确认一次。
@@ -136,6 +155,8 @@ Busan/ios/README.md                          版本说明 2.7
 Busan/apk_build/test_v27.js                  新增 50 条断言
 Busan/apk_build/test_v26.js                  版本号与天气按钮断言同步
 Busan/apk_build/_v27probe.py                 新增 UI/权限/昼夜探针
+Busan/apk_build/_v27live.py                  新增线上 Pages 验证脚本
+Busan/apk_build/v27_online_pages.png         线上首页截图
 Busan/apk_build/_nightfix.py                 夜间样式块一次性生成脚本（留存）
 Busan/apk_build/v27_*.png                    5 张证据截图
 Busan/pwa/build_pwa.py                       产物名与说明升 v27
@@ -154,9 +175,19 @@ node apk_build/test_v23.js
 node apk_build/test_v22.js
 node apk_build/test_engine.js
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/_v27probe.py
+& D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/_v27live.py      # 验证线上 Pages
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/build_apk.py
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe pwa/build_pwa.py
 ```
+
+## 六、提交记录
+
+| 提交 | 内容 |
+| --- | --- |
+| `f9f2978` | feat(mobile): v2.7 天气入口移到右上角 + 按时间昼夜，Android/iOS 同步 2.7 |
+| `（本条 docs 提交）` | 回填线上 Pages 验证、截图与复跑命令 |
+
+推送：`62975a2..f9f2978 main -> main` → `https://github.com/luohaisheng814/AI_Project_2026_2`
 
 ## 六、下一步（可选）
 
