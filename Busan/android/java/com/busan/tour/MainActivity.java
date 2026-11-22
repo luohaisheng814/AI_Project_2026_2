@@ -48,11 +48,14 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.6
+ * 釜山 AI 旅行助手 v2.7
  *
- * v2.6 手机 UI 收口：跟随系统的深色模式、平板/宽屏单列居中、触控目标与输入框字号
- * 按移动端规范校正（iOS 聚焦不再自动放大）、窄屏内边距收紧；assets 内新增 PWA 元信息、
- * 应用图标、manifest 与 sw.js，原生壳与 iOS 壳共用同一套前端，两端版本号同步为 2.6。
+ * v2.7 天气入口重构：右上角一枚圆形按钮，点一下先说明为何要定位、再触发系统授权；
+ * 取到后只在页头下方露 10 秒，往上翻旧内容/开弹层/切后台即自动收起。
+ * 页面按本地时间切昼夜（19:00–06:00 为夜间），昼夜两套配色都在前端 CSS 里，原生壳不改。
+ * v2.6 手机 UI 收口：平板/宽屏单列居中、触控目标与输入框字号按移动端规范校正、
+ * 窄屏内边距收紧；assets 内新增 PWA 元信息、应用图标、manifest 与 sw.js，
+ * 原生壳与 iOS 壳共用同一套前端，两端版本号同步。
  * v2.5 新增天气能力：定位授权后按经纬度读取实况天气（Open-Meteo，免 Key），
  * 按天气推荐更合适的景点；天气变化（转雨/降温/起风/降水概率上升）主动给建议；
  * 景点与玩法的评级统一改成 5 星制。原生侧继续复用 LocationManager 与 fetchText 桥，
@@ -703,7 +706,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.6 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.7 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

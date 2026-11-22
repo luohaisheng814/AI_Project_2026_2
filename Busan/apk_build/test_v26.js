@@ -68,7 +68,7 @@ ok("APK assets 不含 1024/原图（不撑大安装包）",
 
 /* ---------- 4. service worker ---------- */
 ok("sw: 存在且非空", sw.length > 1500, sw.length + "B");
-ok("sw: 缓存名跟版本 2.6", /const CACHE = 'busan-2\.6'/.test(sw));
+ok("sw: 缓存名跟版本 2.7", /const CACHE = 'busan-2\.7'/.test(sw));
 ok("sw: 缓存 index.html", /'\.\/index\.html'/.test(sw));
 ok("sw: 缓存图标 180", /'\.\/icon-180\.png'/.test(sw));
 ok("sw: 只处理 GET", /req\.method !== 'GET'/.test(sw));
@@ -84,7 +84,7 @@ ok("sw: 预缓存清单文件全部存在", missingShell.length === 0, missingSh
 ok("sw: 预缓存含 weather/ratings", /weather\.js/.test(shell) && /ratings\.js/.test(shell));
 
 /* ---------- 5. 前端 v2.6 UI 收口 ---------- */
-ok("ui: 深色模式媒体查询", /@media \(prefers-color-scheme: dark\)/.test(html));
+ok("ui: 夜间模式作用域 body.night", /body\.night\{/.test(html));
 ok("ui: 深色重定义 --sand", /--sand:#0d1319/.test(html));
 ok("ui: 深色重定义 --ink", /--ink:#e8eff4/.test(html));
 ok("ui: 宽屏单列居中", /@media \(min-width:700px\)/.test(html) && /max-width:560px;\s*margin:0 auto/.test(html));
@@ -99,20 +99,20 @@ ok("ui: text-size-adjust", /-webkit-text-size-adjust:100%/.test(html));
 /* ---------- 6. 天气快捷入口 ---------- */
 ok("ui: 欢迎语含天气入口文案", /今天天气适合去哪/.test(html));
 ok("ui: 天气入口 data-wx", /data-wx="1"/.test(html));
-ok("ui: 天气入口绑定 wxBtn", /wb\.onclick/.test(html));
+ok("ui: 天气入口绑定到右上角按钮", /getElementById\("wxFab"\)\.onclick/.test(html) && /document\.getElementById\("wxFab"\)\.onclick/.test(html));
 
 /* ---------- 7. SW 注册 ---------- */
 ok("sw注册: https 才注册", html.indexOf('"serviceWorker" in navigator && /^https?:$/.test(location.protocol)') > -1);
 ok("sw注册: register sw.js", /navigator\.serviceWorker\.register\("sw\.js"\)/.test(html));
 
 /* ---------- 8. 双端版本同步 ---------- */
-ok("apk: versionCode 19", /android:versionCode="19"/.test(apkMan));
-ok("apk: versionName 2.6", /android:versionName="2\.6"/.test(apkMan));
+ok("apk: versionCode 19", /android:versionCode="20"/.test(apkMan));
+ok("apk: versionName 2.6", /android:versionName="2\.7"/.test(apkMan));
 ok("apk: 注释含 v2.6", /v2\.6/.test(apkMan));
-ok("native: UA 2.6", /BusanTour\/2\.6 \(Android\)/.test(native));
-ok("native: 类注释 v2.6", /釜山 AI 旅行助手 v2\.6/.test(native));
-ok("ios: MARKETING_VERSION 2.6", /MARKETING_VERSION: "2\.6"/.test(iosYml));
-ok("ios: CURRENT_PROJECT_VERSION 19", /CURRENT_PROJECT_VERSION: "19"/.test(iosYml));
+ok("native: UA 2.6", /BusanTour\/2\.7 \(Android\)/.test(native));
+ok("native: 类注释 v2.6", /釜山 AI 旅行助手 v2\.7/.test(native));
+ok("ios: MARKETING_VERSION 2.6", /MARKETING_VERSION: "2\.7"/.test(iosYml));
+ok("ios: CURRENT_PROJECT_VERSION 19", /CURRENT_PROJECT_VERSION: "20"/.test(iosYml));
 ok("ios: AppIcon 资源集启用", /ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon/.test(iosYml));
 ok("ios: 引用同一套 assets", /path: \.\.\/android\/assets/.test(iosYml));
 ok("ios: Info.plist icon name", /CFBundleIconName[\s\S]{0,40}AppIcon/.test(iosPlist));
@@ -121,12 +121,12 @@ ok("ios: AppIcon Contents.json", fs.existsSync(path.join(ROOT, "ios", "BusanTour
 ok("ios: AppIcon 1024 文件", fs.existsSync(path.join(ROOT, "ios", "BusanTour", "Assets.xcassets", "AppIcon.appiconset", "icon-1024.png")));
 
 /* ---------- 9. 旧版本残留 ---------- */
-ok("残留: 无 v2.5 UA", !/BusanTour\/2\.5/.test(native));
+ok("残留: 无 v2.5 UA", !/BusanTour\/2\.[56]/.test(native));
 ok("残留: manifest 无 versionCode 18", !/android:versionCode="18"/.test(apkMan));
 ok("残留: ios 无 2.5", !/MARKETING_VERSION: "2\.5"/.test(iosYml));
 
 /* ---------- 10. v2.5 能力保留 ---------- */
-["BusanWeather", "BusanRating", "wxBtn", "wxText", "paintWxBar", "ratingHtml", "wxAdapt", "initWeather"].forEach((k) => {
+["BusanWeather", "BusanRating", "wxFab", "wxText", "paintWxBar", "ratingHtml", "wxAdapt", "initWeather"].forEach((k) => {
   ok("v2.5 保留: " + k, html.indexOf(k) > -1);
 });
 

@@ -27,8 +27,28 @@
   }
   header{
     background:linear-gradient(135deg,var(--sea),var(--sea-dark)); color:#fff;
-    padding:10px 14px 9px; flex:0 0 auto;
+    padding:10px 14px 9px; flex:0 0 auto; position:relative;
   }
+  /* v2.7：天气入口固定在右上角，点一下才问权限、才取天气 */
+  .wx-fab{
+    flex:0 0 auto; display:flex; align-items:center; gap:5px; align-self:flex-start;
+    border:1px solid rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff;
+    border-radius:16px; padding:6px 10px; min-height:32px; font:inherit; font-size:12px;
+    font-weight:600; line-height:1; white-space:nowrap;
+  }
+  .wx-fab-ic{font-size:14px; line-height:1}
+  .wx-fab-tx{font-size:11.5px; letter-spacing:.2px}
+  .wx-fab.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
+  .wx-fab:active{opacity:.82}
+  .wx-pill{
+    position:absolute; right:10px; top:calc(100% - 2px); z-index:50;
+    max-width:calc(100vw - 24px); padding:7px 11px; border-radius:10px;
+    background:#0f2b33; color:#dff1f6; font-size:11px; line-height:1.45;
+    box-shadow:0 6px 18px rgba(8,24,30,.28); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; pointer-events:none;
+  }
+  .wx-pill[hidden]{display:none}
+  .wx-pill b{color:#f4c98a; font-weight:600}
   .brand{display:flex; align-items:center; justify-content:space-between; gap:8px}
   .brand .tt{min-width:0; flex:1 1 auto}
   .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; line-height:1.2; white-space:normal; overflow-wrap:anywhere}
@@ -305,18 +325,9 @@
   .llmadv summary{font-size:12px; color:var(--sea); cursor:pointer; padding:2px 0}
   .llmadv[open] summary{margin-bottom:2px}
 
-  /* v2.5 天气条 / 天气卡 / 星级 */
-  .wxbar{
-    flex:0 0 auto; display:flex; align-items:center; gap:7px; background:#fdfbf4;
-    border-bottom:1px solid #efe7d8; padding:6px 12px; font-size:11.5px; color:#4b5a66;
-  }
-  .wxbar .wxIcon{flex:0 0 auto; font-size:13px; line-height:1}
-  #wxText{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  #wxBtn{
-    flex:0 0 auto; border:1px solid #e3d8c2; background:#fff; color:#8a6316;
-    border-radius:12px; padding:4px 9px; font-size:11px; white-space:nowrap; font-weight:600;
-  }
-  #wxBtn.on{background:#f0a94c; border-color:#f0a94c; color:#fff}
+  /* v2.5 天气卡 / 星级（v2.7：入口改成右上角 .wx-fab） */
+  #wxText{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .wx-pill .wx-tip{color:#8fb6c2}
   .wxnote{
     display:flex; gap:6px; align-items:flex-start; margin-bottom:7px; padding:6px 8px;
     background:#f7fafb; border-left:3px solid var(--sea); border-radius:0 8px 8px 0;
@@ -364,7 +375,9 @@
   .send,.icon-btn{min-height:40px}
   .chip{padding:8px 12px; min-height:34px}
   .pick{padding:7px 10px; min-height:34px}
-  #liveBtn,#wxBtn{min-height:34px; min-width:56px}
+  #liveBtn{min-height:34px; min-width:56px}
+  #wxFab{min-height:34px}
+  .wx-pill{font-size:11.5px}
   .permact button,.wxacts button{min-height:40px}
   .choice{min-height:44px}
   .rating .rmine button{width:28px; height:28px}
@@ -382,51 +395,134 @@
     #chat{padding:14px 14px 8px}
     .bubble{max-width:86%}
   }
-  /* 深色模式：跟随系统，不改结构 */
-  @media (prefers-color-scheme: dark){
-    :root{
-      --sand:#0d1319; --ink:#e8eff4; --muted:#93a1ad; --line:#28343f; --bubble:#18212a;
-      --sea:#3aa6c4; --sea-dark:#9ad8e8; --user:#176d86; --ok:#39b98a; --off:#d08a58;
-    }
-    body{background:#0d1319; color:var(--ink)}
-    header{background:linear-gradient(135deg,#0d5a70,#072e3c)}
-    .selectors,.livebar,.wxbar,#followups,footer{background:#111a21; border-color:var(--line)}
-    .selectors{border-bottom:1px solid var(--line)}
-    .livebar{border-bottom:1px solid var(--line)}
-    .wxbar{background:#151d24; border-bottom:1px solid #2a3540; color:#c8d5df}
-    .chip{background:#1a242d; border-color:#2b3844; color:var(--ink)}
-    .chip.on{background:var(--sea); border-color:var(--sea); color:#08131a}
-    #liveBtn,#wxBtn{background:#1b252e; border-color:#2c3a46; color:#cfe6ef}
-    #wxBtn.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
-    #q{background:#1a232c; border-color:#2b3844; color:var(--ink)}
-    .icon-btn{background:#1e2a34; color:#bfe2ee}
-    .bubble{background:#18212a; box-shadow:0 1px 3px rgba(0,0,0,.45)}
-    .bubble h3,.bubble strong,.bubble .foot .src{color:#a9dcec}
-    .badge{background:#20313c; color:#a9dcec}
-    .badge.off{background:#3a2a1d; color:#e8b083}
-    .pick{background:#1b252e; border-color:#2c3a46; color:#bfe2ee}
-    .card,.choice,.routeopt,.official,.rating,.lastplan,.cloudllm{background:#1a242d; border-color:#2b3844; color:var(--ink)}
-    .choice:active{background:#22303b}
-    .card .cn,.choice .cname,.routeopt b{color:#bfe2ee}
-    .rating .rtop b{color:#f0c072}
-    .rating .rsub,.rating .rmine{color:#aab6c0}
-    .rating .rmine button{background:#222d37; border-color:#33424f; color:#f0c072}
-    .wxchips button{background:#1e2a34; border-color:#2c3a46; color:#c9d6e0}
-    .wxchips button.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
-    .wxnote{background:#18242d; border-left-color:var(--sea); color:#b9cad6}
-    .official .ol{color:#98a6b2}
-    .official .ol a,.card .cb a,.bubble a{color:#7fc9de}
-    .choice .ctag{background:#1d3a46; color:#8fd0e2}
-    .field input,.field select{background:#1a232c; border-color:#2b3844; color:var(--ink)}
-    .sheet{background:#141d25}
-    .sheet .desc,.fine,.llmnote,.prefs-title{color:#9aa8b4}
-    .tabs{background:#1a242d}
-    .tabs button.on{background:#243240; color:#dbe9f1; box-shadow:none}
-    .ghost{background:#1a242d; border-color:#2b3844; color:#c4d2dc}
-    .modal{background:rgba(0,0,0,.62)}
-    .photostrip img{background:#22303a; border-color:#2a3742}
-    .hint{color:#8794a0}
-    .stars .sbg{color:#3c4854}
+  /* 夜间模式：按本地时间 19:00–06:00 自动切换（v2.7） */
+  body.night{
+    --sand:#0d1319; --ink:#e8eff4; --muted:#93a1ad; --line:#28343f; --bubble:#18212a;
+    --sea:#3aa6c4; --sea-dark:#9ad8e8; --user:#176d86; --ok:#39b98a; --off:#d08a58;
+    background:#0d1319; color:var(--ink)
+  }
+  body.night header{
+    background:linear-gradient(135deg,#0d5a70,#072e3c)
+  }
+  body.night .selectors,body.night .livebar,body.night #followups,body.night footer{
+    background:#111a21; border-color:var(--line)
+  }
+  body.night .selectors{
+    border-bottom:1px solid var(--line)
+  }
+  body.night .livebar{
+    border-bottom:1px solid var(--line)
+  }
+  body.night .chip{
+    background:#1a242d; border-color:#2b3844; color:var(--ink)
+  }
+  body.night .chip.on{
+    background:var(--sea); border-color:var(--sea); color:#08131a
+  }
+  body.night #liveBtn{
+    background:#1b252e; border-color:#2c3a46; color:#cfe6ef
+  }
+  body.night #q{
+    background:#1a232c; border-color:#2b3844; color:var(--ink)
+  }
+  body.night .icon-btn{
+    background:#1e2a34; color:#bfe2ee
+  }
+  body.night .bubble{
+    background:#18212a; box-shadow:0 1px 3px rgba(0,0,0,.45)
+  }
+  body.night .bubble h3,body.night .bubble strong,body.night .bubble .foot .src{
+    color:#a9dcec
+  }
+  body.night .badge{
+    background:#20313c; color:#a9dcec
+  }
+  body.night .badge.off{
+    background:#3a2a1d; color:#e8b083
+  }
+  body.night .pick{
+    background:#1b252e; border-color:#2c3a46; color:#bfe2ee
+  }
+  body.night .card,body.night .choice,body.night .routeopt,body.night .official,body.night .rating,body.night .lastplan,body.night .cloudllm{
+    background:#1a242d; border-color:#2b3844; color:var(--ink)
+  }
+  body.night .choice:active{
+    background:#22303b
+  }
+  body.night .card .cn,body.night .choice .cname,body.night .routeopt b{
+    color:#bfe2ee
+  }
+  body.night .rating .rtop b{
+    color:#f0c072
+  }
+  body.night .rating .rsub,body.night .rating .rmine{
+    color:#aab6c0
+  }
+  body.night .rating .rmine button{
+    background:#222d37; border-color:#33424f; color:#f0c072
+  }
+  body.night .wxchips button{
+    background:#1e2a34; border-color:#2c3a46; color:#c9d6e0
+  }
+  body.night .wxchips button.on{
+    background:#f0a94c; border-color:#f0a94c; color:#241a08
+  }
+  body.night .wxnote{
+    background:#18242d; border-left-color:var(--sea); color:#b9cad6
+  }
+  body.night .official .ol{
+    color:#98a6b2
+  }
+  body.night .official .ol a,body.night .card .cb a,body.night .bubble a{
+    color:#7fc9de
+  }
+  body.night .choice .ctag{
+    background:#1d3a46; color:#8fd0e2
+  }
+  body.night .field input,body.night .field select{
+    background:#1a232c; border-color:#2b3844; color:var(--ink)
+  }
+  body.night .sheet{
+    background:#141d25
+  }
+  body.night .sheet .desc,body.night .fine,body.night .llmnote,body.night .prefs-title{
+    color:#9aa8b4
+  }
+  body.night .tabs{
+    background:#1a242d
+  }
+  body.night .tabs button.on{
+    background:#243240; color:#dbe9f1; box-shadow:none
+  }
+  body.night .ghost{
+    background:#1a242d; border-color:#2b3844; color:#c4d2dc
+  }
+  body.night .modal{
+    background:rgba(0,0,0,.62)
+  }
+  body.night .photostrip img{
+    background:#22303a; border-color:#2a3742
+  }
+  body.night .hint{
+    color:#8794a0
+  }
+  body.night .stars .sbg{
+    color:#3c4854
+  }
+  body.night .wx-fab{
+    background:rgba(18,44,54,.5); border-color:rgba(255,255,255,.32)
+  }
+  body.night .wx-fab.on{
+    background:#f0a94c; border-color:#f0a94c; color:#241a08
+  }
+  body.night .wx-pill{
+    background:#0a1a20; color:#dff1f6; box-shadow:0 8px 20px rgba(0,0,0,.5)
+  }
+  body.night .permact button{
+    background:#1b252e; border-color:#2c3a46; color:#9ad8e8
+  }
+  body.night .permact .act-grant{
+    background:#2f8fb0; border-color:#2f8fb0; color:#fff
   }
 </style>
 </head>
@@ -437,7 +533,12 @@
       <h1 id="title">釜山 AI 旅行助手</h1>
       <div class="sub" id="subline"></div>
     </div>
+    <button id="wxFab" class="wx-fab" type="button" aria-label="天气" aria-expanded="false">
+      <span class="wx-fab-ic" id="wxIcon">🌤</span>
+      <span class="wx-fab-tx" id="wxFabT">天气</span>
+    </button>
   </div>
+  <div class="wx-pill" id="wxPill" hidden><span id="wxText"></span></div>
   <div class="toolrow">
     <div class="langs">
       <button data-lang="zh" class="on">中文</button>
@@ -468,12 +569,6 @@
   <span class="ldot" id="liveDot"></span>
   <span id="liveText">实时定位未开启</span>
   <button id="liveBtn" type="button">实时</button>
-</div>
-
-<div class="wxbar" id="wxStrip">
-  <span class="wxIcon" id="wxIcon">🌤</span>
-  <span id="wxText">天气：未获取</span>
-  <button id="wxBtn" type="button">天气</button>
 </div>
 
 <div id="chat"></div>
@@ -714,22 +809,78 @@
   function wxSetLang(){ if (WX) WX.setLang(lang); if (RT) RT.setLang(lang); }
   function wxState(){ return WX ? WX.state() : null; }
 
+  /* v2.7：入口收成右上角一枚按钮，天气文字改成点开才露出的短气泡 */
+  var wxPillTimer = null;
+
+  function wxUpdatedAt(){
+    var w = wxState();
+    if (!w || !w.at) return "";
+    var d = new Date(w.at);
+    var hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
+    return hh + ":" + mm;
+  }
+
   function paintWxBar(){
-    var txt = document.getElementById("wxText");
     var icon = document.getElementById("wxIcon");
-    var btn = document.getElementById("wxBtn");
-    if (!txt || !icon || !btn) return;
+    var tip = document.getElementById("wxFabT");
+    var pill = document.getElementById("wxPill");
+    var txt = document.getElementById("wxText");
+    var fab = document.getElementById("wxFab");
+    if (!icon || !tip || !pill || !txt || !fab) return;
     wxSetLang();
     var w = wxState();
     if (!w){
       icon.textContent = "🌤";
-      txt.textContent = L("天气：未获取 · 点右侧获取", "날씨: 미확인 · 오른쪽에서 확인", "Weather: not loaded — tap to get it");
-      btn.classList.remove("on");
+      tip.textContent = L("天气", "날씨", "Weather");
+      fab.classList.remove("on");
+      txt.textContent = L("点一下获取天气（需要定位权限）",
+        "한 번 눌러 날씨 확인 (위치 권한 필요)",
+        "Tap to get the weather (needs location)");
       return;
     }
     icon.textContent = (WX.label(w.cls) || {}).icon || "🌤";
-    txt.textContent = WX.banner(w);
-    btn.classList.add("on");
+    tip.textContent = Math.round(w.temp) + "°";
+    fab.classList.add("on");
+    var t = wxUpdatedAt();
+    txt.textContent = WX.banner(w) + (t ? " · " + L("更新 " + t, "업데이트 " + t, "updated " + t) : "");
+  }
+
+  function wxPillShow(autoHideMs){
+    var pill = document.getElementById("wxPill");
+    var fab = document.getElementById("wxFab");
+    if (!pill) return;
+    paintWxBar();
+    pill.hidden = false;
+    if (fab) fab.setAttribute("aria-expanded", "true");
+    if (wxPillTimer) clearTimeout(wxPillTimer);
+    wxPillTimer = setTimeout(wxPillHide, autoHideMs || 8000);
+  }
+
+  function wxPillHide(){
+    var pill = document.getElementById("wxPill");
+    var fab = document.getElementById("wxFab");
+    if (wxPillTimer) { clearTimeout(wxPillTimer); wxPillTimer = null; }
+    if (pill) pill.hidden = true;
+    if (fab) fab.setAttribute("aria-expanded", "false");
+  }
+
+  /** 离开首页（聊天区滚开、开了弹层、切到后台）就不再占着屏幕。 */
+  function wxPillHideIfAway(){
+    var pill = document.getElementById("wxPill");
+    if (!pill || pill.hidden) return;
+    var chat = document.getElementById("chat");
+    var away = false;
+    if (chat){
+      // 停在最新一条 = 还在主界面；往上翻读旧内容才算离开首页
+      away = (chat.scrollHeight - chat.scrollTop - chat.clientHeight) > 140;
+    }
+    var modal = false;
+    var els = document.querySelectorAll(".modal,.sheet");
+    for (var i = 0; i < els.length; i++){
+      var r = els[i].getBoundingClientRect();
+      if (r.width > 4 && r.height > 4){ modal = true; break; }
+    }
+    if (away || modal || document.hidden) wxPillHide();
   }
 
   /** 星级块：综合星 + 四个子项 + 我的 1-5 星（点一下保存，再点同值取消）。 */
@@ -939,6 +1090,7 @@
         renderFollowups(res);
       }
       paintWxBar();
+      if (msg) wxPillShow(10000);       // v2.7：取到天气后先露 10 秒，再自己收
       if (changes && changes.length && opts.notify) wxNotify(changes, w);
     });
   }
@@ -1940,8 +2092,8 @@
     box.querySelectorAll(".pick").forEach(function(b){
       if (b.getAttribute("data-wx")){
         b.onclick = function(){
-          var wb = document.getElementById("wxBtn");
-          if (wb && wb.onclick) wb.onclick(); else wxNotify();
+          var fab = document.getElementById("wxFab");
+          if (fab && fab.onclick) fab.onclick(); else wxNotify();
         };
         return;
       }
@@ -2079,19 +2231,18 @@
     }
   };
 
-  document.getElementById("wxBtn").onclick = function(){
+  /* v2.7：右上角天气按钮 —— 有数据就先露 8 秒；没数据先问权限再申请。 */
+  document.getElementById("wxFab").onclick = function(){
     wxSetLang();
     var w = wxState();
-    if (!w){
-      var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
-      if (perm === "granted") fetchWeather(null, { force: true, notify: true });
-      else wxPermissionCard();
+    if (w){ wxPillShow(); return; }
+    var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+    if (perm === "granted"){
+      wxPillShow();
+      fetchWeather(null, { force: true, notify: true });
       return;
     }
-    var res = weatherResult(w, []);
-    var msg = bubbleFor(res);
-    renderFollowups(res);
-    paintWxBar();
+    wxPermissionCard();          // 先说明为什么要定位，再让用户点“允许”触发系统授权
   };
 
   document.getElementById("send").onclick = function(){ ask(document.getElementById("q").value); };
@@ -2168,6 +2319,16 @@
     lastPlan: function(){ return lastPlan; },
     setLastPlan: function(p){ lastPlan = p; },
     setWelcome: function(name){ welcomeBack = name; },
+    isNight: function(){ return document.body.classList.contains("night"); },
+    themeMode: function(){ return themeMode; },
+    setThemeMode: function(mode){
+      if (mode !== "day" && mode !== "night" && mode !== "auto") return themeMode;
+      themeMode = mode;
+      applyDayNight();
+      return themeMode;
+    },
+    showWeatherPill: function(ms){ wxPillShow(ms); },
+    hideWeatherPill: wxPillHide,
     refresh: function(){ applyUI(); renderChips(); },
     reloadCloud: reloadCloud,
     resetGuest: function(){
@@ -2218,6 +2379,37 @@
     categoriesRating: function(){ return RT ? RT.categorySummary() : []; }
   };
 
+  /* ---------------- v2.7 昼夜主题（按本地时间，19:00–06:00 为夜间） ---------------- */
+  var nightTimer = null;
+  var themeMode = "auto";
+
+  function computeNight(mode){
+    if (mode === "night") return true;
+    if (mode === "day") return false;
+    var h = new Date().getHours();
+    return h >= 19 || h < 6;
+  }
+
+  function applyDayNight(){
+    var night = computeNight(themeMode);
+    document.body.classList.toggle("night", night);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", night ? "#072e3c" : "#0a4e63");
+    return night;
+  }
+
+  function initDayNight(){
+    applyDayNight();
+    if (nightTimer) clearInterval(nightTimer);
+    nightTimer = setInterval(applyDayNight, 60 * 1000);
+    document.addEventListener("visibilitychange", applyDayNight);
+  }
+
+  // 离开首页（聊天滚开 / 弹出面板 / 切后台）时收起天气气泡
+  var chatEl = document.getElementById("chat");
+  if (chatEl) chatEl.addEventListener("scroll", wxPillHideIfAway, { passive: true });
+  document.addEventListener("visibilitychange", wxPillHideIfAway);
+
   window.__busanNetChanged = function(nowOnline){
     if (!cloudReady) return;
     var was = online();
@@ -2231,6 +2423,7 @@
   // 在线不显示状态；只有离线时才弹一次提示。
   greet();
   if (window.BusanLive) BusanLive.init();
+  initDayNight();
   initWeather();
   reloadCloud(false);
   if (window.BusanAuth) BusanAuth.init();

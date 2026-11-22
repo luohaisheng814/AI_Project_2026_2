@@ -2,8 +2,8 @@
 """打包 iOS 可用的网页版安装包（PWA）。
 
 产物：
-  Busan/dist/Busan_iOS_WebApp_v26.zip      整站（含图标/manifest/sw），可放到任意 https 主机
-  Busan/dist/pwa/Busan_Tour_WebApp_v26/    展开后的同内容目录
+  Busan/dist/Busan_iOS_WebApp_v27.zip      整站（含图标/manifest/sw），可放到任意 https 主机
+  Busan/dist/pwa/Busan_Tour_WebApp_v27/    展开后的同内容目录
 
 说明：iPhone 上的“安装”= Safari 打开 https 页面后“添加到主屏幕”。
 iOS 不允许侧载未签名 .ipa，本机也没有 macOS/Xcode，因此网页版是可选路径里唯一
@@ -16,10 +16,10 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC = os.path.join(ROOT, "android", "assets")
-OUT = os.path.join(ROOT, "dist", "pwa", "Busan_Tour_WebApp_v26")
-ZIP = os.path.join(ROOT, "dist", "Busan_iOS_WebApp_v26.zip")
+OUT = os.path.join(ROOT, "dist", "pwa", "Busan_Tour_WebApp_v27")
+ZIP = os.path.join(ROOT, "dist", "Busan_iOS_WebApp_v27.zip")
 
-READ_ME = """釜山 AI 旅行助手 v2.6 · iPhone / iPad 安装说明
+READ_ME = """釜山 AI 旅行助手 v2.7 · iPhone / iPad 安装说明
 =====================================================
 
 方式一（推荐，1 分钟）：

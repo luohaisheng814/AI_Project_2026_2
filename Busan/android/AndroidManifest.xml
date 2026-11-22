@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="19"
-    android:versionName="2.6">
+    android:versionCode="20"
+    android:versionName="2.7">
 
-    <!-- v2.6：手机 UI 收口——跟随系统的深色模式、平板/宽屏单列居中、触控目标与输入框
+    <!-- v2.7：天气入口收到右上角一枚按钮——先问权限、再申请系统定位，取到后只露 10 秒短气泡，
+         往上翻看旧内容/弹出面板/切后台就自动收起；页面按本地时间切昼夜（19:00–06:00 夜间）。
+         v2.6：手机 UI 收口——平板/宽屏单列居中、触控目标与输入框
          字号按移动端规范校正（iOS 聚焦不再自动放大）、窄屏内边距收紧；新增 PWA 元信息、
          应用图标（180/192/512/1024）、manifest 与离线 service worker，iPhone 可直接
          “添加到主屏幕”安装同一套界面；欢迎语新增“今天天气适合去哪”入口。
