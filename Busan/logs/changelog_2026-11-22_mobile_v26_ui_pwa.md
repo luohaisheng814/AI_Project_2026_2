@@ -202,7 +202,7 @@ node apk_build/test_engine.js                  # 离线引擎
 | 提交 | 内容 |
 | --- | --- |
 | `8fff7b5` | feat(mobile): v2.6 手机 UI 收口 + PWA 安装，Android/iOS 同版本升级 |
-| 本次 docs 提交（见下方哈希回填） | 回填线上 Pages 验证、截图与复跑命令 |
+| `e57142b` | docs: 回填 v2.6 线上 Pages 验证与截图 |
 
 推送：`a929440..8fff7b5 main -> main` → `https://github.com/luohaisheng814/AI_Project_2026_2`
 
