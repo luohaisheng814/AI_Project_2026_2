@@ -51,17 +51,17 @@ ok("昼夜: body.night 作用域", /body\.night\{/.test(html));
 ok("昼夜: 夜间变量", /--sand:#0d1319; --ink:#e8eff4/.test(html));
 ok("昼夜: 夜间顶栏更深", /body\.night header\{[\s\S]{0,120}linear-gradient\(135deg,#0d5a70,#072e3c\)/.test(html));
 ok("昼夜: 19 点到 6 点判夜", /h >= 19 \|\| h < 6/.test(html));
-ok("昼夜: 每分钟复判", /setInterval\(applyDayNight, 60 \* 1000\)/.test(html));
-ok("昼夜: 切前台复判", /addEventListener\("visibilitychange", applyDayNight\)/.test(html));
+ok("昼夜: 每分钟复判", /setInterval\(function\(\)\{ applyDayNight\(\); paintThemeBtn\(\); \}, 60 \* 1000\)/.test(html));
+ok("昼夜: 切前台复判", /addEventListener\("visibilitychange", function\(\)\{ applyDayNight\(\); paintThemeBtn\(\); \}\)/.test(html));
 ok("昼夜: 同步 theme-color", /#072e3c/.test(html) && /#0a4e63/.test(html));
 ok("昼夜: 可手动覆盖", /setThemeMode/.test(html) && /mode === "night"/.test(html) && /mode === "day"/.test(html));
 ok("昼夜: class 切换", /document\.body\.classList\.toggle\("night", night\)/.test(html));
 ok("昼夜: BusanUI 暴露", /isNight: function|themeMode: function/.test(html));
 
 /* 5. 版本与双端同步 */
-ok("版本: APK 22 / 2.9（随版本链路同步）", /android:versionCode="22"/.test(apkMan) && /android:versionName="2\.9"/.test(apkMan));
-ok("版本: 原生 UA 2.9", /BusanTour\/2\.9 \(Android\)/.test(native));
-ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "2\.9"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "22"/.test(iosYml));
+ok("版本: APK 22 / 2.9（随版本链路同步）", /android:versionCode="23"/.test(apkMan) && /android:versionName="3\.0"/.test(apkMan));
+ok("版本: 原生 UA 2.9", /BusanTour\/3\.0 \(Android\)/.test(native));
+ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "3\.0"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
 ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
 
 /* 6. 既有能力不回退 */
@@ -69,7 +69,7 @@ ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
   ok("保留: " + k, html.indexOf(k) > -1);
 });
 ok("保留: PWA manifest", fs.existsSync(path.join(A, "manifest.webmanifest")));
-ok("保留: service worker", sw.indexOf("busan-2.9") > -1);
+ok("保留: service worker", sw.indexOf("busan-3.0") > -1);
 ok("保留: 深色下官网链接可读", /body\.night \.official \.ol a/.test(html));
 ok("夜间: 有天气时按钮仍是橙底", /body\.night \.wx-fab\.on\{[\s\S]{0,120}#f0a94c/.test(html));
 ok("夜间: 权限按钮不发白", /body\.night \.permact button\{/.test(html));

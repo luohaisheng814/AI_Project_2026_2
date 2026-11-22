@@ -48,8 +48,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.9
+ * 釜山 AI 旅行助手 v3.0
  *
+ * v3.0 昼夜手动开关：页头右上角一枚圆形按钮，按「自动 → 白天 → 夜间」循环，
+ * 选择持久化在 WebView 的 localStorage；自动模式仍按手机本地时间切，原生壳不参与配色。
  * v2.9 个性化推荐条：欢迎语里的 5 个点子改成可收起/展开的一条，展开后单行横向滚动，
  * 收起时只占一行标题；点任一点子自动收起。原生壳只负责展示前端，不参与该交互。
  * v2.8 综合推荐：天气按钮与“附近”统一走「先问权限 → 申请系统定位 → 读当地天气 → 结合手机
@@ -710,7 +712,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.9 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/3.0 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

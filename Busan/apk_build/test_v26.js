@@ -68,7 +68,7 @@ ok("APK assets 不含 1024/原图（不撑大安装包）",
 
 /* ---------- 4. service worker ---------- */
 ok("sw: 存在且非空", sw.length > 1500, sw.length + "B");
-ok("sw: 缓存名跟版本 2.9", /const CACHE = 'busan-2\.9'/.test(sw));
+ok("sw: 缓存名跟版本 2.9", /const CACHE = 'busan-3\.0'/.test(sw));
 ok("sw: 缓存 index.html", /'\.\/index\.html'/.test(sw));
 ok("sw: 缓存图标 180", /'\.\/icon-180\.png'/.test(sw));
 ok("sw: 只处理 GET", /req\.method !== 'GET'/.test(sw));
@@ -106,13 +106,13 @@ ok("sw注册: https 才注册", html.indexOf('"serviceWorker" in navigator && /^
 ok("sw注册: register sw.js", /navigator\.serviceWorker\.register\("sw\.js"\)/.test(html));
 
 /* ---------- 8. 双端版本同步 ---------- */
-ok("apk: versionCode 22", /android:versionCode="22"/.test(apkMan));
-ok("apk: versionName 2.9", /android:versionName="2\.9"/.test(apkMan));
+ok("apk: versionCode 22", /android:versionCode="23"/.test(apkMan));
+ok("apk: versionName 2.9", /android:versionName="3\.0"/.test(apkMan));
 ok("apk: 注释含 v2.6", /v2\.6/.test(apkMan));
-ok("native: UA 2.9", /BusanTour\/2\.9 \(Android\)/.test(native));
-ok("native: 类注释 v2.9", /釜山 AI 旅行助手 v2\.9/.test(native));
-ok("ios: MARKETING_VERSION 2.9", /MARKETING_VERSION: "2\.9"/.test(iosYml));
-ok("ios: CURRENT_PROJECT_VERSION 22", /CURRENT_PROJECT_VERSION: "22"/.test(iosYml));
+ok("native: UA 2.9", /BusanTour\/3\.0 \(Android\)/.test(native));
+ok("native: 类注释 v2.9", /釜山 AI 旅行助手 v3\.0/.test(native));
+ok("ios: MARKETING_VERSION 2.9", /MARKETING_VERSION: "3\.0"/.test(iosYml));
+ok("ios: CURRENT_PROJECT_VERSION 22", /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
 ok("ios: AppIcon 资源集启用", /ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon/.test(iosYml));
 ok("ios: 引用同一套 assets", /path: \.\.\/android\/assets/.test(iosYml));
 ok("ios: Info.plist icon name", /CFBundleIconName[\s\S]{0,40}AppIcon/.test(iosPlist));

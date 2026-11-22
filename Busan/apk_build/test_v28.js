@@ -150,12 +150,12 @@ ok("接线: BusanUI 暴露综合入口", /mix: function\(opts\)/.test(html) && /
 ok("接线: 结论里只陈述昼夜规则，不断言当前配色", /06:00–18:59 白天，19:00–05:59 夜间/.test(html) && !/保持白天配色/.test(html));
 
 /* ---------- 8. 版本与 PWA ---------- */
-ok("版本: APK 22 / 2.9", /android:versionCode="22"/.test(apkMan) && /android:versionName="2\.9"/.test(apkMan));
-ok("版本: UA 2.9", /BusanTour\/2\.9 \(Android\)/.test(native));
-ok("版本: 类注释 v2.9", /釜山 AI 旅行助手 v2\.9/.test(native));
-ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "2\.9"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "22"/.test(iosYml));
+ok("版本: APK 22 / 2.9", /android:versionCode="23"/.test(apkMan) && /android:versionName="3\.0"/.test(apkMan));
+ok("版本: UA 2.9", /BusanTour\/3\.0 \(Android\)/.test(native));
+ok("版本: 类注释 v2.9", /釜山 AI 旅行助手 v3\.0/.test(native));
+ok("版本: iOS 2.9 / 22", /MARKETING_VERSION: "3\.0"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "23"/.test(iosYml));
 ok("版本: 无 2.7 残留 UA", !/BusanTour\/2\.7/.test(native));
-ok("PWA: 缓存名 busan-2.9", /const CACHE = 'busan-2\.9'/.test(sw));
+ok("PWA: 缓存名 busan-3.0", /const CACHE = 'busan-3\.0'/.test(sw));
 ok("PWA: 清单含 mix.js", /'\.\/mix\.js'/.test(sw));
 ok("PWA: 清单仍含 weather/ratings", /'\.\/weather\.js'/.test(sw) && /'\.\/ratings\.js'/.test(sw));
 ok("PWA: manifest 与图标仍在", fs.existsSync(path.join(A, "manifest.webmanifest")) &&

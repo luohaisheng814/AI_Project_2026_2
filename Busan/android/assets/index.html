@@ -40,6 +40,26 @@
   .wx-fab-tx{font-size:11.5px; letter-spacing:.2px}
   .wx-fab.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
   .wx-fab:active{opacity:.82}
+  /* v3.0 昼夜切换按钮：右上角一枚圆形按钮，自动 → 白天 → 夜间 循环，状态记在本机 */
+  .theme-btn{
+    flex:0 0 auto; align-self:flex-start; width:34px; height:34px; min-width:34px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff;
+    border-radius:50%; padding:0; font-size:15px; line-height:1;
+  }
+  .theme-btn[data-mode="day"]{background:#ffe9b8; border-color:#f3d78f; color:#5a4310}
+  .theme-btn[data-mode="night"]{background:#12232d; border-color:#2f5566; color:#bfe2ee}
+  .theme-btn:active{opacity:.8}
+  /* 切换后的一次性提示：只在点按钮时出现，1.8 秒自动消失 */
+  .ui-toast{
+    position:fixed; left:50%; bottom:86px; transform:translateX(-50%);
+    z-index:60; max-width:calc(100vw - 48px); padding:7px 13px; border-radius:12px;
+    background:rgba(15,43,51,.94); color:#e6f4f8; font-size:12px; line-height:1.45;
+    text-align:center; box-shadow:0 6px 18px rgba(8,24,30,.3); pointer-events:none;
+    opacity:0; transition:opacity .18s ease;
+  }
+  .ui-toast.show{opacity:1}
+  .ui-toast[hidden]{display:none}
   .wx-pill{
     position:absolute; right:10px; top:calc(100% - 2px); z-index:50;
     max-width:calc(100vw - 24px); padding:7px 11px; border-radius:10px;
@@ -600,6 +620,9 @@
       <h1 id="title">釜山 AI 旅行助手</h1>
       <div class="sub" id="subline"></div>
     </div>
+    <button id="themeBtn" class="theme-btn" type="button" data-mode="auto" aria-label="自动昼夜">
+      <span id="themeIcon">🌓</span>
+    </button>
     <button id="wxFab" class="wx-fab" type="button" aria-label="天气" aria-expanded="false">
       <span class="wx-fab-ic" id="wxIcon">🌤</span>
       <span class="wx-fab-tx" id="wxFabT">天气</span>
@@ -615,6 +638,8 @@
     </div>
   </div>
 </header>
+
+<div class="ui-toast" id="themeToast" hidden></div>
 
 <div class="selectors open" id="prefs">
   <button class="prefs-head" id="prefsToggle" type="button" aria-expanded="true" aria-controls="prefsBody">
@@ -1217,9 +1242,9 @@
     if (tips.length) lines.push(L("提醒", "알림", "Heads-up") + " · " + tips.join(" · "));
     lines.push("");
     // 只陈述规则，不断言当前配色——用户可手动锁白天/夜间，写死会自相矛盾
-    lines.push(L("界面按手机本地时间自动切昼夜：06:00–18:59 白天，19:00–05:59 夜间。",
-      "화면은 휴대폰 시각 기준으로 자동 전환됩니다: 06:00–18:59 주간, 19:00–05:59 야간.",
-      "The UI switches by your phone clock: daylight 06:00–18:59, night 19:00–05:59."));
+    lines.push(L("界面按手机本地时间自动切昼夜：06:00–18:59 白天，19:00–05:59 夜间；右上角按钮可手动切（自动 / 白天 / 夜间）。",
+      "화면은 휴대폰 시각 기준으로 자동 전환됩니다: 06:00–18:59 주간, 19:00–05:59 야간. 오른쪽 위 버튼으로 자동/주간/야간을 수동 전환할 수 있습니다.",
+      "The UI follows your phone clock: daylight 06:00–18:59, night 19:00–05:59. The top-right button cycles auto / day / night."));
     return {
       tag: opts.kind === "weather"
         ? L("天气 · 综合推荐", "날씨 · 종합 추천", "Weather · combined picks")
@@ -1488,6 +1513,7 @@
     document.getElementById("planBtn").textContent = lang === "zh" ? "按当前选择规划" : lang === "ko" ? "현재 조건으로 일정" : "Plan with these choices";
     document.getElementById("planHint").textContent = lang === "zh" ? "结合账户偏好与实时位置" : lang === "ko" ? "계정 취향·현재 위치 반영" : "Uses account profile + live location";
     paintPrefs();
+    paintThemeBtn();
     document.getElementById("hint").textContent = lang === "zh"
       ? "说“半天、想拍照、少走路”这类想法，会自动识别核心词并给方案"
       : lang === "ko" ? "'반나절, 사진, 덜 걷기'처럼 말하면 핵심어를 인식해 일정을 제안합니다"
@@ -2577,12 +2603,8 @@
     setWelcome: function(name){ welcomeBack = name; },
     isNight: function(){ return document.body.classList.contains("night"); },
     themeMode: function(){ return themeMode; },
-    setThemeMode: function(mode){
-      if (mode !== "day" && mode !== "night" && mode !== "auto") return themeMode;
-      themeMode = mode;
-      applyDayNight();
-      return themeMode;
-    },
+    setThemeMode: function(mode){ return setThemeMode(mode, false); },
+    cycleTheme: cycleTheme,
     showWeatherPill: function(ms){ wxPillShow(ms); },
     hideWeatherPill: wxPillHide,
     refresh: function(){ applyUI(); renderChips(); },
@@ -2651,9 +2673,69 @@
     startMix: function(kind){ mixFlow(kind || "nearby"); }
   };
 
-  /* ---------------- v2.7 昼夜主题（按本地时间，19:00–06:00 为夜间） ---------------- */
+  /* ---------------- v2.7 昼夜主题（按本地时间，19:00–06:00 为夜间） ----------------
+     v3.0：右上角加一枚切换按钮，自动 → 白天 → 夜间 循环，选择记在本机（busan_theme）。 */
   var nightTimer = null;
   var themeMode = "auto";
+  var THEME_ORDER = ["auto", "day", "night"];
+  var themeToastTimer = null;
+
+  function themeMeta(){
+    return themeMode === "day"
+      ? { icon: "☀️", zh: "白天", ko: "주간", en: "Day" }
+      : themeMode === "night"
+        ? { icon: "🌙", zh: "夜间", ko: "야간", en: "Night" }
+        : { icon: "🌓", zh: "自动", ko: "자동", en: "Auto" };
+  }
+
+  function paintThemeBtn(){
+    var btn = document.getElementById("themeBtn");
+    if (!btn) return;
+    var m = themeMeta();
+    var ic = document.getElementById("themeIcon");
+    if (ic) ic.textContent = m.icon;
+    btn.setAttribute("data-mode", themeMode);
+    btn.setAttribute("aria-pressed", themeMode === "night" ? "true" : "false");
+    var tip = L("昼夜：", "주야: ", "Theme: ") + L(m.zh, m.ko, m.en) + L(" · 点一下切换", " · 눌러 전환", " · tap to switch");
+    btn.setAttribute("aria-label", tip);
+    btn.title = tip;
+  }
+
+  function themeToast(msg){
+    var t = document.getElementById("themeToast");
+    if (!t) return;
+    t.textContent = msg;
+    t.hidden = false;
+    t.classList.add("show");
+    if (themeToastTimer) clearTimeout(themeToastTimer);
+    themeToastTimer = setTimeout(function(){
+      t.classList.remove("show");
+      setTimeout(function(){ if (!t.classList.contains("show")) t.hidden = true; }, 220);
+    }, 1800);
+  }
+
+  function setThemeMode(mode, fromUser){
+    if (THEME_ORDER.indexOf(mode) < 0) mode = "auto";
+    themeMode = mode;
+    try { localStorage.setItem("busan_theme", mode); } catch(e){}
+    applyDayNight();
+    paintThemeBtn();
+    if (fromUser){
+      var m = themeMeta();
+      themeToast(themeMode === "auto"
+        ? L("🌓 自动：仍按手机时间切昼夜", "🌓 자동: 휴대폰 시각 기준", "🌓 Auto: follows your clock")
+        : themeMode === "day"
+          ? L("☀️ 已切到白天配色（手动）", "☀️ 주간 색상으로 전환(수동)", "☀️ Daylight colours (manual)")
+          : L("🌙 已切到夜间配色（手动）", "🌙 야간 색상으로 전환(수동)", "🌙 Night colours (manual)"));
+      return themeMode;
+    }
+    return themeMode;
+  }
+
+  function cycleTheme(){
+    var i = THEME_ORDER.indexOf(themeMode);
+    return setThemeMode(THEME_ORDER[(i + 1) % THEME_ORDER.length], true);
+  }
 
   function computeNight(mode){
     if (mode === "night") return true;
@@ -2671,10 +2753,17 @@
   }
 
   function initDayNight(){
+    try {
+      var saved = localStorage.getItem("busan_theme");
+      if (saved === "auto" || saved === "day" || saved === "night") themeMode = saved;
+    } catch(e){}
+    var btn = document.getElementById("themeBtn");
+    if (btn) btn.onclick = cycleTheme;
     applyDayNight();
+    paintThemeBtn();
     if (nightTimer) clearInterval(nightTimer);
-    nightTimer = setInterval(applyDayNight, 60 * 1000);
-    document.addEventListener("visibilitychange", applyDayNight);
+    nightTimer = setInterval(function(){ applyDayNight(); paintThemeBtn(); }, 60 * 1000);
+    document.addEventListener("visibilitychange", function(){ applyDayNight(); paintThemeBtn(); });
   }
 
   // 离开首页（聊天滚开 / 弹出面板 / 切后台）时收起天气气泡
