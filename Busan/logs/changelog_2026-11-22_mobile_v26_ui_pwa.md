@@ -130,7 +130,26 @@ ERRORS    []
 - `v26_wide_tablet.png` — 820×1180 平板单列居中
 - `v26_narrow_360.png` — 360×740 窄屏不横向溢出
 
-### 4. 未测到的部分（如实说明）
+### 4. 线上验证（GitHub Pages，真实 https 域名）
+
+```
+URL       https://luohaisheng814.github.io/AI_Project_2026_2/
+SECURE    isSecureContext = true
+TITLE     釜山 AI 旅行助手
+MANIFEST  200 application/manifest+json; charset=utf-8
+          name=釜山 AI 旅行助手 display=standalone start=./index.html icons=3
+SW        registered https://luohaisheng814.github.io/AI_Project_2026_2/
+CACHE     ["busan-2.6"]   index cached
+ICONS     icon-180:200 | icon-192:200 | icon-512:200
+QUICK     5 个快捷入口
+ERRORS    []
+```
+
+截图 `Busan/apk_build/v26_online_pages.png`（线上首页，与离线版一致）。
+发布流水线：`Deploy Web App (PWA)` run `44998665878`（`8fff7b5`）→ **success**，
+Pages 构建方式 `workflow`，仓库已启用 Pages（`https://luohaisheng814.github.io/AI_Project_2026_2/`）。
+
+### 5. 未测到的部分（如实说明）
 
 - 未在真 Android 机 / 真 iPhone 上跑（本机无设备、无 Xcode）。APK 只做了构建产物级校验
   （签名、版本、包内资源一致性），安装与定位权限的实际表现需在手机上验证。
@@ -155,6 +174,8 @@ Busan/ios/BusanTour/Assets.xcassets/…              新增 AppIcon 资源集（
 Busan/ios/README.md                                2.6 + PWA 安装说明
 Busan/apk_build/test_v26.js                        新增 74 条断言
 Busan/apk_build/_v26probe.py                       新增 UI/PWA 探针
+Busan/apk_build/_v26live.py                        新增线上 Pages 验证脚本
+Busan/apk_build/v26_online_pages.png               线上首页截图
 Busan/apk_build/make_icon.py                      图标输出路径调整（1024 移出 assets）
 Busan/pwa/build_pwa.py                             新增：打 iOS 网页安装包
 Busan/dist/Busan旅行助手.apk                        v2.6 重建
@@ -173,9 +194,19 @@ node apk_build/test_engine.js                  # 离线引擎
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/_v26probe.py   # 出 5 张截图 + 控制台指标
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/build_apk.py   # 重建 APK
 & D:\AI_Project_2026_2\.venv\Scripts\python.exe pwa/build_pwa.py         # 重打 iOS 网页包
+& D:\AI_Project_2026_2\.venv\Scripts\python.exe apk_build/_v26live.py    # 验证线上 Pages
 ```
 
-## 六、下一步（可选）
+## 六、提交记录
+
+| 提交 | 内容 |
+| --- | --- |
+| `8fff7b5` | feat(mobile): v2.6 手机 UI 收口 + PWA 安装，Android/iOS 同版本升级 |
+| 本次 docs 提交（见下方哈希回填） | 回填线上 Pages 验证、截图与复跑命令 |
+
+推送：`a929440..8fff7b5 main -> main` → `https://github.com/luohaisheng814/AI_Project_2026_2`
+
+## 七、下一步（可选）
 
 1. 借一台 Mac（或恢复 macOS runner）跑 `Busan/ios/build_ipa.sh`，出未签名 ipa 并用 AltStore 自签。
 2. 若要把 PWA 变成“像原生一样”的入口，可在 Pages 域名上继续加 `apple-touch-startup-image`，
