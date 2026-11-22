@@ -204,11 +204,31 @@ node apk_build/test_engine.js
 | --- | --- |
 | `80e90b5` | feat(mobile): v2.8 天气与附近统一走定位→天气→本地时间综合推荐，双端同步 2.8 |
 | `13267d9` | chore(pwa): 触发 Pages 重新发布（首次 deploy-pages 偶发失败，重跑成功） |
-| （本条 docs 提交） | 回填线上 Pages 验证、产物哈希与复跑命令 |
+| `14ef8f2` | docs+dist: v2.8 日志与最终产物（APK/zip 与源码逐字节一致） |
 
-推送：`ac9c72d..80e90b5 main -> main` → `https://github.com/luohaisheng814/AI_Project_2026_2`
+推送：`ac9c72d..80e90b5` → `80e90b5..13267d9` → `13267d9..14ef8f2`（`main`） → `https://github.com/luohaisheng814/AI_Project_2026_2`
 
-> Pages 第一次部署（run#3 / `80e90b5`）在 `deploy-pages@v4` 步骤 status=failure，`upload-pages-artifact` 之前全 success；同一份内容再推一次（run#4 / `13267d9`）成功，属平台侧偶发，不是 YAML 或内容问题。
+> Pages 第一次部署（run#3 / `80e90b5`）在 `deploy-pages@v4` 步骤 status=failure，`upload-pages-artifact` 之前全 success；同一份内容再推一次（run#4 / `13267d9`）成功，属平台侧偶发，不是 YAML 或内容问题。最终版（`14ef8f2`）部署为 run#5，success。
+
+---
+
+## 六之二、线上 Pages 实测（`14ef8f2`，`_v28live.py`）
+
+```
+URL       https://luohaisheng814.github.io/AI_Project_2026_2/    SECURE=True
+V28       mix=object, mixFn=true, fab=true, pillCtx=true, oldStrip=false
+PILL CTX  16:53 · 午后 · 未定位
+MIXJS     HTTP 200，5,054 B（注释版已随本次推送更新）
+MANIFEST  HTTP 200，application/manifest+json
+SW        registered；缓存 ["busan-2.8"]
+PERM CARD permacts=1, grant=true, tag=综合推荐 · 需要定位权限, pillHidden=true
+MIX       天气 · 综合推荐，chips=3，[16:53 午后 | ☀️ 晴 8°C | 最近 龙头山公园 0.2 km]，choices=3，首选 白浅滩文化村 ★4.2，规则句=true
+NIGHT CSS true
+ERRORS    []
+```
+
+截图：`Busan/apk_build/v28_online_pages.png`（289 KB）。
+即：**线上这一份就是这轮交付的这一份**——同一份 `index.html`、`mix.js`、`sw.js`，缓存名、天气、时间、距离三项都真的在算。
 
 ---
 
