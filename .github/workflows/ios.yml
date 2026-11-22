@@ -1,0 +1,59 @@
+name: Build iOS (unsigned ipa)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Busan/ios/**'
+      - 'Busan/android/assets/**'
+      - '.github/workflows/ios.yml'
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: Busan/ios
+        run: xcodegen generate
+
+      - name: Build (no signing)
+        working-directory: Busan/ios
+        run: |
+          xcodebuild \
+            -project BusanTour.xcodeproj \
+            -scheme BusanTour \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned ipa
+        working-directory: Busan/ios
+        run: |
+          mkdir -p build/Payload
+          cp -R build/DerivedData/Build/Products/Release-iphoneos/BusanTour.app build/Payload/
+          cd build
+          zip -qr "Busan-unsigned.ipa" Payload
+          ls -lh Busan-unsigned.ipa
+
+      - name: Upload ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Busan-unsigned-ipa
+          path: Busan/ios/build/Busan-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Busan-app-bundle
+          path: Busan/ios/build/DerivedData/Build/Products/Release-iphoneos/BusanTour.app
+          if-no-files-found: error

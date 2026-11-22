@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="17"
-    android:versionName="2.4">
+    android:versionCode="18"
+    android:versionName="2.5">
 
-    <!-- v2.4：景点图片支持点按全屏查看——双指缩放、双击放大、单指拖动、左右切换。
+    <!-- v2.5：手机端新增天气能力——授予定位后按经纬度读取实况天气（Open-Meteo，免 Key），
+         按天气推荐更合适的景点；天气变化（转雨/降温/起风/降水概率上升）主动给建议；
+         景点与玩法评级统一改成 5 星制（玩法/景观/便利/性价比四项 + 用户自评）；
+         同时提供 iOS（WKWebView）壳工程与 CI，复用同一套 assets。
+         v2.4：景点图片支持点按全屏查看——双指缩放、双击放大、单指拖动、左右切换。
          v2.3：完善手机版 UI——实时定位自动恢复与 15 秒无坐标提示；GPS 按钮统一走原生
          LocationManager；地图按钮明确标注 NAVER / Google 归属；景点回答上方增加
          1-3 张内置实景图（Wikimedia Commons，离线可用）。

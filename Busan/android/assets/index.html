@@ -296,6 +296,57 @@
   .llmadv{margin-top:10px; border-top:1px dashed #dfe9ee; padding-top:7px}
   .llmadv summary{font-size:12px; color:var(--sea); cursor:pointer; padding:2px 0}
   .llmadv[open] summary{margin-bottom:2px}
+
+  /* v2.5 天气条 / 天气卡 / 星级 */
+  .wxbar{
+    flex:0 0 auto; display:flex; align-items:center; gap:7px; background:#fdfbf4;
+    border-bottom:1px solid #efe7d8; padding:6px 12px; font-size:11.5px; color:#4b5a66;
+  }
+  .wxbar .wxIcon{flex:0 0 auto; font-size:13px; line-height:1}
+  #wxText{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #wxBtn{
+    flex:0 0 auto; border:1px solid #e3d8c2; background:#fff; color:#8a6316;
+    border-radius:12px; padding:4px 9px; font-size:11px; white-space:nowrap; font-weight:600;
+  }
+  #wxBtn.on{background:#f0a94c; border-color:#f0a94c; color:#fff}
+  .wxnote{
+    display:flex; gap:6px; align-items:flex-start; margin-bottom:7px; padding:6px 8px;
+    background:#f7fafb; border-left:3px solid var(--sea); border-radius:0 8px 8px 0;
+    font-size:11.5px; color:#3f5563; line-height:1.5;
+  }
+  .wxchips{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center}
+  .wxchips .wxlab{font-size:11px; color:var(--muted); margin-right:1px}
+  .wxchips button{
+    border:1px solid #e3e8ec; background:#fff; color:#44515f; border-radius:10px;
+    padding:4px 8px; font-size:11.5px; line-height:1.2;
+  }
+  .wxchips button.on{background:#f0a94c; border-color:#f0a94c; color:#fff; font-weight:600}
+  .wxacts{display:flex; gap:7px; margin-top:7px; flex-wrap:wrap}
+  .wxacts button{
+    flex:1 1 120px; border:1px solid #bcd8e2; background:#f7fbfc; color:var(--sea);
+    border-radius:9px; padding:8px; font-size:12px; font-weight:600;
+  }
+  .wxacts .wxref{background:var(--sea); border-color:var(--sea); color:#fff}
+
+  .stars{position:relative; display:inline-block; font-size:14px; line-height:1; letter-spacing:1px; white-space:nowrap; vertical-align:middle}
+  .stars .sbg{color:#d5dbe1}
+  .stars .sfg{position:absolute; left:0; top:0; overflow:hidden; color:#f0a94c; white-space:nowrap}
+  .stars.sm{font-size:10.5px; letter-spacing:0}
+  .rating{
+    margin-top:8px; padding:8px 9px; border:1px solid #ecdfc6; background:#fffdf6;
+    border-radius:10px;
+  }
+  .rating .rtop{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; color:#6a5c3d}
+  .rating .rtop b{font-size:14px; color:#9a6a12; font-family:Roboto Mono,monospace; font-weight:700}
+  .rating .rsub{font-size:11px; color:#7b7a72; margin-top:3px; line-height:1.5}
+  .rating .rmine{display:flex; align-items:center; gap:4px; margin-top:6px; flex-wrap:wrap; font-size:11px; color:#5b6672}
+  .rating .rmine button{
+    border:1px solid #e6dcc7; background:#fff; color:#d9a252; border-radius:8px;
+    width:25px; height:24px; font-size:12px; line-height:1; padding:0; font-family:inherit;
+  }
+  .rating .rmine button.on{background:#f0a94c; border-color:#f0a94c; color:#fff}
+  .rating .rmsg{font-size:10.5px; color:var(--ok)}
+  .cstars{display:inline-block; font-size:10.5px; color:#b8860b; margin-left:4px; vertical-align:1px}
 </style>
 </head>
 <body>
@@ -336,6 +387,12 @@
   <span class="ldot" id="liveDot"></span>
   <span id="liveText">实时定位未开启</span>
   <button id="liveBtn" type="button">实时</button>
+</div>
+
+<div class="wxbar" id="wxStrip">
+  <span class="wxIcon" id="wxIcon">🌤</span>
+  <span id="wxText">天气：未获取</span>
+  <button id="wxBtn" type="button">天气</button>
 </div>
 
 <div id="chat"></div>
@@ -532,6 +589,8 @@
 <script src="live.js"></script>
 <script src="session.js"></script>
 <script src="planner.js"></script>
+<script src="weather.js"></script>
+<script src="ratings.js"></script>
 <script>
 (function(){
   var E = window.BusanEngine, D = window.BUSAN_DATA, C = window.BusanCloud;
@@ -565,6 +624,290 @@
   function T(key){ return C.strings()[key] || ""; }
   function L(zh, ko, en){ return lang === "zh" ? zh : lang === "ko" ? ko : en; }
   function online(){ return cloudReady && C.getMode() === "online"; }
+
+  /* ---------------- v2.5 天气 + 星级 ---------------- */
+  var WX = window.BusanWeather || null;
+  var RT = window.BusanRating || null;
+  var wxBusy = false, wxTimer = null, wxReady = false;
+
+  function wxSetLang(){ if (WX) WX.setLang(lang); if (RT) RT.setLang(lang); }
+  function wxState(){ return WX ? WX.state() : null; }
+
+  function paintWxBar(){
+    var txt = document.getElementById("wxText");
+    var icon = document.getElementById("wxIcon");
+    var btn = document.getElementById("wxBtn");
+    if (!txt || !icon || !btn) return;
+    wxSetLang();
+    var w = wxState();
+    if (!w){
+      icon.textContent = "🌤";
+      txt.textContent = L("天气：未获取 · 点右侧获取", "날씨: 미확인 · 오른쪽에서 확인", "Weather: not loaded — tap to get it");
+      btn.classList.remove("on");
+      return;
+    }
+    icon.textContent = (WX.label(w.cls) || {}).icon || "🌤";
+    txt.textContent = WX.banner(w);
+    btn.classList.add("on");
+  }
+
+  /** 星级块：综合星 + 四个子项 + 我的 1-5 星（点一下保存，再点同值取消）。 */
+  function ratingHtml(id){
+    if (!RT) return "";
+    var r = RT.of(id);
+    if (!r) return "";
+    var mine = RT.userOf(id);
+    var h = '<div class="rating" data-id="' + esc(id) + '">' +
+      '<div class="rtop">' + RT.starsHtml(r.score) + "<b>" + r.score.toFixed(1) + "</b><span>" + esc(RT.grade(r.score)) + "</span></div>" +
+      '<div class="rsub">' + esc(RT.summary(id)) + "</div>" +
+      '<div class="rmine"><span>' + esc(L("我的评分", "내 평가", "My rating")) + "</span>";
+    for (var i = 1; i <= 5; i++){
+      h += '<button class="ratebtn' + (mine === i ? " on" : "") + '" data-n="' + i + '" type="button">' + (i <= mine ? "★" : "☆") + "</button>";
+    }
+    if (mine) h += '<span class="rmsg">' + esc(L("已记录 " + mine + " 星", mine + "점 기록됨", "Saved " + mine + "★")) + "</span>";
+    h += "</div></div>";
+    return h;
+  }
+
+  function bindRating(root){
+    if (!RT) return;
+    root.querySelectorAll(".ratebtn").forEach(function(b){
+      b.onclick = function(){
+        var box = b.parentNode && b.parentNode.parentNode;
+        if (!box) return;
+        var id = box.getAttribute("data-id");
+        var n = Number(b.getAttribute("data-n"));
+        var cur = RT.userOf(id);
+        RT.setUser(id, cur === n ? 0 : n);
+        var wrap = document.createElement("div");
+        wrap.innerHTML = ratingHtml(id);
+        if (wrap.firstChild) box.parentNode.replaceChild(wrap.firstChild, box);
+        bindRating(root);
+        if (window.BusanToast) {
+          BusanToast.show(L("已记录你的评分", "평가를 저장했습니다", "Your rating is saved"),
+            L("会给 " + id + " 打 " + (cur === n ? 0 : n) + " 星，只保存在本机。", id + "에 " + (cur === n ? 0 : n) + "점, 기기에만 저장됩니다.", (cur === n ? 0 : n) + "★ for " + id + ", stored on this device only."));
+        }
+      };
+    });
+  }
+
+  function wxPanelHtml(){
+    var chips = [
+      { k: "clear", zh: "晴", ko: "맑음", en: "Clear" },
+      { k: "cloudy", zh: "多云", ko: "구름", en: "Cloudy" },
+      { k: "rain", zh: "雨", ko: "비", en: "Rain" },
+      { k: "snow", zh: "雪", ko: "눈", en: "Snow" },
+      { k: "fog", zh: "雾", ko: "안개", en: "Fog" },
+      { k: "storm", zh: "雷雨", ko: "뇌우", en: "Storm" },
+      { k: "hot", zh: "高温", ko: "폭염", en: "Hot" },
+      { k: "cold", zh: "严寒", ko: "한파", en: "Cold" }
+    ];
+    var w = wxState();
+    var cur = w && w.manual ? w.cls : "";
+    var h = '<div class="wxchips"><span class="wxlab">' + esc(L("手动指定天气", "날씨 직접 선택", "Pick weather manually")) + "</span>";
+    chips.forEach(function(c){
+      h += '<button class="wxchip' + (cur === c.k ? " on" : "") + '" data-k="' + c.k + '" type="button">' + esc(c[lang] || c.zh) + "</button>";
+    });
+    h += "</div>";
+    h += '<div class="wxacts"><button class="wxref" type="button">' + esc(L("重新获取实时天气", "실시간 날씨 다시 받기", "Refresh live weather")) +
+      '</button><button class="wxperm" type="button">' + esc(L("定位与天气权限", "위치·날씨 권한", "Location & weather permission")) + "</button></div>";
+    return h;
+  }
+
+  function bindWxPanel(root){
+    root.querySelectorAll(".wxchip").forEach(function(b){
+      b.onclick = function(){
+        var k = b.getAttribute("data-k");
+        if (k === "hot") WX.manual("clear", 32);
+        else if (k === "cold") WX.manual("cloudy", -3);
+        else WX.manual(k);
+        var res = weatherResult(WX.state(), []);
+        res.wxNote = L("已按手动天气（" + WX.clsName(WX.state().cls) + "）重新推荐", "수동 날씨(" + WX.clsName(WX.state().cls) + ")로 다시 추천", "Re-ranked for manual weather (" + WX.clsName(WX.state().cls) + ")");
+        paintBubble(root, res);
+        paintWxBar();
+      };
+    });
+    var ref = root.querySelector(".wxref");
+    if (ref) ref.onclick = function(){ fetchWeather(null, {force: true, notify: true}); };
+    var perm = root.querySelector(".wxperm");
+    if (perm) perm.onclick = function(){ wxPermissionCard(); };
+  }
+
+  function weatherResult(w, changes){
+    wxSetLang();
+    if (!w) return { text: L("天气还没拿到。", "날씨를 아직 못 받았습니다.", "Weather is not available yet."), kind: "weather" };
+    var lb = WX.label(w.cls);
+    var lines = [];
+    lines.push("**" + L("当前天气", "현재 날씨", "Current weather") + "** · " + lb.icon + " " + WX.clsName(w.cls) + " " + Math.round(w.temp) + "°C");
+    var meta = [];
+    if (w.feels != null) meta.push(L("体感 ", "체감 ", "Feels ") + Math.round(w.feels) + "°C");
+    if (w.wind) meta.push(L("风 ", "바람 ", "Wind ") + w.wind.toFixed(1) + " m/s");
+    if (w.precipProb) meta.push(L("降水概率 ", "강수 확률 ", "Rain chance ") + Math.round(w.precipProb) + "%");
+    if (w.max != null && w.min != null) meta.push(L("今日 ", "오늘 ", "Today ") + Math.round(w.min) + "–" + Math.round(w.max) + "°C");
+    if (meta.length) lines.push(meta.join(" · "));
+    if (w.manual){
+      lines.push(L("手动指定的天气，用于离线/无权限时做推荐；点“重新获取”可回到实时数据。",
+        "수동으로 지정한 날씨입니다. '다시 받기'로 실시간 데이터로 돌아갑니다.",
+        "Manual weather, used when offline or without permission. Tap “Refresh” for live data."));
+    } else if (w.fallback){
+      lines.push(L("未授权定位，按釜山市区（35.18, 129.08）取天气；授权后按你的位置取。",
+        "위치 미허용이라 부산 시내(35.18, 129.08) 기준입니다. 허용하면 현재 위치 기준으로 바뀝니다.",
+        "Location not allowed — using downtown Busan (35.18, 129.08). Allow location to use yours."));
+    } else {
+      lines.push(L("数据来源：Open-Meteo，按你的当前位置取；时间是釜山当地时间。",
+        "출처: Open-Meteo, 현재 위치 기준. 시간은 부산 현지 시각입니다.",
+        "Source: Open-Meteo, based on your current location; times are Busan local."));
+    }
+    if (changes && changes.length){
+      lines.push("");
+      lines.push("**" + L("这次的变化", "이번 변화", "What changed") + "**");
+      changes.forEach(function(c){
+        if (c.type === "class") lines.push("- " + lb.icon + " " + WX.clsName(c.from) + " → " + WX.clsName(c.to));
+        else if (c.type === "temp") lines.push("- " + L("气温 ", "기온 ", "Temp ") + Math.round(c.from) + "°C → " + Math.round(c.to) + "°C");
+        else if (c.type === "rain") lines.push("- " + L("降水概率升到 ", "강수 확률 ", "Rain chance ") + Math.round(c.p) + "%");
+        else if (c.type === "wind") lines.push("- " + L("风速升到 ", "풍속 ", "Wind ") + c.v.toFixed(1) + " m/s");
+      });
+    }
+    var rec = WX.recommend(w, 3);
+    lines.push("");
+    lines.push("**" + L("按这个天气，更推荐", "이 날씨에 더 추천", "Better choices for this weather") + "**");
+    var choices = [];
+    rec.forEach(function(r, i){
+      var rr = RT ? RT.of(r.id) : null;
+      var star = rr ? " " + RT.starsText(rr.score) + " " + rr.score.toFixed(1) : "";
+      lines.push((i + 1) + ". **" + r.name + "**" + star + " — " + r.reason);
+      choices.push({
+        spotId: r.id, name: r.name,
+        tag: "",
+        reason: r.reason,
+        query: r.name + " " + L("怎么去", "어떻게 가나요", "how to get there")
+      });
+    });
+    var tp = WX.tips(w).slice(0, 3);
+    lines.push("");
+    lines.push("**" + L("提醒", "알림", "Heads-up") + "** · " + tp.join(" · "));
+    if (RT){
+      var cats = RT.categorySummary().slice(0, 4);
+      if (cats.length){
+        lines.push("");
+        lines.push("**" + L("玩法星级", "테마 별점", "Theme ratings") + "** · " +
+          cats.map(function(c){ return c.label + " " + c.stars.toFixed(1) + "★"; }).join(" · "));
+      }
+    }
+    return {
+      tag: L("天气", "날씨", "Weather"),
+      text: lines.join("\n"),
+      choices: choices,
+      followups: rec.map(function(r){ return r.name + " " + L("怎么去", "어떻게 가나요", "how to get there"); }),
+      wx: true,
+      kind: "weather",
+      concrete: true
+    };
+  }
+
+  function wxPermissionCard(){
+    var msg = bubbleFor({
+      tag: L("天气 · 需要定位权限", "날씨 · 위치 권한 필요", "Weather · location permission"),
+      text: L("手机系统没有单独的“天气权限”：天气是按经纬度取的，所以要读天气就得先允许定位（仅用于取天气和算距离，不上传）。\n\n点“允许定位并查看天气”，系统会弹一次授权。不想授权也可以：我会按釜山市区取天气，或者你在卡片里手动选晴 / 雨 / 大风。",
+        "휴대폰에는 별도의 '날씨 권한'이 없습니다. 날씨는 위·경도로 조회하므로 위치 권한이 필요합니다(날씨·거리 계산에만 사용).\n\n'위치 허용 후 날씨 보기'를 누르면 한 번 권한 창이 뜹니다. 허용하지 않아도 부산 시내 기준 또는 수동 선택으로 추천할 수 있습니다.",
+        "Phones have no separate “weather permission”: weather is fetched by coordinates, so location access is required (used only for weather and distance).\n\nTap “Allow location & show weather” for the one-time prompt. If you decline, I can still use downtown Busan or your manual pick (clear / rain / windy)."),
+      permissionPrompt: true,
+      weatherGrant: true,
+      q: "__weather__"
+    });
+    return msg;
+  }
+
+  function grantWeather(){
+    var msg = bubbleFor({ text: L("正在申请定位并读取天气…", "위치 권한 요청 후 날씨를 읽는 중…", "Requesting location and reading weather…"), loading: true });
+    if (window.BusanLive && typeof BusanLive.ensure === "function"){
+      BusanLive.ensure(function(){ fetchWeather(msg, { force: true, notify: true }); }, 15000);
+      return;
+    }
+    fetchWeather(msg, { force: true, notify: true });
+  }
+
+  function fetchWeather(msg, opts){
+    opts = opts || {};
+    if (!WX) return;
+    wxSetLang();
+    if (wxBusy && !opts.force) return;
+    if (!msg && !opts.silent){
+      msg = bubbleFor({ text: L("正在读取手机天气…", "휴대폰 날씨를 읽는 중…", "Reading the weather…"), loading: true });
+    }
+    wxBusy = true;
+    WX.refresh(function(err, w, changes){
+      wxBusy = false;
+      if (err || !w){
+        if (msg) paintBubble(msg, {
+          tag: L("天气", "날씨", "Weather"),
+          text: L("暂时拿不到天气：现在没有网络，或天气接口不可达。\n\n可以先用下面的手动天气做推荐；联网后点“重新获取实时天气”。",
+            "지금 날씨를 받을 수 없습니다: 네트워크가 없거나 날씨 API에 연결되지 않았습니다.\n\n아래 수동 날씨로 추천을 받고, 연결되면 '실시간 날씨 다시 받기'를 누르세요.",
+            "Weather is unavailable: no network, or the weather API is unreachable.\n\nUse the manual weather below for now; tap “Refresh live weather” once you are back online."),
+          wx: true,
+          kind: "weather",
+          wxOffline: true
+        });
+        paintWxBar();
+        return;
+      }
+      wxReady = true;
+      if (msg){
+        var res = weatherResult(w, changes);
+        paintBubble(msg, res);
+        renderFollowups(res);
+      }
+      paintWxBar();
+      if (changes && changes.length && opts.notify) wxNotify(changes, w);
+    });
+  }
+
+  function wxNotify(changes, w){
+    if (!changes || !changes.length) return;
+    var text = WX.changeText(changes, w);
+    if (window.BusanToast){
+      BusanToast.show(L("天气有变化", "날씨가 바뀌었습니다", "Weather changed"),
+        text.replace(/\*\*/g, "").replace(/\n+/g, " ").slice(0, 120));
+    }
+    addBot({
+      tag: L("天气提醒", "날씨 알림", "Weather alert"),
+      text: text,
+      kind: "weatherChange",
+      followups: WX.recommend(w, 3).map(function(r){ return r.name + " " + L("怎么去", "어떻게 가나요", "how to get there"); })
+    });
+  }
+
+  /** 推荐类回答上方加一行天气提示：不改动原有 3 个方案（避免正文和按钮不一致），
+   *  只点出「这个天气更该去哪」。 */
+  function wxAdapt(res){
+    if (!res || !WX) return res;
+    var w = wxState();
+    if (!w || !res.choices || !res.choices.length) return res;
+    if (!(res.kind === "recommend" || res.kind === "general" || res.kind === "group")) return res;
+    var severe = /^(rain|drizzle|storm|snow|fog)$/.test(w.cls) || w.temp >= 30 || w.temp <= 2 || w.wind >= 9;
+    var top = WX.recommend(w, 2);
+    var names = top.map(function(r){ return r.name; }).join(L("、", "· ", " / "));
+    res.wxNote = ((WX.label(w.cls) || {}).icon || "") + " " + WX.clsName(w.cls) + " " + Math.round(w.temp) + "°C · " +
+      (severe ? L("这个天气更适合：", "이 날씨엔 이쪽이 적합: ", "Better in this weather: ") + names
+              : L("天气影响不大，原方案可以照走", "날씨 영향 적음, 원래 계획대로 가능", "Weather matters little — keep the plan"));
+    return res;
+  }
+
+  function initWeather(){
+    if (!WX) return;
+    wxSetLang();
+    paintWxBar();
+    WX.onChange = function(){ paintWxBar(); };
+    var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+    if (perm === "granted") fetchWeather(null, { force: true, silent: true, notify: false });
+    if (wxTimer) clearInterval(wxTimer);
+    wxTimer = setInterval(function(){
+      if (document.hidden) return;
+      var p = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+      if (p === "granted") fetchWeather(null, { force: true, silent: true, notify: true });
+    }, 20 * 60 * 1000);
+  }
+
 
   /* ---------------- 网络提示（仅离线时出现一次） ---------------- */
   var offlineNotified = false;
@@ -968,14 +1311,21 @@
     if (!result.loading && result.tag){
       html += '<div class="tagrow"><span class="badge' + (result.llm ? "" : (online() ? "" : " off")) + '">' + esc(result.tag) + "</span></div>";
     }
+    if (!result.loading && result.wxNote){
+      html += '<div class="wxnote"><span>' + esc(result.wxNote) + "</span></div>";
+    }
     if (!result.loading) html += photosHtml(result);
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
+    if (!result.loading && result.spotId) html += ratingHtml(result.spotId);
+    if (!result.loading && result.wx) html += wxPanelHtml();
     if (!result.loading && result.choices && result.choices.length){
       html += '<div class="choices"><div class="choices-h">' + esc(T("choicesLabel")) + "</div>";
       result.choices.forEach(function(c, i){
+        var rr = RT ? (RT.of(c.spotId || c.name) || (C.findSpot(c.name) ? RT.of(C.findSpot(c.name).id) : null)) : null;
         html += '<button class="choice" data-q="' + esc(c.query || c.name) + '" type="button">' +
           '<span class="cnum">' + (i + 1) + "</span>" +
           '<span class="cbody"><span class="cname">' + esc(c.name) +
+          (rr ? '<span class="cstars">★' + rr.score.toFixed(1) + "</span>" : "") +
           (c.tag ? '<span class="ctag">' + esc(c.tag) + "</span>" : "") + "</span>" +
           '<span class="creason">' + esc(c.reason || "") + "</span></span>" +
           '<span class="cgo">' + esc(T("choiceOpen")) + " ›</span></button>";
@@ -1018,6 +1368,9 @@
     m.innerHTML = html;
     chat.scrollTop = chat.scrollHeight;
 
+    if (!result.loading) bindRating(m);
+    if (!result.loading && result.wx) bindWxPanel(m);
+
     if (result.choices && result.choices.length){
       m.querySelectorAll(".choice").forEach(function(b){
         b.onclick = function(){ ask(b.getAttribute("data-q")); };
@@ -1025,7 +1378,8 @@
     }
     var grantBtn = m.querySelector(".act-grant");
     if (grantBtn) grantBtn.onclick = function(){
-      if (result.nearbyGrant) grantNearby(result.q);
+      if (result.weatherGrant) grantWeather();
+      else if (result.nearbyGrant) grantNearby(result.q);
       else grantRoute(result.q, result.spot);
     };
     var settingsBtn = m.querySelector(".act-settings");
@@ -1194,6 +1548,7 @@
   }
 
   function finishAnswer(text, msg, res){
+    if (res && WX) res = wxAdapt(res) || res;
     paintBubble(msg, res);
     history.push({role:"bot", q:text, res:res});
     renderFollowups(res);
@@ -1444,7 +1799,9 @@
     followups.innerHTML = "";
     C.setLang(lang);
     E.setLang(lang);
+    wxSetLang();
     applyUI();
+    paintWxBar();
     renderChips();
     var asks = history.filter(function(h){ return h.role === "user"; }).map(function(h){ return h.text; });
     history = [];
@@ -1630,6 +1987,21 @@
     }
   };
 
+  document.getElementById("wxBtn").onclick = function(){
+    wxSetLang();
+    var w = wxState();
+    if (!w){
+      var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+      if (perm === "granted") fetchWeather(null, { force: true, notify: true });
+      else wxPermissionCard();
+      return;
+    }
+    var res = weatherResult(w, []);
+    var msg = bubbleFor(res);
+    renderFollowups(res);
+    paintWxBar();
+  };
+
   document.getElementById("send").onclick = function(){ ask(document.getElementById("q").value); };
   document.getElementById("q").addEventListener("keydown", function(e){
     if (e.key === "Enter") { e.preventDefault(); ask(this.value); }
@@ -1743,7 +2115,15 @@
         updatedAt: new Date().toISOString()
       };
     },
-    resetChat: function(){ chat.innerHTML = ""; followups.innerHTML = ""; }
+    resetChat: function(){ chat.innerHTML = ""; followups.innerHTML = ""; },
+    weather: function(){ return wxState(); },
+    weatherCard: function(w){ return weatherResult(w || wxState(), []); },
+    setWeather: function(k, temp){ if (!WX) return null; var w = WX.manual(k, temp); paintWxBar(); return w; },
+    refreshWeather: function(){ fetchWeather(null, { force: true, notify: true }); },
+    weatherPermission: function(){ return window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown"; },
+    rating: function(id){ return RT ? RT.of(id) : null; },
+    rate: function(id, n){ return RT ? RT.setUser(id, n) : 0; },
+    categoriesRating: function(){ return RT ? RT.categorySummary() : []; }
   };
 
   window.__busanNetChanged = function(nowOnline){
@@ -1759,6 +2139,7 @@
   // 在线不显示状态；只有离线时才弹一次提示。
   greet();
   if (window.BusanLive) BusanLive.init();
+  initWeather();
   reloadCloud(false);
   if (window.BusanAuth) BusanAuth.init();
 })();

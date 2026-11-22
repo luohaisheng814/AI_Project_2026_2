@@ -1,0 +1,37 @@
+name: BusanTour
+options:
+  bundleIdPrefix: com.busan
+  deploymentTarget:
+    iOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "2.5"
+    CURRENT_PROJECT_VERSION: "18"
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  BusanTour:
+    type: application
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: BusanTour
+      # 直接引用 Android 侧同一套前端资源（folder reference，保留 photos/ 子目录）
+      - path: ../android/assets
+        type: folder
+        name: assets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.busan.tour
+        PRODUCT_NAME: BusanTour
+        INFOPLIST_FILE: BusanTour/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+    scheme:
+      testTargets: []

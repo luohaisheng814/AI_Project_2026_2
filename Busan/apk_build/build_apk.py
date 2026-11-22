@@ -103,7 +103,8 @@ def build():
 
     assets = os.path.join(ANDROID_DIR, "assets")
     for f in ("index.html", "app.js", "data.js", "cloud.js", "cloud_snapshot.json",
-              "cloud_snapshot.js", "photos.js", "live.js", "session.js", "planner.js"):
+              "cloud_snapshot.js", "photos.js", "live.js", "session.js", "planner.js",
+              "weather.js", "ratings.js"):
         if not os.path.exists(os.path.join(assets, f)):
             raise SystemExit(f"assets 缺少 {f}，先运行 cloud_build.py / export_assets.py")
 
@@ -168,7 +169,8 @@ def build():
         names = z.namelist()
         for must in ("classes.dex", "assets/index.html", "assets/app.js", "assets/data.js",
                      "assets/cloud.js", "assets/cloud_snapshot.json", "assets/cloud_snapshot.js",
-                     "assets/photos.js", "assets/live.js", "assets/session.js", "assets/planner.js"):
+                     "assets/photos.js", "assets/live.js", "assets/session.js", "assets/planner.js",
+                     "assets/weather.js", "assets/ratings.js"):
             if must not in names:
                 raise SystemExit(f"APK 缺少 {must}")
         if not any(n.startswith("assets/photos/") for n in names):

@@ -48,8 +48,12 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.4
+ * 釜山 AI 旅行助手 v2.5
  *
+ * v2.5 新增天气能力：定位授权后按经纬度读取实况天气（Open-Meteo，免 Key），
+ * 按天气推荐更合适的景点；天气变化（转雨/降温/起风/降水概率上升）主动给建议；
+ * 景点与玩法的评级统一改成 5 星制。原生侧继续复用 LocationManager 与 fetchText 桥，
+ * 不新增系统权限（Android/iOS 都没有独立的“天气权限”，天气按位置取）。
  * v2.4 景点图片支持点按全屏查看：双指缩放、双击放大、单指拖动、左右切换；
  * 大图仍使用 APK 内置图片，离线可用。
  * v2.3 修复实时定位链路：GPS 按钮统一走原生 LocationManager；权限已授予时启动自动恢复
@@ -696,7 +700,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.4 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.5 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);
