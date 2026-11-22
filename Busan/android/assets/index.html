@@ -44,11 +44,26 @@
     position:absolute; right:10px; top:calc(100% - 2px); z-index:50;
     max-width:calc(100vw - 24px); padding:7px 11px; border-radius:10px;
     background:#0f2b33; color:#dff1f6; font-size:11px; line-height:1.45;
-    box-shadow:0 6px 18px rgba(8,24,30,.28); white-space:nowrap;
+    box-shadow:0 6px 18px rgba(8,24,30,.28); white-space:normal; text-align:right;
     overflow:hidden; text-overflow:ellipsis; pointer-events:none;
   }
+  /* v2.8：第二行放「几点 · 哪一段 · 最近哪个景点」，两行都不换行、超长省略 */
+  .wx-pill #wxText,.wx-pill .ctx{
+    display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis
+  }
+  .wx-pill .ctx{font-size:10.5px; opacity:.8; margin-top:2px}
   .wx-pill[hidden]{display:none}
   .wx-pill b{color:#f4c98a; font-weight:600}
+  /* v2.8 综合推荐：把「时间 / 天气 / 距离」三个来源摊成小胶囊，票根式一眼对齐 */
+  .mixrow{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 9px}
+  .mixchip{
+    display:inline-flex; align-items:center; gap:4px; border:1px solid #cfe3ea; background:#eef6f8;
+    color:var(--sea-dark); border-radius:999px; padding:3px 9px; font-size:11px; line-height:1.6;
+    max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis
+  }
+  .mixchip.t{background:#e4f4ee; border-color:#c6e8da; color:#1a6b4f}
+  .mixchip.w{background:#fdf2e2; border-color:#f0dcc0; color:#8a5a17}
+  .mixchip.d{background:#eef2f6; border-color:#dbe3ea; color:#41525f}
   .brand{display:flex; align-items:center; justify-content:space-between; gap:8px}
   .brand .tt{min-width:0; flex:1 1 auto}
   .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:.2px; line-height:1.2; white-space:normal; overflow-wrap:anywhere}
@@ -518,6 +533,12 @@
   body.night .wx-pill{
     background:#0a1a20; color:#dff1f6; box-shadow:0 8px 20px rgba(0,0,0,.5)
   }
+  body.night .mixchip{
+    background:#1b252e; border-color:#2c3a46; color:#9ad8e8
+  }
+  body.night .mixchip.t{background:#14312a; border-color:#22503f; color:#7fe0b6}
+  body.night .mixchip.w{background:#332617; border-color:#4c3a22; color:#f4bf7a}
+  body.night .mixchip.d{background:#1a232c; border-color:#2a3742; color:#a9bcc9}
   body.night .permact button{
     background:#1b252e; border-color:#2c3a46; color:#9ad8e8
   }
@@ -538,7 +559,7 @@
       <span class="wx-fab-tx" id="wxFabT">天气</span>
     </button>
   </div>
-  <div class="wx-pill" id="wxPill" hidden><span id="wxText"></span></div>
+  <div class="wx-pill" id="wxPill" hidden><span id="wxText"></span><span class="ctx" id="wxCtx"></span></div>
   <div class="toolrow">
     <div class="langs">
       <button data-lang="zh" class="on">中文</button>
@@ -767,6 +788,7 @@
 <script src="planner.js"></script>
 <script src="weather.js"></script>
 <script src="ratings.js"></script>
+<script src="mix.js"></script>
 <script>
 (function(){
   var E = window.BusanEngine, D = window.BUSAN_DATA, C = window.BusanCloud;
@@ -804,9 +826,10 @@
   /* ---------------- v2.5 天气 + 星级 ---------------- */
   var WX = window.BusanWeather || null;
   var RT = window.BusanRating || null;
+  var MX = window.BusanMix || null;            // v2.8：时间+天气+距离的综合排序
   var wxBusy = false, wxTimer = null, wxReady = false;
 
-  function wxSetLang(){ if (WX) WX.setLang(lang); if (RT) RT.setLang(lang); }
+  function wxSetLang(){ if (WX) WX.setLang(lang); if (RT) RT.setLang(lang); if (MX) MX.setLang(lang); }
   function wxState(){ return WX ? WX.state() : null; }
 
   /* v2.7：入口收成右上角一枚按钮，天气文字改成点开才露出的短气泡 */
@@ -825,12 +848,15 @@
     var tip = document.getElementById("wxFabT");
     var pill = document.getElementById("wxPill");
     var txt = document.getElementById("wxText");
+    var ctxEl = document.getElementById("wxCtx");
     var fab = document.getElementById("wxFab");
     if (!icon || !tip || !pill || !txt || !fab) return;
     wxSetLang();
     var w = wxState();
+    if (ctxEl) ctxEl.textContent = wxCtxLine();
     if (!w){
-      icon.textContent = "🌤";
+      var nowH = new Date().getHours();
+      icon.textContent = (MX && MX.nightOf(nowH)) ? "🌙" : "🌤";
       tip.textContent = L("天气", "날씨", "Weather");
       fab.classList.remove("on");
       txt.textContent = L("点一下获取天气（需要定位权限）",
@@ -843,6 +869,23 @@
     fab.classList.add("on");
     var t = wxUpdatedAt();
     txt.textContent = WX.banner(w) + (t ? " · " + L("更新 " + t, "업데이트 " + t, "updated " + t) : "");
+  }
+
+  /** 气泡第二行：现在几点、属于哪一段、最近收录景点有多远（没有坐标就只写时间）。 */
+  function wxCtxLine(){
+    if (!MX) return "";
+    var now = new Date();
+    var parts = [MX.hhmm(now), MX.bandName(MX.bandOf(now.getHours()))];
+    var pos = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+    var near = (pos && window.BusanCloud && BusanCloud.nearby) ? BusanCloud.nearby(pos.lat, pos.lng, 1) : [];
+    if (near && near.length){
+      parts.push(L("最近 " + BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + "km",
+        "최근접 " + BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + "km",
+        "nearest " + BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + "km"));
+    } else if (!pos){
+      parts.push(L("未定位", "위치 미확인", "no position"));
+    }
+    return parts.join(" · ");
   }
 
   function wxPillShow(autoHideMs){
@@ -1039,12 +1082,13 @@
 
   function wxPermissionCard(){
     var msg = bubbleFor({
-      tag: L("天气 · 需要定位权限", "날씨 · 위치 권한 필요", "Weather · location permission"),
-      text: L("手机系统没有单独的“天气权限”：天气是按经纬度取的，所以要读天气就得先允许定位（仅用于取天气和算距离，不上传）。\n\n点“允许定位并查看天气”，系统会弹一次授权。不想授权也可以：我会按釜山市区取天气，或者你在卡片里手动选晴 / 雨 / 大风。",
-        "휴대폰에는 별도의 '날씨 권한'이 없습니다. 날씨는 위·경도로 조회하므로 위치 권한이 필요합니다(날씨·거리 계산에만 사용).\n\n'위치 허용 후 날씨 보기'를 누르면 한 번 권한 창이 뜹니다. 허용하지 않아도 부산 시내 기준 또는 수동 선택으로 추천할 수 있습니다.",
-        "Phones have no separate “weather permission”: weather is fetched by coordinates, so location access is required (used only for weather and distance).\n\nTap “Allow location & show weather” for the one-time prompt. If you decline, I can still use downtown Busan or your manual pick (clear / rain / windy)."),
+      tag: L("综合推荐 · 需要定位权限", "종합 추천 · 위치 권한 필요", "Combined picks · location permission"),
+      text: L("手机系统没有单独的“天气权限”：天气是按经纬度取的，所以要读天气就得先允许定位（仅用于取天气、算距离和排顺序，不上传）。\n\n点“允许定位并继续”，系统会弹一次授权；允许后我按三步走：读你的坐标 → 取当地天气 → 结合手机当前时间，排出此刻先去哪三个。\n\n不想授权也可以：我会按釜山市区取天气，或者你在卡片里手动选晴 / 雨 / 大风。",
+        "휴대폰에는 별도의 '날씨 권한'이 없습니다. 날씨는 위·경도로 조회하므로 위치 권한이 먼저 필요합니다(날씨·거리 계산·순서 정리에만 사용, 업로드 없음).\n\n'위치 허용 후 계속'을 누르면 권한 창이 한 번 뜹니다. 허용하면 좌표 → 현지 날씨 → 현재 시각 순으로 계산해 지금 갈 세 곳을 정리합니다.\n\n허용하지 않아도 부산 시내 기준 날씨나 수동 선택으로 추천합니다.",
+        "Phones have no separate “weather permission”: weather comes from coordinates, so location access comes first (used only for weather, distance and ordering — nothing is uploaded).\n\nTap “Allow location & continue”; the system asks once. Then I read your coordinates → local weather → the current time on your phone, and rank three places to go now.\n\nIf you decline, I fall back to downtown Busan weather or your manual pick (clear / rain / windy)."),
       permissionPrompt: true,
       weatherGrant: true,
+      mixKind: "weather",
       q: "__weather__"
     });
     return msg;
@@ -1059,11 +1103,131 @@
     fetchWeather(msg, { force: true, notify: true });
   }
 
+  /* ---------------- v2.8 综合推荐：定位 → 天气 → 手机本地时间 ---------------- */
+
+  /** 天气按钮和“附近”共用同一张权限卡，只是开头交代的目的不同。 */
+  function mixPermissionCard(kind){
+    var near = kind === "nearby";
+    return bubbleFor({
+      tag: near ? L("附近推荐 · 需要定位权限", "주변 추천 · 위치 권한 필요", "Nearby picks · location permission")
+                : L("综合推荐 · 需要定位权限", "종합 추천 · 위치 권한 필요", "Combined picks · location permission"),
+      text: near
+        ? L("要按「离你多远 + 现在什么天气 + 现在几点」推荐附近去哪，得先读一次当前位置。\n\n点“允许定位并继续”，系统会弹一次授权；允许后我一次算完：最近的收录景点、当地天气、此刻更适合去的三个。\n\n不授权也行，我按釜山市区中心给一版，时间和天气照算，只是距离那一项不准。",
+            "‘얼마나 가까운지 + 지금 날씨 + 지금 시각’으로 주변을 추천하려면 현재 위치가 필요합니다.\n\n'위치 허용 후 계속'을 누르면 권한 창이 한 번 뜹니다. 허용하면 가까운 명소·현지 날씨·지금 갈 세 곳을 한 번에 정리합니다.\n\n허용하지 않아도 부산 시내 기준으로 시간·날씨는 계산합니다(거리만 부정확).",
+            "Ranking nearby places by distance + current weather + the time on your phone needs your location once.\n\nTap “Allow location & continue”; the system asks once. Then I compute the nearest covered spot, local weather and three places to go now.\n\nIf you decline, I use downtown Busan as the origin — time and weather still count, distance just won't be accurate.")
+        : L("要按「现在几点 + 当地天气 + 离你多远」给你排先去哪，得先读一次当前位置。\n\n点“允许定位并继续”，系统会弹一次授权；允许后我读坐标 → 取天气 → 结合手机时间，给出此刻的三个选择。\n\n不授权也行，我按釜山市区中心取天气，只按时间和天气排。",
+            "‘지금 시각 + 현지 날씨 + 거리’로 순서를 정하려면 현재 위치가 필요합니다.\n\n'위치 허용 후 계속'을 누르면 권한 창이 한 번 뜹니다. 허용하면 좌표 → 날씨 → 폰 시각 순으로 세 곳을 정리합니다.\n\n허용하지 않아도 부산 시내 기준으로 시간·날씨만으로 추천합니다.",
+            "Ranking where to go now by time on your phone + local weather + distance needs your location once.\n\nTap “Allow location & continue”; the system asks once. Then coordinates → weather → your phone's clock, three picks.\n\nIf you decline, I use downtown Busan weather and rank by time and weather only."),
+      permissionPrompt: true,
+      mixKind: near ? "nearby" : "weather",
+      q: near ? L("附近有什么可以去的", "주변에 갈 만한 곳", "What is nearby") : "__weather__"
+    });
+  }
+
+  /** 三个来源摊成小胶囊：时间 / 天气 / 距离。 */
+  function mixChips(pos, w){
+    var now = new Date();
+    var chips = [{ k: "t", t: MX.hhmm(now) + " " + MX.bandName(MX.bandOf(now.getHours())) }];
+    if (w) chips.push({ k: "w", t: ((WX.label(w.cls) || {}).icon || "") + " " + WX.clsName(w.cls) + " " + Math.round(w.temp) + "°C" });
+    else chips.push({ k: "w", t: L("天气未取到", "날씨 미확인", "no weather") });
+    var near = (pos && window.BusanCloud && BusanCloud.nearby) ? BusanCloud.nearby(pos.lat, pos.lng, 1) : [];
+    if (near.length) chips.push({ k: "d", t: L("最近 " + BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + " km",
+      "최근접 " + BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + " km",
+      BusanCloud.spotTitle(near[0].spot) + " " + near[0].km.toFixed(1) + " km") });
+    else if (!pos) chips.push({ k: "d", t: L("未定位", "위치 미확인", "not located") });
+    return chips;
+  }
+
+  /** 综合结论：一句话时间上下文 + 三条排序结果 + 一条方向性建议。 */
+  function mixResult(pos, w, opts){
+    opts = opts || {};
+    wxSetLang();
+    var now = new Date();
+    var ctx = MX.ctxOf({ pos: pos, w: w, hour: now.getHours(), at: now });
+    var rows = MX.ranked(ctx, 3);
+    var near = (pos && window.BusanCloud && BusanCloud.nearby) ? BusanCloud.nearby(pos.lat, pos.lng, 1) : [];
+    var lines = [];
+    // 时间/天气/距离已经在上面的三枚胶囊里写清楚了，正文不再重复，只写降级说明
+    if (!pos) lines.push(L("注：这次没拿到坐标，距离这一项不参与排序。", "참고: 좌표를 못 받아 거리 항목은 제외했습니다.", "Note: no position fix — distance was left out."));
+    else if (!near.length) lines.push(L("注：已定位，但 5 km 内没有收录景点，距离项只对更远的点生效。", "참고: 위치는 확인됐지만 5 km 내 수록 명소가 없습니다.", "Note: located, but no covered spot within 5 km."));
+    if (!w) lines.push(L("注：这次没取到天气，只有时间和距离在起作用。", "참고: 날씨를 못 받아 시간·거리만 반영했습니다.", "Note: weather unavailable — only time and distance counted."));
+    if (lines.length) lines.push("");
+    lines.push("**" + L("此刻先去这三个（时间 + 天气 + 距离）", "지금 갈 세 곳 (시간+날씨+거리)", "Three to go now (time + weather + distance)") + "**");
+    var choices = [];
+    rows.forEach(function(r, i){
+      var rr = null;
+      try { rr = RT ? RT.of(r.id) : null; } catch (e) { rr = null; }
+      var star = rr ? " " + RT.starsText(rr.score) + " " + rr.score.toFixed(1) : "";
+      lines.push((i + 1) + ". **" + r.name + "**" + star + " — " + (r.reasons.join(" · ") || L("常规推荐", "일반 추천", "General pick")));
+      choices.push({
+        spotId: r.id, name: r.name,
+        reason: r.reasons.join(" · "),
+        query: r.name + " " + L("怎么去", "어떻게 가나요", "how to get there")
+      });
+    });
+    lines.push("");
+    lines.push("**" + L("一句话建议", "한 줄 조언", "One-line tip") + "** · " + MX.advice(ctx));
+    var tips = w ? WX.tips(w).slice(0, 2) : [];
+    if (tips.length) lines.push(L("提醒", "알림", "Heads-up") + " · " + tips.join(" · "));
+    lines.push("");
+    // 只陈述规则，不断言当前配色——用户可手动锁白天/夜间，写死会自相矛盾
+    lines.push(L("界面按手机本地时间自动切昼夜：06:00–18:59 白天，19:00–05:59 夜间。",
+      "화면은 휴대폰 시각 기준으로 자동 전환됩니다: 06:00–18:59 주간, 19:00–05:59 야간.",
+      "The UI switches by your phone clock: daylight 06:00–18:59, night 19:00–05:59."));
+    return {
+      tag: opts.kind === "weather"
+        ? L("天气 · 综合推荐", "날씨 · 종합 추천", "Weather · combined picks")
+        : L("附近 · 综合推荐", "주변 · 종합 추천", "Nearby · combined picks"),
+      text: lines.join("\n"),
+      choices: choices,
+      followups: rows.map(function(r){ return r.name + " " + L("怎么去", "어떻게 가나요", "how to get there"); }),
+      mixChips: mixChips(pos, w),
+      wx: opts.kind === "weather",
+      kind: "mix",
+      concrete: true
+    };
+  }
+
+  /** 统一入口：有坐标就直接算，没坐标先走 ensure 申请一次定位，再取天气，再给结论。 */
+  function mixFlow(kind, reuseMsg){
+    kind = kind || "nearby";
+    if (!MX){                       // 极端情况：mix.js 没加载成功，退回旧路径
+      if (kind === "weather") grantWeather(); else locateOnce();
+      return;
+    }
+    var msg = reuseMsg || bubbleFor({
+      text: L("正在读位置、取天气、对时间…", "위치·날씨·시각을 확인하는 중…", "Reading location, weather and the clock…"),
+      loading: true
+    });
+    function withWeather(pos){
+      fetchWeather(null, { force: true, silent: true, notify: false, quiet: true, done: function(){
+        paintBubble(msg, mixResult(pos, wxState(), { kind: kind }));
+        wxPillShow(8000);
+      }});
+    }
+    var pos0 = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+    if (pos0){ withWeather(pos0); return; }
+    if (window.BusanLive && typeof BusanLive.ensure === "function"){
+      BusanLive.ensure(function(pos, why){
+        if (pos){ withWeather(pos); return; }
+        fetchWeather(null, { force: true, silent: true, notify: false, quiet: true, done: function(){
+          paintBubble(msg, mixResult(null, wxState(), { kind: kind, why: why }));
+        }});
+      }, 15000);
+      return;
+    }
+    withWeather(null);
+  }
+
   function fetchWeather(msg, opts){
     opts = opts || {};
-    if (!WX) return;
+    if (!WX) { if (opts.done) opts.done(null); return; }
     wxSetLang();
-    if (wxBusy && !opts.force) return;
+    if (wxBusy && !opts.force){
+      // 已有一次请求在飞：综合流程不干等，1.2 秒后拿当时的状态继续
+      if (opts.done) setTimeout(function(){ opts.done(wxState()); }, 1200);
+      return;
+    }
     if (!msg && !opts.silent){
       msg = bubbleFor({ text: L("正在读取手机天气…", "휴대폰 날씨를 읽는 중…", "Reading the weather…"), loading: true });
     }
@@ -1071,6 +1235,7 @@
     WX.refresh(function(err, w, changes){
       wxBusy = false;
       if (err || !w){
+        if (opts.quiet){ paintWxBar(); if (opts.done) opts.done(null); return; }
         if (msg) paintBubble(msg, {
           tag: L("天气", "날씨", "Weather"),
           text: L("暂时拿不到天气：现在没有网络，或天气接口不可达。\n\n可以先用下面的手动天气做推荐；联网后点“重新获取实时天气”。",
@@ -1091,6 +1256,7 @@
       }
       paintWxBar();
       if (msg) wxPillShow(10000);       // v2.7：取到天气后先露 10 秒，再自己收
+      if (opts.done) opts.done(w);
       if (changes && changes.length && opts.notify) wxNotify(changes, w);
     });
   }
@@ -1547,6 +1713,13 @@
     if (!result.loading && result.wxNote){
       html += '<div class="wxnote"><span>' + esc(result.wxNote) + "</span></div>";
     }
+    if (!result.loading && result.mixChips && result.mixChips.length){
+      html += '<div class="mixrow">';
+      result.mixChips.forEach(function(c){
+        html += '<span class="mixchip ' + esc(c.k || "") + '">' + esc(c.t) + "</span>";
+      });
+      html += "</div>";
+    }
     if (!result.loading) html += photosHtml(result);
     html += result.loading ? esc(result.text) + '<span class="ell">…</span>' : md(result.text);
     if (!result.loading && result.spotId) html += ratingHtml(result.spotId);
@@ -1611,7 +1784,8 @@
     }
     var grantBtn = m.querySelector(".act-grant");
     if (grantBtn) grantBtn.onclick = function(){
-      if (result.weatherGrant) grantWeather();
+      if (result.mixKind) mixFlow(result.mixKind);
+      else if (result.weatherGrant) grantWeather();
       else if (result.nearbyGrant) grantNearby(result.q);
       else grantRoute(result.q, result.spot);
     };
@@ -2218,20 +2392,17 @@
     locateOnce();
   };
 
+  /* v2.8：“附近”也先问权限，再统一走「定位 → 天气 → 时间」的综合推荐。 */
   document.getElementById("gps").onclick = function(){
     if (locWaiting || locBusy) return;
-    if (window.BusanHost && typeof window.BusanHost.requestLocation === "function"){
-      locWaiting = true;
-      window.BusanHost.requestLocation();
-      setTimeout(function(){
-        if (locWaiting) { locWaiting = false; locateOnce(); }
-      }, 2000);
-    } else {
-      locateOnce();
-    }
+    var pos = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+    var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
+    if (pos || perm === "granted"){ mixFlow("nearby"); return; }
+    mixPermissionCard("nearby");     // 没有授权：先说明、再让用户点“允许”
   };
 
-  /* v2.7：右上角天气按钮 —— 有数据就先露 8 秒；没数据先问权限再申请。 */
+  /* v2.8：右上角天气按钮 —— 没数据先问权限，再「定位 → 天气 → 时间」一步给结论。
+     有数据只露 8 秒气泡，不再重复授权。 */
   document.getElementById("wxFab").onclick = function(){
     wxSetLang();
     var w = wxState();
@@ -2239,7 +2410,7 @@
     var perm = window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown";
     if (perm === "granted"){
       wxPillShow();
-      fetchWeather(null, { force: true, notify: true });
+      mixFlow("weather");
       return;
     }
     wxPermissionCard();          // 先说明为什么要定位，再让用户点“允许”触发系统授权
@@ -2376,7 +2547,23 @@
     weatherPermission: function(){ return window.BusanLive && BusanLive.permission ? BusanLive.permission() : "unknown"; },
     rating: function(id){ return RT ? RT.of(id) : null; },
     rate: function(id, n){ return RT ? RT.setUser(id, n) : 0; },
-    categoriesRating: function(){ return RT ? RT.categorySummary() : []; }
+    categoriesRating: function(){ return RT ? RT.categorySummary() : []; },
+    /* v2.8 综合推荐：时间 / 天气 / 位置三件事的对外入口 */
+    mix: function(opts){
+      if (!MX) return [];
+      var pos = window.BusanLive && BusanLive.position ? BusanLive.position() : (opts && opts.pos) || null;
+      var ctx = MX.ctxOf({ pos: pos, w: wxState(), hour: opts && opts.hour });
+      return MX.ranked(ctx, (opts && opts.n) || 3);
+    },
+    mixCard: function(opts){
+      if (!MX) return null;
+      var pos = window.BusanLive && BusanLive.position ? BusanLive.position() : null;
+      return mixResult(pos, wxState(), { kind: (opts && opts.kind) || "nearby" });
+    },
+    mixContext: function(){ return MX ? MX.contextLine(MX.ctxOf({ pos: window.BusanLive && BusanLive.position ? BusanLive.position() : null, w: wxState() })) : ""; },
+    mixAdvice: function(){ return MX ? MX.advice(MX.ctxOf({ pos: window.BusanLive && BusanLive.position ? BusanLive.position() : null, w: wxState() })) : ""; },
+    timeBand: function(hour){ return MX ? MX.bandOf(hour) : ""; },
+    startMix: function(kind){ mixFlow(kind || "nearby"); }
   };
 
   /* ---------------- v2.7 昼夜主题（按本地时间，19:00–06:00 为夜间） ---------------- */

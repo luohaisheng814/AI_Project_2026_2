@@ -40,7 +40,7 @@ ok("气泡: 聊天区绑定 scroll", /chatEl\.addEventListener\("scroll", wxPill
 
 /* 3. 权限询问流程 */
 ok("权限: 无数据先给权限卡", /wxPermissionCard\(\);[\s\S]{0,40}\/\/ 先说明为什么要定位/.test(html));
-ok("权限: 已授权直接取", /perm === "granted"[\s\S]{0,80}fetchWeather\(null, \{ force: true, notify: true \}\)/.test(html));
+ok("权限: 已授权直接进综合流程", /perm === "granted"[\s\S]{0,80}mixFlow\("weather"\)/.test(html));
 ok("权限: 有数据只露气泡不再重复授权", /if \(w\)\{ wxPillShow\(\); return; \}/.test(html));
 ok("权限: 卡片说明“没有天气权限”", /没有单独的“天气权限”/.test(html));
 ok("权限: 允许按钮走原生授权", /grantWeather\(\)/.test(html) && /BusanLive\.ensure/.test(html));
@@ -59,9 +59,9 @@ ok("昼夜: class 切换", /document\.body\.classList\.toggle\("night", night\)/
 ok("昼夜: BusanUI 暴露", /isNight: function|themeMode: function/.test(html));
 
 /* 5. 版本与双端同步 */
-ok("版本: APK 20 / 2.7", /android:versionCode="20"/.test(apkMan) && /android:versionName="2\.7"/.test(apkMan));
-ok("版本: 原生 UA 2.7", /BusanTour\/2\.7 \(Android\)/.test(native));
-ok("版本: iOS 2.7 / 20", /MARKETING_VERSION: "2\.7"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "20"/.test(iosYml));
+ok("版本: APK 21 / 2.8（v2.7 起的版本链路）", /android:versionCode="21"/.test(apkMan) && /android:versionName="2\.8"/.test(apkMan));
+ok("版本: 原生 UA 2.8", /BusanTour\/2\.8 \(Android\)/.test(native));
+ok("版本: iOS 2.8 / 21", /MARKETING_VERSION: "2\.8"/.test(iosYml) && /CURRENT_PROJECT_VERSION: "21"/.test(iosYml));
 ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
 
 /* 6. 既有能力不回退 */
@@ -69,7 +69,7 @@ ok("版本: 无 2.6 残留 UA", !/BusanTour\/2\.6/.test(native));
   ok("保留: " + k, html.indexOf(k) > -1);
 });
 ok("保留: PWA manifest", fs.existsSync(path.join(A, "manifest.webmanifest")));
-ok("保留: service worker", sw.indexOf("busan-2.7") > -1);
+ok("保留: service worker", sw.indexOf("busan-2.8") > -1);
 ok("保留: 深色下官网链接可读", /body\.night \.official \.ol a/.test(html));
 ok("夜间: 有天气时按钮仍是橙底", /body\.night \.wx-fab\.on\{[\s\S]{0,120}#f0a94c/.test(html));
 ok("夜间: 权限按钮不发白", /body\.night \.permact button\{/.test(html));

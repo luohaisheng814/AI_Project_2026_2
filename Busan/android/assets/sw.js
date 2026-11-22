@@ -1,7 +1,7 @@
-/* 釜山 AI 旅行助手 · PWA service worker（v2.6）
+/* 釜山 AI 旅行助手 · PWA service worker（v2.8）
  * 只缓存同源静态资源；天气接口（Open-Meteo）与云端库始终走网络，避免给用户过期数据。
  */
-const CACHE = 'busan-2.7';
+const CACHE = 'busan-2.8';
 const SHELL = [
   './',
   './index.html',
@@ -17,7 +17,8 @@ const SHELL = [
   './session.js',
   './planner.js',
   './weather.js',
-  './ratings.js'
+  './ratings.js',
+  './mix.js'
 ];
 
 self.addEventListener('install', function (event) {

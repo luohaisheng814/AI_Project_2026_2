@@ -48,8 +48,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.7
+ * 釜山 AI 旅行助手 v2.8
  *
+ * v2.8 综合推荐：天气按钮与“附近”统一走「先问权限 → 申请系统定位 → 读当地天气 → 结合手机
+ * 本地时间排序」，结论用「时间 / 天气 / 距离」三枚胶囊交代依据；原生壳只提供坐标，不参与打分。
  * v2.7 天气入口重构：右上角一枚圆形按钮，点一下先说明为何要定位、再触发系统授权；
  * 取到后只在页头下方露 10 秒，往上翻旧内容/开弹层/切后台即自动收起。
  * 页面按本地时间切昼夜（19:00–06:00 为夜间），昼夜两套配色都在前端 CSS 里，原生壳不改。
@@ -706,7 +708,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.7 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.8 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

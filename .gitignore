@@ -37,3 +37,13 @@ Busan/apk_build/_chrome_probe*/
 
 # 探针临时裁图
 Busan/apk_build/_crop_*.png
+
+# 临时脚本与临时文本（探针脚本本身仍单独入库）
+Busan/apk_build/_inline*.js
+Busan/apk_build/_index_inline.js
+Busan/apk_build/_chk*.py
+Busan/apk_build/_chk*.txt
+Busan/apk_build/_p.js
+Busan/apk_build/_t1.txt
+Busan/apk_build/_e1.txt
+Busan/apk_build/_zip*.txt
