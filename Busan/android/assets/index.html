@@ -55,8 +55,11 @@
   .wx-pill[hidden]{display:none}
   .wx-pill b{color:#f4c98a; font-weight:600}
   /* v2.8 综合推荐：把「时间 / 天气 / 距离」三个来源摊成小胶囊，票根式一眼对齐 */
-  .mixrow{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 9px}
+  .mixrow{display:flex; flex-wrap:nowrap; gap:6px; margin:0 0 9px; overflow-x:auto; padding-bottom:2px;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .mixrow::-webkit-scrollbar{display:none}
   .mixchip{
+    flex:0 0 auto;
     display:inline-flex; align-items:center; gap:4px; border:1px solid #cfe3ea; background:#eef6f8;
     color:var(--sea-dark); border-radius:999px; padding:3px 9px; font-size:11px; line-height:1.6;
     max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis
@@ -195,6 +198,33 @@
   .lb-cap{font-size:12.5px; color:#eaf4f7; line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
   .lb-hint{font-size:10.5px; color:#8fb7c4; margin-top:4px; line-height:1.4}
   .quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  /* v2.9 个性化推荐：可收起/展开 + 单行横向滚动，纵向占地从三行收到一行（乃至一条） */
+  .qrec{margin-top:9px; border:1px solid var(--line); border-radius:12px; background:#f9fcfd; overflow:hidden}
+  .qrec-head{
+    width:100%; display:flex; align-items:center; gap:8px; border:0; background:transparent;
+    padding:7px 10px; color:var(--ink); text-align:left; min-height:38px;
+  }
+  .qrec-title{flex:0 0 auto; font-size:11.5px; font-weight:600; color:var(--sea-dark)}
+  .qrec-sum{flex:1 1 auto; min-width:0; font-size:11px; color:var(--muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .qrec-act{flex:0 0 auto; font-size:11px; color:var(--sea); border:1px solid #cfe3ea;
+    border-radius:12px; padding:3px 9px; background:#eef7fa; white-space:nowrap}
+  .qrec-body{
+    max-height:0; opacity:0; overflow:hidden; padding:0 0 0 10px;
+    transition:max-height .26s ease, opacity .18s ease;
+  }
+  .qrec.open .qrec-body{max-height:76px; opacity:1}
+  .qrec.open{padding-bottom:8px}
+  .qrec-body .quick{flex-wrap:nowrap; overflow-x:auto; margin-top:0; padding:0 12px 5px 0;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity}
+  .qrec-body .quick::-webkit-scrollbar{display:none}
+  .qrec-body .pick{flex:0 0 auto; scroll-snap-align:start; max-width:78vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  /* 右侧渐隐提示“还能往右滑” */
+  .qrec-scrollwrap{position:relative}
+  .qrec-scrollwrap::after{
+    content:""; position:absolute; right:0; top:0; bottom:5px; width:22px; pointer-events:none;
+    background:linear-gradient(to right, rgba(249,252,253,0), #f9fcfd);
+  }
   #followups[hidden]{display:none}
   .dot.pulse{animation:pulse 1.1s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
@@ -348,9 +378,13 @@
     background:#f7fafb; border-left:3px solid var(--sea); border-radius:0 8px 8px 0;
     font-size:11.5px; color:#3f5563; line-height:1.5;
   }
-  .wxchips{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center}
-  .wxchips .wxlab{font-size:11px; color:var(--muted); margin-right:1px}
+  /* v2.9 手动天气 chip 也改单行横滑，卡内纵向从 3 行收到 1 行 */
+  .wxchips{display:flex; flex-wrap:nowrap; gap:5px; margin-top:8px; align-items:center; overflow-x:auto;
+    padding-bottom:3px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .wxchips::-webkit-scrollbar{display:none}
+  .wxchips .wxlab{flex:0 0 auto; font-size:11px; color:var(--muted); margin-right:1px; white-space:nowrap}
   .wxchips button{
+    flex:0 0 auto;
     border:1px solid #e3e8ec; background:#fff; color:#44515f; border-radius:10px;
     padding:4px 8px; font-size:11.5px; line-height:1.2;
   }
@@ -430,6 +464,18 @@
   }
   body.night .chip{
     background:#1a242d; border-color:#2b3844; color:var(--ink)
+  }
+  /* v2.9 个性化推荐栏夜间配色 */
+  body.night .qrec{
+    background:#151e26; border-color:#2b3844
+  }
+  body.night .qrec-title{color:#a9dcec}
+  body.night .qrec-act{background:#1b2732; border-color:#2c3a46; color:#bfe2ee}
+  body.night .qrec-scrollwrap::after{
+    background:linear-gradient(to right, rgba(21,30,38,0), #151e26)
+  }
+  body.night .qrec .pick{
+    background:#1a242d; border-color:#2b3844; color:#cfe6ef
   }
   body.night .chip.on{
     background:var(--sea); border-color:var(--sea); color:#08131a
@@ -2239,6 +2285,33 @@
     if (lastRes) renderFollowups(lastRes);
   }
 
+  /* ---------------- v2.9 个性化推荐条：可收起/展开 + 单行横向滚动 ---------------- */
+  var qrecOpen = false;
+  try { qrecOpen = localStorage.getItem("busan_qrec") === "1"; } catch(e){}
+  function qrecPaint(){
+    var box = document.getElementById("qrec");
+    var head = document.getElementById("qrecToggle");
+    var sum = document.getElementById("qrecSum");
+    var act = document.getElementById("qrecAct");
+    if (!box) return;
+    box.classList.toggle("open", qrecOpen);
+    if (head) head.setAttribute("aria-expanded", qrecOpen ? "true" : "false");
+    if (act) act.textContent = qrecOpen ? L("收起", "접기", "Hide") : L("展开", "펼치기", "Show");
+    if (sum) sum.textContent = qrecOpen
+      ? L("5 个点子 · 左右滑动看更多", "5가지 · 좌우로 넘겨 보기", "5 ideas · swipe for more")
+      : L("5 个点子 · 展开后单行横滑", "5가지 · 펼치면 한 줄", "5 ideas · one row when open");
+  }
+  function setQrec(open){
+    qrecOpen = !!open;
+    try { localStorage.setItem("busan_qrec", qrecOpen ? "1" : "0"); } catch(e){}
+    qrecPaint();
+  }
+  function initQrec(){
+    var head = document.getElementById("qrecToggle");
+    if (head) head.onclick = function(){ setQrec(!qrecOpen); };
+    qrecPaint();
+  }
+
   function greet(){
     var box = document.createElement("div");
     box.className = "msg bot";
@@ -2257,22 +2330,34 @@
       welcomeBack = null;
     }
     box.innerHTML = '<div class="bubble">' + md(intro) +
-      '<div class="quick">' + quick.map(function(q, i){
-        var attr = (i === quick.length - 1) ? ' data-wx="1"' : ' data-q="' + esc(q) + '"';
-        return '<button class="pick"' + attr + '>' + esc(q) + "</button>";
-      }).join("") +
-      "</div></div>";
+      '<div class="qrec" id="qrec" data-count="' + quick.length + '">' +
+        '<button class="qrec-head" id="qrecToggle" type="button" aria-expanded="false" aria-controls="qrecBody">' +
+          '<span class="qrec-title">' + esc(L("个性化推荐", "맞춤 추천", "Picks for you")) + '</span>' +
+          '<span class="qrec-sum" id="qrecSum"></span>' +
+          '<span class="qrec-act" id="qrecAct"></span>' +
+        '</button>' +
+        '<div class="qrec-body" id="qrecBody"><div class="qrec-scrollwrap"><div class="quick">' +
+          quick.map(function(q, i){
+            var attr = (i === quick.length - 1) ? ' data-wx="1"' : ' data-q="' + esc(q) + '"';
+            return '<button class="pick"' + attr + '>' + esc(q) + "</button>";
+          }).join("") +
+        "</div></div></div></div></div>";
     chat.appendChild(box);
     box.querySelectorAll(".pick").forEach(function(b){
       if (b.getAttribute("data-wx")){
         b.onclick = function(){
+          if (qrecOpen) setQrec(false);
           var fab = document.getElementById("wxFab");
           if (fab && fab.onclick) fab.onclick(); else wxNotify();
         };
         return;
       }
-      b.onclick = function(){ ask(b.getAttribute("data-q")); };
+      b.onclick = function(){
+        if (qrecOpen) setQrec(false);
+        ask(b.getAttribute("data-q"));
+      };
     });
+    initQrec();
     var res = {text: "", followups: []};
     renderFollowups(res);
   }

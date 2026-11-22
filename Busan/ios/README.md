@@ -1,4 +1,4 @@
-# iOS 版（v2.8）构建与安装说明
+# iOS 版（v2.9）构建与安装说明
 
 iOS 版和 Android 版共用**同一套前端**：`Busan/android/assets/`（`index.html`、`app.js`、`cloud.js`、
 `weather.js`、`ratings.js`、`photos.js`、54 张实景图等）。壳只是把这份资源装进 WKWebView，
@@ -13,7 +13,7 @@ iOS 版和 Android 版共用**同一套前端**：`Busan/android/assets/`（`ind
 
 > iOS 不允许侧载未签名 App，Windows 上也编不出 `.ipa`；本仓库的 macOS Actions runner
 > 实测三次都是 `cancelled / 0 steps`（账号侧不可用），所以本轮交付 PWA 作为可安装产物，
-> 同时把 Xcode 工程升到 2.8 等有 Mac 时直接出包。
+> 同时把 Xcode 工程升到 2.9 等有 Mac 时直接出包。
 
 
 ## 目录
