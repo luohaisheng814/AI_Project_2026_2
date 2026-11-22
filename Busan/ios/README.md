@@ -1,8 +1,20 @@
-# iOS 版（v2.5）构建与安装说明
+# iOS 版（v2.6）构建与安装说明
 
 iOS 版和 Android 版共用**同一套前端**：`Busan/android/assets/`（`index.html`、`app.js`、`cloud.js`、
 `weather.js`、`ratings.js`、`photos.js`、54 张实景图等）。壳只是把这份资源装进 WKWebView，
 并把网页需要的 `BusanHost` 桥补齐（取网络文本、定位授权与坐标回传、打开系统设置）。
+
+## 现在能装的两个形态
+
+| 形态 | 需要什么 | 说明 |
+| --- | --- | --- |
+| **PWA（推荐，立即可用）** | iPhone + Safari | 打开 `https://luohaisheng814.github.io/AI_Project_2026_2/` → 分享 → “添加到主屏幕”。有图标、全屏、可离线，前端与 APK 完全同源 |
+| **真 `.ipa`** | macOS + Xcode（或能跑 macOS runner 的 CI） | 用本目录工程编译；未签名包需 AltStore / Sideloadly 自签 |
+
+> iOS 不允许侧载未签名 App，Windows 上也编不出 `.ipa`；本仓库的 macOS Actions runner
+> 实测三次都是 `cancelled / 0 steps`（账号侧不可用），所以本轮交付 PWA 作为可安装产物，
+> 同时把 Xcode 工程升到 2.6 等有 Mac 时直接出包。
+
 
 ## 目录
 

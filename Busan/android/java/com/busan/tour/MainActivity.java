@@ -48,8 +48,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * 釜山 AI 旅行助手 v2.5
+ * 釜山 AI 旅行助手 v2.6
  *
+ * v2.6 手机 UI 收口：跟随系统的深色模式、平板/宽屏单列居中、触控目标与输入框字号
+ * 按移动端规范校正（iOS 聚焦不再自动放大）、窄屏内边距收紧；assets 内新增 PWA 元信息、
+ * 应用图标、manifest 与 sw.js，原生壳与 iOS 壳共用同一套前端，两端版本号同步为 2.6。
  * v2.5 新增天气能力：定位授权后按经纬度读取实况天气（Open-Meteo，免 Key），
  * 按天气推荐更合适的景点；天气变化（转雨/降温/起风/降水概率上升）主动给建议；
  * 景点与玩法的评级统一改成 5 星制。原生侧继续复用 LocationManager 与 fetchText 桥，
@@ -700,7 +703,7 @@ public class MainActivity extends Activity {
                         conn.setRequestProperty("Authorization", "Bearer " + llmKey());
                     }
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setRequestProperty("User-Agent", "BusanTour/2.5 (Android)");
+                    conn.setRequestProperty("User-Agent", "BusanTour/2.6 (Android)");
                     byte[] bytes = payload.toString().getBytes("UTF-8");
                     OutputStream os = conn.getOutputStream();
                     os.write(bytes);

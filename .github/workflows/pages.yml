@@ -1,0 +1,36 @@
+name: Deploy Web App (PWA)
+
+# 把 Busan/android/assets 这一套前端发布到 GitHub Pages：
+# iPhone / iPad 用 Safari 打开页面 → 分享 → “添加到主屏幕”，即可得到
+# 有图标、全屏、可离线的 App（同一份 assets，与 APK 同版本）。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Busan/android/assets/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: Busan/android/assets
+      - id: deployment
+        uses: actions/deploy-pages@v4

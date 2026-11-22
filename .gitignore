@@ -31,3 +31,9 @@ third_party/
 
 # 无头 Chrome 探针临时目录
 Busan/apk_build/_chrome_probe/
+
+# 无头 Chrome 探针临时目录（各版本）
+Busan/apk_build/_chrome_probe*/
+
+# 探针临时裁图
+Busan/apk_build/_crop_*.png

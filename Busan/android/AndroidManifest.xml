@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.busan.tour"
-    android:versionCode="18"
-    android:versionName="2.5">
+    android:versionCode="19"
+    android:versionName="2.6">
 
-    <!-- v2.5：手机端新增天气能力——授予定位后按经纬度读取实况天气（Open-Meteo，免 Key），
+    <!-- v2.6：手机 UI 收口——跟随系统的深色模式、平板/宽屏单列居中、触控目标与输入框
+         字号按移动端规范校正（iOS 聚焦不再自动放大）、窄屏内边距收紧；新增 PWA 元信息、
+         应用图标（180/192/512/1024）、manifest 与离线 service worker，iPhone 可直接
+         “添加到主屏幕”安装同一套界面；欢迎语新增“今天天气适合去哪”入口。
+         v2.5：手机端新增天气能力——授予定位后按经纬度读取实况天气（Open-Meteo，免 Key），
          按天气推荐更合适的景点；天气变化（转雨/降温/起风/降水概率上升）主动给建议；
          景点与玩法评级统一改成 5 星制（玩法/景观/便利/性价比四项 + 用户自评）；
          同时提供 iOS（WKWebView）壳工程与 CI，复用同一套 assets。

@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a4e63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="釜山助手">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>釜山 AI 旅行助手</title>
 <style>
   :root{
@@ -347,6 +355,79 @@
   .rating .rmine button.on{background:#f0a94c; border-color:#f0a94c; color:#fff}
   .rating .rmsg{font-size:10.5px; color:var(--ok)}
   .cstars{display:inline-block; font-size:10.5px; color:#b8860b; margin-left:4px; vertical-align:1px}
+
+  /* ---------- v2.6：手机 UI 收口 ---------- */
+  html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
+  body{overscroll-behavior-y:none}
+  /* 触控目标：表单控件不小于 40px，横向 chip 不小于 34px */
+  #q{font-size:16px}                       /* iOS 聚焦时 <16px 会自动放大页面 */
+  .send,.icon-btn{min-height:40px}
+  .chip{padding:8px 12px; min-height:34px}
+  .pick{padding:7px 10px; min-height:34px}
+  #liveBtn,#wxBtn{min-height:34px; min-width:56px}
+  .permact button,.wxacts button{min-height:40px}
+  .choice{min-height:44px}
+  .rating .rmine button{width:28px; height:28px}
+  /* 窄屏再收一点内边距，避免 360px 机型横向溢出 */
+  @media (max-width:360px){
+    header{padding:8px 10px 7px}
+    #chat{padding:10px 9px 4px}
+    .bubble{max-width:92%; padding:9px 10px}
+    .photostrip figure,.photostrip img{width:112px}
+    .photostrip img{height:76px}
+  }
+  /* 平板 / 桌面：单列居中，不把气泡拉到整屏 */
+  @media (min-width:700px){
+    body{max-width:560px; margin:0 auto; box-shadow:0 0 44px rgba(12,32,44,.16)}
+    #chat{padding:14px 14px 8px}
+    .bubble{max-width:86%}
+  }
+  /* 深色模式：跟随系统，不改结构 */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --sand:#0d1319; --ink:#e8eff4; --muted:#93a1ad; --line:#28343f; --bubble:#18212a;
+      --sea:#3aa6c4; --sea-dark:#9ad8e8; --user:#176d86; --ok:#39b98a; --off:#d08a58;
+    }
+    body{background:#0d1319; color:var(--ink)}
+    header{background:linear-gradient(135deg,#0d5a70,#072e3c)}
+    .selectors,.livebar,.wxbar,#followups,footer{background:#111a21; border-color:var(--line)}
+    .selectors{border-bottom:1px solid var(--line)}
+    .livebar{border-bottom:1px solid var(--line)}
+    .wxbar{background:#151d24; border-bottom:1px solid #2a3540; color:#c8d5df}
+    .chip{background:#1a242d; border-color:#2b3844; color:var(--ink)}
+    .chip.on{background:var(--sea); border-color:var(--sea); color:#08131a}
+    #liveBtn,#wxBtn{background:#1b252e; border-color:#2c3a46; color:#cfe6ef}
+    #wxBtn.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
+    #q{background:#1a232c; border-color:#2b3844; color:var(--ink)}
+    .icon-btn{background:#1e2a34; color:#bfe2ee}
+    .bubble{background:#18212a; box-shadow:0 1px 3px rgba(0,0,0,.45)}
+    .bubble h3,.bubble strong,.bubble .foot .src{color:#a9dcec}
+    .badge{background:#20313c; color:#a9dcec}
+    .badge.off{background:#3a2a1d; color:#e8b083}
+    .pick{background:#1b252e; border-color:#2c3a46; color:#bfe2ee}
+    .card,.choice,.routeopt,.official,.rating,.lastplan,.cloudllm{background:#1a242d; border-color:#2b3844; color:var(--ink)}
+    .choice:active{background:#22303b}
+    .card .cn,.choice .cname,.routeopt b{color:#bfe2ee}
+    .rating .rtop b{color:#f0c072}
+    .rating .rsub,.rating .rmine{color:#aab6c0}
+    .rating .rmine button{background:#222d37; border-color:#33424f; color:#f0c072}
+    .wxchips button{background:#1e2a34; border-color:#2c3a46; color:#c9d6e0}
+    .wxchips button.on{background:#f0a94c; border-color:#f0a94c; color:#241a08}
+    .wxnote{background:#18242d; border-left-color:var(--sea); color:#b9cad6}
+    .official .ol{color:#98a6b2}
+    .official .ol a,.card .cb a,.bubble a{color:#7fc9de}
+    .choice .ctag{background:#1d3a46; color:#8fd0e2}
+    .field input,.field select{background:#1a232c; border-color:#2b3844; color:var(--ink)}
+    .sheet{background:#141d25}
+    .sheet .desc,.fine,.llmnote,.prefs-title{color:#9aa8b4}
+    .tabs{background:#1a242d}
+    .tabs button.on{background:#243240; color:#dbe9f1; box-shadow:none}
+    .ghost{background:#1a242d; border-color:#2b3844; color:#c4d2dc}
+    .modal{background:rgba(0,0,0,.62)}
+    .photostrip img{background:#22303a; border-color:#2a3742}
+    .hint{color:#8794a0}
+    .stars .sbg{color:#3c4854}
+  }
 </style>
 </head>
 <body>
@@ -1839,7 +1920,8 @@
       lang === "zh" ? "半天想拍照，少走路，帮我安排" : lang === "ko" ? "반나절 사진, 덜 걷기, 일정 짜줘" : "Half day, photos, less walking — plan it",
       lang === "zh" ? "甘川文化村 交通" : lang === "ko" ? "감천문화마을 교통" : "Gamcheon Culture Village transport",
       lang === "zh" ? "傍晚想看海边日落" : lang === "ko" ? "저녁에 바다 일몰 보고 싶어" : "I want a seaside sunset this evening",
-      lang === "zh" ? "长林浦口 拍照" : lang === "ko" ? "장림포구 사진" : "Jangnim Port photo spots"
+      lang === "zh" ? "长林浦口 拍照" : lang === "ko" ? "장림포구 사진" : "Jangnim Port photo spots",
+      lang === "zh" ? "今天天气适合去哪" : lang === "ko" ? "오늘 날씨에 어디가 좋아" : "Where to go in this weather"
     ];
     var intro = T("welcome");
     if (welcomeBack){
@@ -1849,10 +1931,20 @@
       welcomeBack = null;
     }
     box.innerHTML = '<div class="bubble">' + md(intro) +
-      '<div class="quick">' + quick.map(function(q){ return '<button class="pick" data-q="' + esc(q) + '">' + esc(q) + "</button>"; }).join("") +
+      '<div class="quick">' + quick.map(function(q, i){
+        var attr = (i === quick.length - 1) ? ' data-wx="1"' : ' data-q="' + esc(q) + '"';
+        return '<button class="pick"' + attr + '>' + esc(q) + "</button>";
+      }).join("") +
       "</div></div>";
     chat.appendChild(box);
     box.querySelectorAll(".pick").forEach(function(b){
+      if (b.getAttribute("data-wx")){
+        b.onclick = function(){
+          var wb = document.getElementById("wxBtn");
+          if (wb && wb.onclick) wb.onclick(); else wxNotify();
+        };
+        return;
+      }
       b.onclick = function(){ ask(b.getAttribute("data-q")); };
     });
     var res = {text: "", followups: []};
@@ -2142,6 +2234,13 @@
   initWeather();
   reloadCloud(false);
   if (window.BusanAuth) BusanAuth.init();
+
+  // v2.6：网页版（GitHub Pages）注册离线缓存；APK 内是 file://，自动跳过。
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){ });
+    });
+  }
 })();
 </script>
 </body>
