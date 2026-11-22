@@ -176,6 +176,11 @@ final class BusanViewController: UIViewController, WKScriptMessageHandler, WKUID
 
     // MARK: - 导航与外部链接
 
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // 页面脚本就绪后再同步一次授权状态：已授权时 live.js / 天气条会自动接管。
+        pushAuthState()
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
