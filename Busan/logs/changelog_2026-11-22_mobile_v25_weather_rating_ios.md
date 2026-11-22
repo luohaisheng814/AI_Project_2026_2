@@ -258,9 +258,10 @@ iOS 端和 Android 共用同一套 `android/assets/`：新增 `Busan/ios/` 的 W
 
 ## 七、提交与推送
 
-- 代码与产物提交：`<待回填>`
+- 代码与产物提交：`e4c0c4f118ab48111161ed4dbc6192d8620a11ff`
 - 远端：`https://github.com/luohaisheng814/AI_Project_2026_2.git`，分支 `main`
 - 上一版 v2.4：`a84ea420fd6905f0119d847257674a3a757c0759`
-- 推送结果：`<待回填>`
+- 推送结果：`ea97d01..e4c0c4f  main -> main`
+- 对比页：<https://github.com/luohaisheng814/AI_Project_2026_2/compare/a84ea420fd6905f0119d847257674a3a757c0759...e4c0c4f118ab48111161ed4dbc6192d8620a11ff>
 
 > 日志回填提交为紧随其后的 `docs` 提交；代码与产物的正式提交是上面这条 `feat(mobile): v2.5 …`。
